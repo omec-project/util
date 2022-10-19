@@ -128,7 +128,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 		bsonBytes, _ := bson.Marshal(data)
 		bson.Unmarshal(bsonBytes, &s)
 		//log.Println("iterate stream : ", data)
-		log.Printf("\ndecoded stream bson %+v \n", s)
+		//log.Printf("\ndecoded stream bson %+v \n", s)
 		switch s.OpType {
 		case "insert":
 			full := &s.Full
@@ -146,7 +146,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				d.addChunk(full)
 			}
 		case "update":
-			log.Println("update operations")
+			//log.Println("update operations")
 			if isChunkDoc(s.DId.Id) == true {
 				// update on chunkId..
 				// looks like chunk owner getting change
@@ -190,7 +190,7 @@ func (d *Drsm) punchLiveness() {
 	for {
 		select {
 		case <-ticker.C:
-			log.Println(" update keepalive time")
+			//log.Println(" update keepalive time")
 			filter := bson.M{"_id": d.clientId.PodName}
 
 			timein := time.Now().Local().Add(time.Second * 20)
