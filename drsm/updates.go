@@ -25,7 +25,8 @@ type UpdatedDesc struct {
 }
 
 type FullStream struct {
-	Id       string    `bson:"_id,omitempty"`
+	Id       string    `bson:"_id"`
+	ChunkId  string    `bson:"chunkId"`
 	PodId    string    `bson:"podId,omitempty"`
 	PodIp    string    `bson:"podIp,omitempty"`
 	ExpireAt time.Time `bson:"expireAt,omitempty"`
@@ -160,7 +161,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				cp.Owner.PodIp = s.Update.UpdFields.PodIp
 				podD := d.podMap[owner]
 				podD.podChunks[c] = cp // add chunk to pod
-				log.Printf("pod to chunk map %v ", podD.podChunks)
+				logger.AppLog.Infof("Stream(Update): pod to chunk map %v ", podD.podChunks)
 			}
 		case "delete":
 			logger.AppLog.Debugf("delete operations")
@@ -169,7 +170,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				// delete olnly gets document id
 				pod, found := d.podMap[s.DId.Id]
 				if pod != nil {
-					log.Printf("Pod %v and  found %v. Chunks owned by crashed pod = %v ", pod, found, pod.podChunks)
+					logger.AppLog.Infof("Stream(Delete): Pod %v and  found %v. Chunks owned by crashed pod = %v ", pod, found, pod.podChunks)
 					d.podDown <- s.DId.Id
 				}
 			}
@@ -201,7 +202,7 @@ func (d *Drsm) punchLiveness() {
 
 			_, err := d.mongo.PutOneCustomDataStructure(d.sharedPoolName, filter, update)
 			if err != nil {
-				logger.AppLog.Debugf("put data failed : ", err)
+				logger.AppLog.Errorf("put data failed : ", err)
 				// TODO : should we panic ?
 				continue
 			}
@@ -219,12 +220,13 @@ func (d *Drsm) checkAllChunks() {
 		case <-ticker.C:
 			filter := bson.M{"type": "chunk"}
 			result, err := d.mongo.RestfulAPIGetMany(d.sharedPoolName, filter)
+			log.Printf("chunk entry: %v", result)
 			if err == nil && result != nil {
 				for _, v := range result {
 					var s FullStream
 					bsonBytes, _ := bson.Marshal(v)
 					bson.Unmarshal(bsonBytes, &s)
-					log.Printf("Individual bson Element  %v  ", s)
+					logger.AppLog.Infof("Individual Chunk bson Element  %v  ", s)
 					d.addChunk(&s)
 				}
 			}
@@ -240,6 +242,10 @@ func (d *Drsm) addChunk(full *FullStream) {
 		pod = d.addPod(full)
 	}
 	did := full.Id
+	if did == "" {
+		did = full.ChunkId
+	}
+	logger.AppLog.Infof("received Chunk Doc: %v", full)
 	cid := getChunIdFromDocId(did)
 	o := PodId{PodName: full.PodId, PodIp: full.PodIp}
 	c := &chunk{Id: cid, Owner: o}
@@ -248,7 +254,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 	pod.podChunks[cid] = c
 	d.globalChunkTbl[cid] = c
 
-	log.Printf("Chunk id %v, pod.podChunks %v ", cid, pod.podChunks)
+	logger.AppLog.Infof("Chunk id %v, podChunks %v ", cid, pod.podChunks)
 }
 
 func (d *Drsm) addPod(full *FullStream) *podData {
@@ -256,6 +262,6 @@ func (d *Drsm) addPod(full *FullStream) *podData {
 	pod := &podData{PodId: podI}
 	pod.podChunks = make(map[int32]*chunk)
 	d.podMap[full.PodId] = pod
-	log.Printf("Keepalive insert d.podMaps %+v", d.podMap)
+	logger.AppLog.Infof("Keepalive insert d.podMaps %+v", d.podMap)
 	return pod
 }
