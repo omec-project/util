@@ -65,7 +65,7 @@ type Drsm struct {
 func (d *Drsm) ConstuctDrsm(opt *Options) {
 	if opt != nil {
 		d.mode = opt.Mode
-		logger.AppLog.Debugf("drsm mode set to ", d.mode)
+		logger.AppLog.Debugln("drsm mode set to ", d.mode)
 		if opt.ResIdSize > 0 {
 			d.resIdSize = opt.ResIdSize
 		} else {
@@ -86,7 +86,7 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 
 	//connect to DB
 	d.mongo, _ = MongoDBLibrary.SetMongoDB(d.db.Name, d.db.Url)
-	logger.AppLog.Debugf("SetMongoDB done ", d.db.Name)
+	logger.AppLog.Debugln("SetMongoDB done ", d.db.Name)
 
 	go d.handleDbUpdates()
 	go d.punchLiveness()
