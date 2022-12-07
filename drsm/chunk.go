@@ -35,7 +35,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 			if found == true {
 				continue
 			}
-			logger.AppLog.Debugf("Found chunk Id block ", cn)
+			logger.AppLog.Debugln("Found chunk Id block ", cn)
 			break
 		}
 		// Let's confirm if this gets updated in DB

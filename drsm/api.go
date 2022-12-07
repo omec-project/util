@@ -37,8 +37,18 @@ type Options struct {
 	IpPool          map[string]string
 }
 
-func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (*Drsm, error) {
-	logger.AppLog.Debugf("CLIENT ID: ", myid)
+type DrsmInterface interface {
+	AllocateInt32ID() (int32, error)
+	ReleaseInt32ID(id int32) error
+	FindOwnerInt32ID(id int32) (*PodId, error)
+	AcquireIp(pool string) (string, error)
+	ReleaseIp(pool, ip string) error
+	CreateIpPool(poolName string, ipPool string) error
+	DeleteIpPool(poolName string) error
+}
+
+func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmInterface, error) {
+	logger.AppLog.Debugln("CLIENT ID: ", myid)
 
 	d := &Drsm{sharedPoolName: sharedPoolName,
 		clientId: myid,

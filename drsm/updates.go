@@ -112,7 +112,7 @@ func (d *Drsm) handleDbUpdates() {
 }
 
 func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.ChangeStream) {
-	logger.AppLog.Debugf("iterate change stream for podData ", d)
+	logger.AppLog.Debugln("iterate change stream for podData ", d)
 
 	// step 1: Get Pod Keepalive triggers and create POD table
 	// case 2: Update Global Chunk Table.
@@ -142,7 +142,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				if found == false {
 					d.addPod(full)
 				} else {
-					logger.AppLog.Debugf("keepalive insert document : found existing podId ", pod)
+					logger.AppLog.Debugln("keepalive insert document : found existing podId ", pod)
 				}
 			case "chunk":
 				//logger.AppLog.Debugf("insert chunk document")
@@ -202,7 +202,7 @@ func (d *Drsm) punchLiveness() {
 
 			_, err := d.mongo.PutOneCustomDataStructure(d.sharedPoolName, filter, update)
 			if err != nil {
-				logger.AppLog.Errorf("put data failed : ", err)
+  			logger.AppLog.Errorln("put data failed : ", err)
 				// TODO : should we panic ?
 				continue
 			}
