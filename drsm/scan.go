@@ -4,7 +4,6 @@
 package drsm
 
 import (
-	"log"
 	"time"
 
 	"github.com/omec-project/util/logger"
@@ -12,12 +11,12 @@ import (
 
 func (c *chunk) scanChunk(d *Drsm) {
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("Don't perform scan task when demux mode is ON")
+		logger.AppLog.Infof("Don't perform scan task when demux mode is ON")
 		return
 	}
 
 	if c.Owner.PodName != d.clientId.PodName {
-		logger.AppLog.Debugf("Don't perform scan task if Chunk is not owned by us")
+		logger.AppLog.Infof("Don't perform scan task if Chunk is not owned by us")
 		return
 	}
 	c.State = Scanning
@@ -32,7 +31,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 	for {
 		select {
 		case <-ticker.C:
-			log.Printf("Lets scan one by one id for %v , chunk details %v ", c.Id, c)
+			logger.AppLog.Debugf("Lets scan one by one id for %v , chunk details %v ", c.Id, c)
 			// TODO : find candidate and then scan that Id.
 			// once all Ids are scanned then we can start using this block
 			if c.resourceValidCb != nil {
@@ -51,13 +50,13 @@ func (c *chunk) scanChunk(d *Drsm) {
 					c.State = Owned
 					d.localChunkTbl[c.Id] = c
 					delete(d.scanChunks, c.Id)
-					log.Printf("Scan complete for Chunk %v", c.Id)
+					logger.AppLog.Debugf("Scan complete for Chunk %v", c.Id)
 					return
 				}
 			}
 			//no one is writing on stopScan for now. We will use it eventually
 		case <-c.stopScan:
-			log.Printf("Received Stop Scan. Closing scan for %v", c.Id)
+			logger.AppLog.Debugf("Received Stop Scan. Closing scan for %v", c.Id)
 			return
 		}
 	}
