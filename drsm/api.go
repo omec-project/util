@@ -17,8 +17,9 @@ type DbInfo struct {
 }
 
 type PodId struct {
-	PodName string `bson:"podName,omitempty" json:"podName,omitempty"`
-	PodIp   string `bson:"podIp,omitempty" json:"podIp,omitempty"`
+	PodName     string `bson:"podName,omitempty" json:"podName,omitempty"`
+	PodInstance string `bson:"podInstance,omitempty" json:"podName,omitempty"`
+	PodIp       string `bson:"podIp,omitempty" json:"podIp,omitempty"`
 }
 
 type DrsmMode int
@@ -45,6 +46,7 @@ type DrsmInterface interface {
 	ReleaseIp(pool, ip string) error
 	CreateIpPool(poolName string, ipPool string) error
 	DeleteIpPool(poolName string) error
+	DeletePod(string)
 }
 
 func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmInterface, error) {

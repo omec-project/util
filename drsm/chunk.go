@@ -41,7 +41,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 		// Let's confirm if this gets updated in DB
 		docId := fmt.Sprintf("chunkid-%d", cn)
 		filter := bson.M{"_id": docId}
-		update := bson.M{"_id": docId, "chunkId": docId, "type": "chunk", "podId": d.clientId.PodName, "podIp": d.clientId.PodIp}
+		update := bson.M{"_id": docId, "type": "chunk", "podId": d.clientId.PodName, "podInstance": d.clientId.PodInstance, "podIp": d.clientId.PodIp}
 		inserted := d.mongo.RestfulAPIPostOnly(d.sharedPoolName, filter, update)
 		if inserted != true {
 			log.Printf("Adding chunk %v failed. Retry again ", cn)

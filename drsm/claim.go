@@ -35,7 +35,7 @@ func (c *chunk) claimChunk(d *Drsm) {
 	// try to claim. If success then notification will update owner.
 	logger.AppLog.Debugf("claimChunk started")
 	docId := fmt.Sprintf("chunkid-%d", c.Id)
-	update := bson.M{"_id": docId, "type": "chunk", "podId": d.clientId.PodName, "podIp": d.clientId.PodIp}
+	update := bson.M{"_id": docId, "type": "chunk", "podId": d.clientId.PodName, "podInstance": d.clientId.PodInstance, "podIp": d.clientId.PodIp}
 	filter := bson.M{"_id": docId, "podId": c.Owner.PodName}
 	updated := d.mongo.RestfulAPIPutOnly(d.sharedPoolName, filter, update)
 	if updated == nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/omec-project/util/logger"
 	MongoDBLibrary "github.com/omec-project/util/mongoapi"
 	ipam "github.com/thakurajayL/go-ipam"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type chunkState int
@@ -60,6 +61,12 @@ type Drsm struct {
 	ipModule        ipam.Ipamer
 	prefix          map[string]*ipam.Prefix
 	mongo           *MongoDBLibrary.MongoClient
+}
+
+func (d *Drsm) DeletePod(podInstance string) {
+	filter := bson.M{"type": "keepalive", "podInstance": podInstance}
+	d.mongo.RestfulAPIDeleteMany(d.sharedPoolName, filter)
+	logger.AppLog.Infoln("Deleted PodId from DB: ", podInstance)
 }
 
 func (d *Drsm) ConstuctDrsm(opt *Options) {

@@ -15,9 +15,10 @@ import (
 )
 
 type UpdatedFields struct {
-	ExpireAt time.Time `bson:"expireAt,omitempty"`
-	PodId    string    `bson:"podId,omitempty"`
-	PodIp    string    `bson:"podIp,omitempty"`
+	ExpireAt    time.Time `bson:"expireAt,omitempty"`
+	PodId       string    `bson:"podId,omitempty"`
+	PodIp       string    `bson:"podIp,omitempty"`
+	PodInstance string    `bson:"podInstance,omitempty"`
 }
 
 type UpdatedDesc struct {
@@ -25,12 +26,13 @@ type UpdatedDesc struct {
 }
 
 type FullStream struct {
-	Id       string    `bson:"_id"`
-	ChunkId  string    `bson:"chunkId"`
-	PodId    string    `bson:"podId,omitempty"`
-	PodIp    string    `bson:"podIp,omitempty"`
-	ExpireAt time.Time `bson:"expireAt,omitempty"`
-	Type     string    `bson:"type,omitempty"`
+	Id          string    `bson:"_id"`
+	ChunkId     string    `bson:"chunkId"`
+	PodId       string    `bson:"podId,omitempty"`
+	PodIp       string    `bson:"podIp,omitempty"`
+	PodInstance string    `bson:"podInstance,omitempty"`
+	ExpireAt    time.Time `bson:"expireAt,omitempty"`
+	Type        string    `bson:"type,omitempty"`
 }
 
 type DocKey struct {
@@ -159,6 +161,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				// TODO update IP address as well.
 				cp.Owner.PodName = owner
 				cp.Owner.PodIp = s.Update.UpdFields.PodIp
+				cp.Owner.PodInstance = s.Update.UpdFields.PodInstance
 				podD := d.podMap[owner]
 				podD.podChunks[c] = cp // add chunk to pod
 				logger.AppLog.Infof("Stream(Update): pod to chunk map %v ", podD.podChunks)
@@ -198,11 +201,11 @@ func (d *Drsm) punchLiveness() {
 
 			timein := time.Now().Local().Add(time.Second * 20)
 
-			update := bson.D{{"_id", d.clientId.PodName}, {"type", "keepalive"}, {"podIp", d.clientId.PodIp}, {"podId", d.clientId.PodName}, {"expireAt", timein}}
+			update := bson.D{{"_id", d.clientId.PodName}, {"type", "keepalive"}, {"podIp", d.clientId.PodIp}, {"podId", d.clientId.PodName}, {"podInstance", d.clientId.PodInstance}, {"expireAt", timein}}
 
 			_, err := d.mongo.PutOneCustomDataStructure(d.sharedPoolName, filter, update)
 			if err != nil {
-  			logger.AppLog.Errorln("put data failed : ", err)
+				logger.AppLog.Errorln("put data failed : ", err)
 				// TODO : should we panic ?
 				continue
 			}
@@ -247,7 +250,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 	}
 	logger.AppLog.Infof("received Chunk Doc: %v", full)
 	cid := getChunIdFromDocId(did)
-	o := PodId{PodName: full.PodId, PodIp: full.PodIp}
+	o := PodId{PodName: full.PodId, PodInstance: full.PodInstance, PodIp: full.PodIp}
 	c := &chunk{Id: cid, Owner: o}
 	c.resourceValidCb = d.resourceValidCb
 
@@ -258,7 +261,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 }
 
 func (d *Drsm) addPod(full *FullStream) *podData {
-	podI := PodId{PodName: full.PodId, PodIp: full.PodIp}
+	podI := PodId{PodName: full.PodId, PodInstance: full.PodInstance, PodIp: full.PodIp}
 	pod := &podData{PodId: podI}
 	pod.podChunks = make(map[int32]*chunk)
 	d.podMap[full.PodId] = pod
