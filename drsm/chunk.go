@@ -31,7 +31,9 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	for {
 		for {
 			cn = rand.Int31n(d.chunkIdRange)
+			d.globalChunkTblMutex.Lock()
 			_, found := d.globalChunkTbl[cn]
+			d.globalChunkTblMutex.Unlock()
 			if found == true {
 				continue
 			}

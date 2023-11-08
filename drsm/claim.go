@@ -19,7 +19,9 @@ func (d *Drsm) podDownDetected() {
 			// Given Pod find out current Chunks owned by this POD
 			pd := d.podMap[p]
 			for k, _ := range pd.podChunks {
+				d.globalChunkTblMutex.Lock()
 				c, found := d.globalChunkTbl[k]
+				d.globalChunkTblMutex.Unlock()
 				logger.AppLog.Debugf("Found : %v chunk : %v ", found, c)
 				go c.claimChunk(d)
 			}

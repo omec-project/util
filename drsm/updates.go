@@ -157,7 +157,9 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				// looks like chunk owner getting change
 				owner := s.Update.UpdFields.PodId
 				c := getChunIdFromDocId(s.DId.Id)
+				d.globalChunkTblMutex.Lock()
 				cp := d.globalChunkTbl[c]
+				d.globalChunkTblMutex.Unlock()
 				// TODO update IP address as well.
 				cp.Owner.PodName = owner
 				cp.Owner.PodIp = s.Update.UpdFields.PodIp
@@ -255,7 +257,10 @@ func (d *Drsm) addChunk(full *FullStream) {
 	c.resourceValidCb = d.resourceValidCb
 
 	pod.podChunks[cid] = c
+
+	d.globalChunkTblMutex.Lock()
 	d.globalChunkTbl[cid] = c
+	d.globalChunkTblMutex.Unlock()
 
 	logger.AppLog.Infof("Chunk id %v, podChunks %v ", cid, pod.podChunks)
 }

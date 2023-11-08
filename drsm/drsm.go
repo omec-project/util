@@ -45,22 +45,23 @@ type podData struct {
 }
 
 type Drsm struct {
-	mu              sync.Mutex
-	sharedPoolName  string
-	clientId        PodId
-	db              DbInfo
-	mode            DrsmMode
-	resIdSize       int32
-	localChunkTbl   map[int32]*chunk    // chunkid to chunk
-	globalChunkTbl  map[int32]*chunk    // chunkid to chunk
-	podMap          map[string]*podData // podId to podData
-	podDown         chan string
-	scanChunks      map[int32]*chunk
-	chunkIdRange    int32
-	resourceValidCb func(int32) bool
-	ipModule        ipam.Ipamer
-	prefix          map[string]*ipam.Prefix
-	mongo           *MongoDBLibrary.MongoClient
+	mu                  sync.Mutex
+	sharedPoolName      string
+	clientId            PodId
+	db                  DbInfo
+	mode                DrsmMode
+	resIdSize           int32
+	localChunkTbl       map[int32]*chunk    // chunkid to chunk
+	globalChunkTbl      map[int32]*chunk    // chunkid to chunk
+	podMap              map[string]*podData // podId to podData
+	podDown             chan string
+	scanChunks          map[int32]*chunk
+	chunkIdRange        int32
+	resourceValidCb     func(int32) bool
+	ipModule            ipam.Ipamer
+	prefix              map[string]*ipam.Prefix
+	mongo               *MongoDBLibrary.MongoClient
+	globalChunkTblMutex sync.Mutex
 }
 
 func (d *Drsm) DeletePod(podInstance string) {
@@ -87,6 +88,7 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.podMap = make(map[string]*podData)
 	d.podDown = make(chan string, 10)
 	d.scanChunks = make(map[int32]*chunk)
+	d.globalChunkTblMutex = sync.Mutex{}
 	t := time.Now().UnixNano()
 	rand.Seed(t)
 	d.initIpam(opt)
