@@ -110,6 +110,8 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 }
 
 func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	chunkId := id >> 10
 	chunk, found := d.globalChunkTbl[chunkId]
 	if found == true {
