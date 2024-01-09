@@ -94,8 +94,8 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.initIpam(opt)
 
 	//connect to DB
-	d.mongo, _ = MongoDBLibrary.SetMongoDB(d.db.Name, d.db.Url)
-	logger.AppLog.Debugln("SetMongoDB done ", d.db.Name)
+	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
+	logger.AppLog.Debugln("MongoClient is created.", d.db.Name)
 
 	go d.handleDbUpdates()
 	go d.punchLiveness()
