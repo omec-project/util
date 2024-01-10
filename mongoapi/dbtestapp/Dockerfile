@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-FROM golang:1.18.0-stretch AS test
+FROM golang:1.21.3-bookworm AS test
 
 LABEL maintainer="ONF <omec-dev@opennetworking.org>"
 
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get -y install vim
 
 RUN cd $GOPATH/src && mkdir -p dbtestapp
 COPY . $GOPATH/src/dbtestapp
-RUN cd $GOPATH/src/dbtestapp && go install 
+RUN cd $GOPATH/src/dbtestapp && go install
 
 FROM alpine:3.16 AS dbtestapp
 RUN apk update && apk add -U gcompat vim strace net-tools curl netcat-openbsd bind-tools bash

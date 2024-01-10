@@ -6,12 +6,11 @@
 package main
 
 import (
+	"github.com/omec-project/util/drsm"
+	"github.com/omec-project/util/logger"
 	"log"
 	"os"
 	"time"
-
-	"github.com/omec-project/util/drsm"
-	"github.com/omec-project/util/logger"
 )
 
 type drsmInterface struct {
@@ -52,7 +51,8 @@ func initDrsm(resName string) {
 		opt.IpPool["pool1"] = "192.168.1.0/24"
 		opt.IpPool["pool2"] = "192.168.2.0/24"
 	}
-	drsmIntf.d, _ = drsm.InitDRSM(resName, podId, db, opt)
+	drsmInitialize, _ := drsm.InitDRSM(resName, podId, db, opt)
+	drsmIntf.d = drsmInitialize.(*drsm.Drsm)
 }
 
 func AllocateInt32One(resName string) int32 {
