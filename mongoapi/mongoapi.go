@@ -29,13 +29,13 @@ type MongoClient struct {
 	pools  map[string]map[string]int32
 }
 
-func SetMongoDB(setdbName string, url string) (*MongoClient, error) {
-	c := MongoClient{dbName: setdbName, url: url}
+func NewMongoClient(url string, dbName string) (*MongoClient, error) {
+	c := MongoClient{url: url, dbName: dbName}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(url))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(c.url))
 	if err != nil {
-		return nil, fmt.Errorf("SetMongoDB err: %+v", err)
+		return nil, fmt.Errorf("MongoClient Creation err: %+v", err)
 	}
 	c.Client = client
 	return &c, nil

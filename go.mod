@@ -1,6 +1,6 @@
 module github.com/omec-project/util
 
-go 1.18
+go 1.21
 
 require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1

@@ -12,6 +12,7 @@ import (
 )
 
 var mongoHndl *mongoapi.MongoClient
+
 // TODO : take DB name from helm chart
 // TODO : inbuild shell commands to
 
@@ -19,7 +20,7 @@ func main() {
 	log.Println("dbtestapp started")
 
 	// connect to mongoDB
-	mongoHndl, _ = mongoapi.SetMongoDB("sdcore", "mongodb://mongodb-arbiter-headless")
+	mongoHndl, _ = mongoapi.NewMongoClient("mongodb://mongodb-arbiter-headless", "sdcore")
 
 	initDrsm("resourceids")
 
