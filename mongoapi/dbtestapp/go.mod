@@ -2,16 +2,15 @@ module testapp
 
 go 1.21
 
-replace github.com/omec-project/util/mongoapi => ../../
-
 require (
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.8.1
-	github.com/omec-project/util v0.0.6-devtemp
+	github.com/omec-project/util v1.0.12
 	go.mongodb.org/mongo-driver v1.10.1
 )
 
 require (
+	github.com/antonfisher/nested-logrus-formatter v1.3.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/avast/retry-go/v4 v4.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect

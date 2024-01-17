@@ -840,6 +840,6 @@ func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData 
 		//logger.MongoDBLog.Println("matched and replaced an existing document")
 		return nil
 	}
-	err = fmt.Errorf("Failed to update document")
+	err = fmt.Errorf("failed to update document: %s", err)
 	return err
 }

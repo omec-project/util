@@ -40,18 +40,18 @@ func StudentRecordTest(c *gin.Context) {
 	if err == nil {
 		log.Printf("Retrieved student %v ", student)
 	} else {
-		log.Printf("Failed to retrieve student %v. Error - ", student, err)
+		log.Printf("Failed to retrieve student %v. Error - %+v", student, err)
 	}
 
 	insertStudentInDB(collName, "John Smith", 25)
 
 	// test document fetch from student that doesn't exist.
 	qName := "Nerf Doodle"
-	student, err = getStudentFromDB(collName, qName)
+	_, err = getStudentFromDB(collName, qName)
 	if err == nil {
 		log.Printf("Retrieved student %v ", qName)
 	} else {
-		log.Printf("Failed to retrieve student %v. Error - ", qName, err)
+		log.Printf("Failed to retrieve student %v. Error - %+v ", qName, err)
 	}
 	c.JSON(http.StatusOK, gin.H{})
 }
@@ -65,7 +65,7 @@ func insertStudentInDB(collName string, name string, age int) {
 	filter := bson.M{}
 	_, err := mongoHndl.PutOneCustomDataStructure(collName, filter, student)
 	if err != nil {
-		log.Printf("Inserting student %v failed with error ", student, err)
+		log.Printf("Inserting student %v failed with error %+v ", student, err)
 		return
 	}
 	log.Printf("Inserting student %v successful ", student)
