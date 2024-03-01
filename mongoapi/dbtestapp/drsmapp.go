@@ -23,7 +23,7 @@ type drsmInterface struct {
 var drsmIntf drsmInterface
 
 func scanChunk(i int32) bool {
-	logger.AppLog.Debugf("Received callback from module to scan Chunk resource ", i)
+	logger.AppLog.Debugf("Received callback from module to scan Chunk resource %+v", i)
 	return false
 }
 
@@ -58,7 +58,7 @@ func initDrsm(resName string) {
 func AllocateInt32One(resName string) int32 {
 	id, err := drsmIntf.d.AllocateInt32ID()
 	if err != nil {
-		logger.AppLog.Debugf("Id allocation error ", err)
+		logger.AppLog.Debugf("Id allocation error %+v", err)
 		return 0
 	}
 	log.Printf("Received id %v ", id)
@@ -90,7 +90,7 @@ func AllocateInt32Many(resName string, number int32) []int32 {
 func ReleaseInt32One(resName string, resId int32) error {
 	err := drsmIntf.d.ReleaseInt32ID(resId)
 	if err != nil {
-		logger.AppLog.Debugf("Id release error ", err)
+		logger.AppLog.Debugf("Id release error %+v", err)
 		return err
 	}
 	return nil
@@ -99,7 +99,7 @@ func ReleaseInt32One(resName string, resId int32) error {
 func IpAddressAllocOne(pool string) (string, error) {
 	ip, err := drsmIntf.d.AcquireIp(pool)
 	if err != nil {
-		log.Printf("%v : Ip allocation error ", pool, err)
+		log.Printf("%+v : Ip allocation error %+v", pool, err)
 		return "", err
 	}
 	log.Printf("%v : Received ip %v ", pool, ip)
