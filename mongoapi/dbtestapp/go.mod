@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.8.1
-	github.com/omec-project/util v1.0.12
+	github.com/omec-project/util v1.0.13
 	go.mongodb.org/mongo-driver v1.10.1
 )
 
