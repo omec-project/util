@@ -28,11 +28,27 @@ type Logger struct {
 	NWDAF *LogSetting `yaml:"NWDAF" valid:"optional"`
 	WEBUI *LogSetting `yaml:"WEBUI" valid:"optional"`
 
-	Aper *LogSetting `yaml:"Aper" valid:"optional"`
-	FSM  *LogSetting `yaml:"FSM" valid:"optional"`
-	NAS  *LogSetting `yaml:"NAS" valid:"optional"`
-	NGAP *LogSetting `yaml:"NGAP" valid:"optional"`
-	PFCP *LogSetting `yaml:"PFCP" valid:"optional"`
+	Aper                         *LogSetting `yaml:"Aper" valid:"optional"`
+	CommonConsumerTest           *LogSetting `yaml:"CommonConsumerTest" valid:"optional"`
+	FSM                          *LogSetting `yaml:"FSM" valid:"optional"`
+	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary" valid:"optional"`
+	NAS                          *LogSetting `yaml:"NAS" valid:"optional"`
+	NGAP                         *LogSetting `yaml:"NGAP" valid:"optional"`
+	OpenApi                      *LogSetting `yaml:"OpenApi" valid:"optional"`
+	NamfCommunication            *LogSetting `yaml:"NamfCommunication" valid:"optional"`
+	NamfEventExposure            *LogSetting `yaml:"NamfEventExposure" valid:"optional"`
+	NnssfNSSAIAvailability       *LogSetting `yaml:"NnssfNSSAIAvailability" valid:"optional"`
+	NnssfNSSelection             *LogSetting `yaml:"NnssfNSSelection" valid:"optional"`
+	NsmfEventExposure            *LogSetting `yaml:"NsmfEventExposure" valid:"optional"`
+	NsmfPDUSession               *LogSetting `yaml:"NsmfPDUSession" valid:"optional"`
+	NudmEventExposure            *LogSetting `yaml:"NudmEventExposure" valid:"optional"`
+	NudmParameterProvision       *LogSetting `yaml:"NudmParameterProvision" valid:"optional"`
+	NudmSubscriberDataManagement *LogSetting `yaml:"NudmSubscriberDataManagement" valid:"optional"`
+	NudmUEAuthentication         *LogSetting `yaml:"NudmUEAuthentication" valid:"optional"`
+	NudmUEContextManagement      *LogSetting `yaml:"NudmUEContextManagement" valid:"optional"`
+	NudrDataRepository           *LogSetting `yaml:"NudrDataRepository" valid:"optional"`
+	PathUtil                     *LogSetting `yaml:"PathUtil" valid:"optional"`
+	PFCP                         *LogSetting `yaml:"PFCP" valid:"optional"`
 }
 
 func (l *Logger) Validate() (bool, error) {
