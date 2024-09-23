@@ -49,6 +49,7 @@ type DrsmInterface interface {
 	DeletePod(string)
 }
 
+// func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options, punchLivenessTime int) (DrsmInterface, error) {
 func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmInterface, error) {
 	logger.AppLog.Debugln("CLIENT ID: ", myid)
 
@@ -56,7 +57,11 @@ func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmI
 		clientId: myid,
 		db:       db,
 		mode:     ResourceClient}
-
+	// if punchLivenessTime == 0 {
+	// 	d.punchLivenessTime = 5000
+	// } else {
+	// 	d.punchLivenessTime = punchLivenessTime
+	// }
 	d.ConstuctDrsm(opt)
 
 	return d, nil
@@ -110,8 +115,8 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 }
 
 func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
-	d.globalChunkTblMutex.Lock()
-	defer d.globalChunkTblMutex.Unlock()
+	d.globalChunkTblMutex.RLock()
+	defer d.globalChunkTblMutex.RUnlock()
 	chunkId := id >> 10
 	chunk, found := d.globalChunkTbl[chunkId]
 	if found == true {

@@ -157,9 +157,9 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				// looks like chunk owner getting change
 				owner := s.Update.UpdFields.PodId
 				c := getChunIdFromDocId(s.DId.Id)
-				d.globalChunkTblMutex.Lock()
+				d.globalChunkTblMutex.RLock()
 				cp := d.globalChunkTbl[c]
-				d.globalChunkTblMutex.Unlock()
+				d.globalChunkTblMutex.RUnlock()
 				// TODO update IP address as well.
 				cp.Owner.PodName = owner
 				cp.Owner.PodIp = s.Update.UpdFields.PodIp
@@ -185,7 +185,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 
 func (d *Drsm) punchLiveness() {
 	// write to DB - signature every 5 second
-	ticker := time.NewTicker(5000 * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(d.punchLivenessTime) * time.Millisecond)
 
 	logger.AppLog.Debugf(" document expiry enabled")
 	ret := d.mongo.RestfulAPICreateTTLIndex(d.sharedPoolName, 0, "expireAt")
@@ -201,7 +201,7 @@ func (d *Drsm) punchLiveness() {
 			//logger.AppLog.Debugf(" update keepalive time")
 			filter := bson.M{"_id": d.clientId.PodName}
 
-			timein := time.Now().Local().Add(time.Second * 20)
+			timein := time.Now().Local().Add(time.Millisecond * time.Duration(d.punchLivenessTime+500))
 
 			update := bson.D{{"_id", d.clientId.PodName}, {"type", "keepalive"}, {"podIp", d.clientId.PodIp}, {"podId", d.clientId.PodName}, {"podInstance", d.clientId.PodInstance}, {"expireAt", timein}}
 

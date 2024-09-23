@@ -31,9 +31,9 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	for {
 		for {
 			cn = rand.Int31n(d.chunkIdRange)
-			d.globalChunkTblMutex.Lock()
+			d.globalChunkTblMutex.RLock()
 			_, found := d.globalChunkTbl[cn]
-			d.globalChunkTblMutex.Unlock()
+			d.globalChunkTblMutex.RUnlock()
 			if found == true {
 				continue
 			}
@@ -82,7 +82,7 @@ func (c *chunk) ReleaseIntID(id int32) {
 	i = id & 0x3ff
 	for _, freeid := range c.FreeIds {
 		if freeid == i {
-			log.Printf("ID %v is already freed", freeid)
+			logger.AppLog.Debugf("ID %v is already freed", freeid)
 			return
 		}
 	}
