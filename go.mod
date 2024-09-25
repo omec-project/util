@@ -8,7 +8,6 @@ require (
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/gin-gonic/gin v1.7.3
 	github.com/mitchellh/mapstructure v1.4.1
-	github.com/omec-project/openapi v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/smartystreets/goconvey v1.6.4
@@ -32,7 +31,6 @@ require (
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
