@@ -14,7 +14,7 @@ WORKDIR $GOPATH/src/dbtestapp
 COPY . .
 RUN go install
 
-FROM alpine:3.16 AS dbtestapp
+FROM alpine:3.20 AS dbtestapp
 RUN apk update && apk add -U gcompat vim strace net-tools curl netcat-openbsd bind-tools bash
 
 RUN mkdir -p /dbtestapp/bin
