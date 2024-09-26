@@ -6,9 +6,9 @@
 
 FROM golang:1.23.1-bookworm AS test
 
-LABEL maintainer="ONF <omec-dev@opennetworking.org>"
+LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>"
 
-RUN apt-get update && apt-get -y install vim 
+RUN apt-get update && apt-get -y install vim
 
 WORKDIR $GOPATH/src/dbtestapp
 COPY . .
