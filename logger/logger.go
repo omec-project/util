@@ -6,7 +6,6 @@ package logger
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -63,12 +62,12 @@ func SetReportCaller(set bool) {
 func (hook *FileHook) Fire(entry *logrus.Entry) error {
 	var line string
 	if plainformat, err := hook.formatter.Format(entry); err != nil {
-		return fmt.Errorf("FileHook formatter error: %+v\n", err)
+		return fmt.Errorf("fileHook formatter error: %+v", err)
 	} else {
 		line = string(plainformat)
 	}
 	if _, err := hook.file.WriteString(line); err != nil {
-		return fmt.Errorf("unable to write file on filehook(%s): %+v\n", line, err)
+		return fmt.Errorf("unable to write file on filehook(%s): %+v", line, err)
 	}
 
 	return nil
@@ -91,7 +90,7 @@ func NewFileHook(file string, flag int, chmod os.FileMode) (*FileHook, error) {
 	plainFormatter := &logrus.TextFormatter{DisableColors: true}
 	logFile, err := os.OpenFile(file, flag, chmod)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open file(%s): %+v\n", file, err)
+		return nil, fmt.Errorf("unable to open file(%s): %+v", file, err)
 	}
 
 	return &FileHook{logFile, flag, chmod, plainFormatter}, nil
@@ -135,7 +134,7 @@ func createLogFile(file string, defaultName string, rename bool) (string, error)
 	}
 
 	if err := os.MkdirAll(directory, 0775); err != nil {
-		return "", fmt.Errorf("Make directory(%s) failed: %+v\n", directory, err)
+		return "", fmt.Errorf("make directory(%s) failed: %+v", directory, err)
 	}
 
 	sudoUID, errUID := strconv.Atoi(os.Getenv("SUDO_UID"))
@@ -146,20 +145,20 @@ func createLogFile(file string, defaultName string, rename bool) (string, error)
 		// If user using sudo to run the program and create log file, log will own by root,
 		// here we change own to user so user can view and reuse the file
 		if err := os.Chown(directory, sudoUID, sudoGID); err != nil {
-			return "", fmt.Errorf("Directory(%s) chown to [%d:%d] error: %+v\n", directory, sudoUID, sudoGID, err)
+			return "", fmt.Errorf("directory(%s) chown to [%d:%d] error: %+v", directory, sudoUID, sudoGID, err)
 		}
 
 		// Create log file or if it already exist, check if user can access it
 		if f, err := os.OpenFile(fullPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666); err != nil {
 			// user cannot access it.
-			return "", fmt.Errorf("Cannot Open [%s] error: %+v\n", fullPath, err)
+			return "", fmt.Errorf("cannot Open [%s] error: %+v", fullPath, err)
 		} else {
 			// user can access it
 			if err := f.Close(); err != nil {
-				return "", fmt.Errorf("File [%s] cannot been closed\n", fullPath)
+				return "", fmt.Errorf("file [%s] cannot been closed", fullPath)
 			}
 			if err := os.Chown(fullPath, sudoUID, sudoGID); err != nil {
-				return "", fmt.Errorf("File [%s] chown to [%d:%d] error: %+v\n", fullPath, sudoUID, sudoGID, err)
+				return "", fmt.Errorf("file [%s] chown to [%d:%d] error: %+v", fullPath, sudoUID, sudoGID, err)
 			}
 		}
 	}
@@ -178,8 +177,8 @@ func renameOldLogFile(fullPath string) error {
 	sep := "."
 	fileDir, fileName := filepath.Split(fullPath)
 
-	if contents, err := ioutil.ReadDir(fileDir); err != nil {
-		return fmt.Errorf("Reads the directory(%s) error %+v\n", fileDir, err)
+	if contents, err := os.ReadDir(fileDir); err != nil {
+		return fmt.Errorf("reads the directory(%s) error %+v", fileDir, err)
 	} else {
 		for _, content := range contents {
 			if !content.IsDir() {
@@ -192,7 +191,7 @@ func renameOldLogFile(fullPath string) error {
 
 	newFullPath := fmt.Sprintf("%s%s%s%d", fileDir, fileName, sep, (counter + 1))
 	if err := os.Rename(fullPath, newFullPath); err != nil {
-		return fmt.Errorf("Unable to rename file(%s) %+v\n", newFullPath, err)
+		return fmt.Errorf("unable to rename file(%s) %+v", newFullPath, err)
 	}
 
 	return nil
@@ -247,7 +246,7 @@ func ginRecover(log *logrus.Entry) gin.HandlerFunc {
 				if log != nil {
 					stack := string(debug.Stack())
 					if httpRequest, err := httputil.DumpRequest(c.Request, false); err != nil {
-						log.Errorf("Dump http request error: %v\n", err)
+						log.Errorf("dump http request error: %v", err)
 					} else {
 						headers := strings.Split(string(httpRequest), "\r\n")
 						for idx, header := range headers {

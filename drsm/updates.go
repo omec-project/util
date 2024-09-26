@@ -141,7 +141,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 			case "keepalive":
 				//logger.AppLog.Debugf("insert keepalive document")
 				pod, found := d.podMap[full.PodId]
-				if found == false {
+				if !found {
 					d.addPod(full)
 				} else {
 					logger.AppLog.Debugln("keepalive insert document : found existing podId ", pod)
@@ -152,7 +152,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 			}
 		case "update":
 			//logger.AppLog.Debugf("update operations")
-			if isChunkDoc(s.DId.Id) == true {
+			if isChunkDoc(s.DId.Id) {
 				// update on chunkId..
 				// looks like chunk owner getting change
 				owner := s.Update.UpdFields.PodId
@@ -170,7 +170,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 			}
 		case "delete":
 			logger.AppLog.Debugf("delete operations")
-			if isChunkDoc(s.DId.Id) == false {
+			if !isChunkDoc(s.DId.Id) {
 				// not chunk type doc. So its POD doc.
 				// delete olnly gets document id
 				pod, found := d.podMap[s.DId.Id]
@@ -185,32 +185,37 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 
 func (d *Drsm) punchLiveness() {
 	// write to DB - signature every 5 second
-	ticker := time.NewTicker(5000 * time.Millisecond)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-	logger.AppLog.Debugf(" document expiry enabled")
+	logger.AppLog.Debugf("document expiry enabled")
 	ret := d.mongo.RestfulAPICreateTTLIndex(d.sharedPoolName, 0, "expireAt")
 	if ret {
-		logger.AppLog.Debugf("TTL Index created for Field : expireAt in Collection")
+		logger.AppLog.Debugf("TTL Index created for Field: expireAt in Collection")
 	} else {
-		logger.AppLog.Debugf("TTL Index exists for Field : expireAt in Collection")
+		logger.AppLog.Debugf("TTL Index exists for Field: expireAt in Collection")
 	}
 
-	for {
-		select {
-		case <-ticker.C:
-			//logger.AppLog.Debugf(" update keepalive time")
-			filter := bson.M{"_id": d.clientId.PodName}
+	for range ticker.C {
+		//logger.AppLog.Debugf(" update keepalive time")
+		filter := bson.M{"_id": d.clientId.PodName}
 
-			timein := time.Now().Local().Add(time.Second * 20)
+		timein := time.Now().Local().Add(20 * time.Second)
 
-			update := bson.D{{"_id", d.clientId.PodName}, {"type", "keepalive"}, {"podIp", d.clientId.PodIp}, {"podId", d.clientId.PodName}, {"podInstance", d.clientId.PodInstance}, {"expireAt", timein}}
+		update := bson.D{
+			{"_id", d.clientId.PodName},
+			{"type", "keepalive"},
+			{"podIp", d.clientId.PodIp},
+			{"podId", d.clientId.PodName},
+			{"podInstance", d.clientId.PodInstance},
+			{"expireAt", timein},
+		}
 
-			_, err := d.mongo.PutOneCustomDataStructure(d.sharedPoolName, filter, update)
-			if err != nil {
-				logger.AppLog.Errorln("put data failed : ", err)
-				// TODO : should we panic ?
-				continue
-			}
+		_, err := d.mongo.PutOneCustomDataStructure(d.sharedPoolName, filter, update)
+		if err != nil {
+			logger.AppLog.Errorln("put data failed : ", err)
+			// TODO : should we panic ?
+			continue
 		}
 	}
 }
@@ -219,31 +224,28 @@ func (d *Drsm) checkAllChunks() {
 	// go through all pods to see if any pod is showing same old counter
 	// Mark it down locally
 	// Claiming the chunks can be reactive
-	ticker := time.NewTicker(3000 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			filter := bson.M{"type": "chunk"}
-			result, err := d.mongo.RestfulAPIGetMany(d.sharedPoolName, filter)
-			log.Printf("chunk entry: %v", result)
-			if err == nil && result != nil {
-				for _, v := range result {
-					var s FullStream
-					bsonBytes, _ := bson.Marshal(v)
-					bson.Unmarshal(bsonBytes, &s)
-					logger.AppLog.Infof("Individual Chunk bson Element  %v  ", s)
-					d.addChunk(&s)
-				}
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		filter := bson.M{"type": "chunk"}
+		result, err := d.mongo.RestfulAPIGetMany(d.sharedPoolName, filter)
+		log.Printf("chunk entry: %v", result)
+		if err == nil && result != nil {
+			for _, v := range result {
+				var s FullStream
+				bsonBytes, _ := bson.Marshal(v)
+				bson.Unmarshal(bsonBytes, &s)
+				logger.AppLog.Infof("individual Chunk bson Element %v", s)
+				d.addChunk(&s)
 			}
-			ticker.Stop()
-			return
 		}
 	}
 }
 
 func (d *Drsm) addChunk(full *FullStream) {
 	pod, found := d.podMap[full.PodId]
-	if found == false {
+	if !found {
 		pod = d.addPod(full)
 	}
 	did := full.Id

@@ -31,7 +31,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 	for {
 		select {
 		case <-ticker.C:
-			logger.AppLog.Debugf("Lets scan one by one id for %v , chunk details %v ", c.Id, c)
+			logger.AppLog.Debugf("let's scan one by one id for %v , chunk details %v ", c.Id, c)
 			// TODO : find candidate and then scan that Id.
 			// once all Ids are scanned then we can start using this block
 			if c.resourceValidCb != nil {
@@ -40,7 +40,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 					c.ScanIds = c.ScanIds[:len(c.ScanIds)-1]
 					rid := c.Id<<10 | id
 					res := c.resourceValidCb(rid)
-					if res == true {
+					if res {
 						c.FreeIds = append(c.FreeIds, id)
 					} else {
 						c.AllocIds[id] = true // Id is in use
@@ -50,13 +50,13 @@ func (c *chunk) scanChunk(d *Drsm) {
 					c.State = Owned
 					d.localChunkTbl[c.Id] = c
 					delete(d.scanChunks, c.Id)
-					logger.AppLog.Debugf("Scan complete for Chunk %v", c.Id)
+					logger.AppLog.Debugf("scan complete for Chunk %v", c.Id)
 					return
 				}
 			}
 			//no one is writing on stopScan for now. We will use it eventually
 		case <-c.stopScan:
-			logger.AppLog.Debugf("Received Stop Scan. Closing scan for %v", c.Id)
+			logger.AppLog.Debugf("received Stop Scan. Closing scan for %v", c.Id)
 			return
 		}
 	}
