@@ -14,8 +14,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/thakurajayL/go-ipam v0.0.5-dev
 	go.mongodb.org/mongo-driver v1.10.1
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
-	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
+	golang.org/x/crypto v0.27.0
+	golang.org/x/net v0.21.0
 )
 
 require (
@@ -59,9 +59,9 @@ require (
 	go.uber.org/zap v1.23.0 // indirect
 	go4.org/intern v0.0.0-20220617035311-6925f38cc365 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
-	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde // indirect
-	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/genproto v0.0.0-20220728213248-dd149ef739b9 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
