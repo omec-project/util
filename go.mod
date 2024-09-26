@@ -15,7 +15,7 @@ require (
 	github.com/thakurajayL/go-ipam v0.0.5-dev
 	go.mongodb.org/mongo-driver v1.10.1
 	golang.org/x/crypto v0.27.0
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.23.0
 )
 
 require (
