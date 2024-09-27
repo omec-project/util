@@ -19,7 +19,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/x/bsonx"
 )
 
 type MongoClient struct {
@@ -661,7 +660,7 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: keyField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: keyField, Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
 
@@ -683,7 +682,7 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 func (c *MongoClient) RestfulAPICreateTTLIndex(collName string, timeout int32, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: timeField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
 	}
 
@@ -708,7 +707,7 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 
 	//create new index with new timeout
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: timeField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
 	}
 
@@ -767,7 +766,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 
 	//create new index with new timeout
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: timeField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout),
 	}
 
