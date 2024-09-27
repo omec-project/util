@@ -18,7 +18,7 @@ type DbInfo struct {
 
 type PodId struct {
 	PodName     string `bson:"podName,omitempty" json:"podName,omitempty"`
-	PodInstance string `bson:"podInstance,omitempty" json:"podName,omitempty"`
+	PodInstance string `bson:"podInstance,omitempty" json:"podInstance,omitempty"`
 	PodIp       string `bson:"podIp,omitempty" json:"podIp,omitempty"`
 }
 
