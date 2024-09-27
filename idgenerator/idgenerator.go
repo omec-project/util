@@ -47,7 +47,7 @@ func (idGenerator *IDGenerator) Allocate() (int64, error) {
 			idGenerator.updateOffset()
 
 			if idGenerator.offset == offsetBegin {
-				return 0, errors.New("No available value range to allocate id")
+				return 0, errors.New("no available value range to allocate id")
 			}
 		} else {
 			break

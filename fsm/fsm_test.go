@@ -58,7 +58,7 @@ func TestFSM(t *testing.T) {
 
 	fakeEvent := EventType("fake event")
 	assert.EqualError(t, f.SendEvent(s, fakeEvent, nil),
-		fmt.Sprintf("Unknown transition[From: %s, Event: %s]", s.Current(), fakeEvent))
+		fmt.Sprintf("unknown transition[From: %s, Event: %s]", s.Current(), fakeEvent))
 }
 
 func TestFSMInitFail(t *testing.T) {
@@ -80,7 +80,7 @@ func TestFSMInitFail(t *testing.T) {
 		},
 	})
 
-	assert.EqualError(t, err, fmt.Sprintf("Duplicate transition: %+v", duplicateTrans))
+	assert.EqualError(t, err, fmt.Sprintf("duplicate transition: %+v", duplicateTrans))
 
 	fakeState := StateType("fake state")
 
@@ -101,5 +101,5 @@ func TestFSMInitFail(t *testing.T) {
 		},
 	})
 
-	assert.EqualError(t, err, fmt.Sprintf("Unknown state: %+v", fakeState))
+	assert.EqualError(t, err, fmt.Sprintf("unknown state: %+v", fakeState))
 }

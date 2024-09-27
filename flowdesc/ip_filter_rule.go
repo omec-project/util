@@ -165,7 +165,7 @@ func (r *IPFilterRule) SetSourcePorts(ports string) error {
 			return err
 		}
 		if port < 0 || port > 65535 {
-			return errors.New("Invalid port number")
+			return errors.New("invalid port number")
 		}
 	}
 

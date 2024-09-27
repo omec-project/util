@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"sync"
 	"testing"
-	"time"
 )
 
 func TestAllocate(t *testing.T) {
@@ -83,8 +82,6 @@ func TestUnique(t *testing.T) {
 		{1, 10},
 		{11, 1567},
 	}
-
-	rand.Seed(time.Now().Unix())
 
 	for _, testCase := range testCases {
 		t.Run(fmt.Sprintf("minValue: %d, maxValue: %d", testCase.minValue, testCase.maxValue), func(t *testing.T) {

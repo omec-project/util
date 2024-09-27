@@ -66,7 +66,7 @@ func NewFSM(transitions Transitions, callbacks Callbacks) (*FSM, error) {
 			From:  transition.From,
 		}
 		if _, ok := fsm.transitions[key]; ok {
-			return nil, fmt.Errorf("Duplicate transition: %+v", transition)
+			return nil, fmt.Errorf("duplicate transition: %+v", transition)
 		} else {
 			fsm.transitions[key] = transition
 			allStates[transition.From] = true
@@ -76,7 +76,7 @@ func NewFSM(transitions Transitions, callbacks Callbacks) (*FSM, error) {
 
 	for state, callback := range callbacks {
 		if _, ok := allStates[state]; !ok {
-			return nil, fmt.Errorf("Unknown state: %+v", state)
+			return nil, fmt.Errorf("unknown state: %+v", state)
 		} else {
 			fsm.callbacks[state] = callback
 		}
@@ -96,7 +96,7 @@ func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
 	}
 
 	if trans, ok := fsm.transitions[key]; ok {
-		logger.FsmLog.Infof("Handle event[%s], transition from [%s] to [%s]", event, trans.From, trans.To)
+		logger.FsmLog.Infof("handle event[%s], transition from [%s] to [%s]", event, trans.From, trans.To)
 
 		// event callback
 		fsm.callbacks[trans.From](state, event, args)
@@ -113,7 +113,7 @@ func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
 		}
 		return nil
 	} else {
-		return fmt.Errorf("Unknown transition[From: %s, Event: %s]", state.Current(), event)
+		return fmt.Errorf("unknown transition[From: %s, Event: %s]", state.Current(), event)
 	}
 }
 
