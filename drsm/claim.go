@@ -11,18 +11,17 @@ import (
 )
 
 func (d *Drsm) podDownDetected() {
-	fmt.Println("Started Pod Down goroutine")
-	for {
-		select {
-		case p := <-d.podDown:
-			logger.AppLog.Infoln("Pod Down detected ", p)
-			// Given Pod find out current Chunks owned by this POD
-			pd := d.podMap[p]
-			for k, _ := range pd.podChunks {
-				d.globalChunkTblMutex.RLock()
-				c, found := d.globalChunkTbl[k]
-				d.globalChunkTblMutex.RUnlock()
-				logger.AppLog.Debugf("Found : %v chunk : %v ", found, c)
+	fmt.Println("started Pod Down goroutine")
+	for p := range d.podDown {
+		logger.AppLog.Infoln("pod Down detected", p)
+		// Given Pod find out current Chunks owned by this POD
+		pd := d.podMap[p]
+		for k := range pd.podChunks {
+			d.globalChunkTblMutex.RLock()
+			c, found := d.globalChunkTbl[k]
+			d.globalChunkTblMutex.RUnlock()
+			logger.AppLog.Debugf("found: %v chunk: %v", found, c)
+			if found {
 				go c.claimChunk(d)
 			}
 		}

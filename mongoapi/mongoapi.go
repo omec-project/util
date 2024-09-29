@@ -19,7 +19,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/x/bsonx"
 )
 
 type MongoClient struct {
@@ -419,7 +418,7 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 	var pool = c.pools[poolName]
 
 	if pool == nil {
-		err := errors.New("This pool has not been initialized yet. Initialize by calling InitializeChunkPool.")
+		err := errors.New("this pool has not been initialized yet. Initialize by calling InitializeChunkPool")
 		return -1, -1, -1, err
 	}
 
@@ -462,7 +461,7 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 		i++
 	}
 
-	err := errors.New("No id found after retries")
+	err := errors.New("no id found after retries")
 	return -1, -1, -1, err
 }
 
@@ -500,7 +499,7 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 	var pool = c.pools[poolName]
 
 	if pool == nil {
-		err := errors.New("This pool has not been initialized yet. Initialize by calling InitializeInsertPool.")
+		err := errors.New("this pool has not been initialized yet. Initialize by calling InitializeInsertPool")
 		return -1, err
 	}
 
@@ -537,7 +536,7 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 		i++
 	}
 
-	err := errors.New("No id found after retries")
+	err := errors.New("no id found after retries")
 	return -1, err
 }
 
@@ -609,7 +608,7 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 		res := array[len(array)-1]
 		return res, nil
 	} else {
-		err := errors.New("There are no available ids.")
+		err := errors.New("there are no available ids")
 		//logger.MongoDBLog.Println(err)
 		return -1, err
 	}
@@ -661,7 +660,7 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: keyField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: keyField, Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
 
@@ -683,29 +682,19 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 func (c *MongoClient) RestfulAPICreateTTLIndex(collName string, timeout int32, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: timeField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
 	}
 
 	_, err := collection.Indexes().CreateOne(context.Background(), index)
-	if err != nil {
-		//logger.MongoDBLog.Println("Index creation failed for Field : ", timeField, " in Collection : ", collName, " Error Cause : ", err)
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // Use this API to drop TTL Index.
 func (c *MongoClient) RestfulAPIDropTTLIndex(collName string, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	_, err := collection.Indexes().DropOne(context.Background(), timeField)
-	if err != nil {
-		//logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // Use this API to update timeout value for TTL Index.
@@ -718,7 +707,7 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 
 	//create new index with new timeout
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: timeField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
 	}
 
@@ -777,7 +766,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 
 	//create new index with new timeout
 	index := mongo.IndexModel{
-		Keys:    bsonx.Doc{{Key: timeField, Value: bsonx.Int32(1)}},
+		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout),
 	}
 
@@ -824,12 +813,7 @@ func (c *MongoClient) RestfulAPIPostOnly(collName string, filter bson.M, postDat
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	_, err := collection.InsertOne(context.TODO(), postData)
-	if err != nil {
-		//logger.MongoDBLog.Println("insert failed : ", err)
-		return false
-	}
-	//logger.MongoDBLog.Println("insert successful ")
-	return true
+	return err == nil
 }
 
 func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData map[string]interface{}) error {

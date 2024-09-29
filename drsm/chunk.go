@@ -34,7 +34,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 			d.globalChunkTblMutex.RLock()
 			_, found := d.globalChunkTbl[cn]
 			d.globalChunkTblMutex.RUnlock()
-			if found == true {
+			if found {
 				continue
 			}
 			logger.AppLog.Debugln("Found chunk Id block ", cn)
@@ -45,7 +45,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 		filter := bson.M{"_id": docId}
 		update := bson.M{"_id": docId, "type": "chunk", "chunkId": docId, "podId": d.clientId.PodName, "podInstance": d.clientId.PodInstance, "podIp": d.clientId.PodIp}
 		inserted := d.mongo.RestfulAPIPostOnly(d.sharedPoolName, filter, update)
-		if inserted != true {
+		if !inserted {
 			log.Printf("Adding chunk %v failed. Retry again ", cn)
 			continue
 		}
@@ -78,8 +78,7 @@ func (c *chunk) AllocateIntID() int32 {
 }
 
 func (c *chunk) ReleaseIntID(id int32) {
-	var i int32
-	i = id & 0x3ff
+	i := id & 0x3ff
 	for _, freeid := range c.FreeIds {
 		if freeid == i {
 			logger.AppLog.Debugf("ID %v is already freed", freeid)

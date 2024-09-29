@@ -50,8 +50,8 @@ func (d *Drsm) initIpPool(name string, prefix string) error {
 
 func (d *Drsm) deleteIpPool(name string) error {
 	p, found := d.prefix[name]
-	if found == false {
-		err := fmt.Errorf("Failed to find pool %s", name)
+	if !found {
+		err := fmt.Errorf("failed to find pool %s", name)
 		return err
 	}
 	_, err := d.ipModule.DeletePrefix(context.TODO(), p.Cidr)
@@ -60,14 +60,14 @@ func (d *Drsm) deleteIpPool(name string) error {
 
 func (d *Drsm) acquireIp(name string) (string, error) {
 	prefix, found := d.prefix[name]
-	if found != true {
+	if !found {
 		err := fmt.Errorf("IP Pool %v not found ", name)
 		return "", err
 	}
 
 	ip, err := d.ipModule.AcquireIP(context.TODO(), prefix.Cidr)
 	if err != nil {
-		err := fmt.Errorf("No address")
+		err := fmt.Errorf("no address")
 		return "", err
 	}
 	logger.AppLog.Debugln("Acquired IP ", ip.IP)
@@ -76,7 +76,7 @@ func (d *Drsm) acquireIp(name string) (string, error) {
 
 func (d *Drsm) releaseIp(name, ip string) error {
 	prefix, found := d.prefix[name]
-	if found != true {
+	if !found {
 		err := fmt.Errorf("IP Pool %v not found ", name)
 		return err
 	}
@@ -84,7 +84,7 @@ func (d *Drsm) releaseIp(name, ip string) error {
 	err := d.ipModule.ReleaseIPFromPrefix(context.TODO(), prefix.Cidr, ip)
 	if err != nil {
 		logger.AppLog.Debugln("Release IP failed - ", ip)
-		err := fmt.Errorf("No address")
+		err := fmt.Errorf("no address")
 		return err
 	}
 	logger.AppLog.Debugln("Release IP successful ", ip)

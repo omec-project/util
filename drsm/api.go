@@ -18,7 +18,7 @@ type DbInfo struct {
 
 type PodId struct {
 	PodName     string `bson:"podName,omitempty" json:"podName,omitempty"`
-	PodInstance string `bson:"podInstance,omitempty" json:"podName,omitempty"`
+	PodInstance string `bson:"podInstance,omitempty" json:"podInstance,omitempty"`
 	PodIp       string `bson:"podIp,omitempty" json:"podIp,omitempty"`
 }
 
@@ -71,8 +71,8 @@ func (d *Drsm) AllocateInt32ID() (int32, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("Demux mode can not allocate Resource index ")
-		err := fmt.Errorf("Demux mode does not allow Resource Id allocation")
+		logger.AppLog.Debugf("demux mode can not allocate Resource index")
+		err := fmt.Errorf("demux mode does not allow Resource Id allocation")
 		return 0, err
 	}
 	for _, c := range d.localChunkTbl {
@@ -82,7 +82,7 @@ func (d *Drsm) AllocateInt32ID() (int32, error) {
 	}
 	c, err := d.GetNewChunk()
 	if err != nil {
-		err := fmt.Errorf("Ids not available")
+		err := fmt.Errorf("ids not available")
 		return 0, err
 	}
 	return c.AllocateIntID(), nil
@@ -92,25 +92,25 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("Demux mode can not release Resource index ")
-		err := fmt.Errorf("Demux mode does not allow Resource Id allocation")
+		logger.AppLog.Debugf("demux mode can not release Resource index")
+		err := fmt.Errorf("demux mode does not allow Resource Id allocation")
 		return err
 	}
 
 	chunkId := id >> 10
 	chunk, found := d.localChunkTbl[chunkId]
-	if found == true {
+	if found {
 		chunk.ReleaseIntID(id)
 		logger.AppLog.Debugln("ID Released: ", id)
 		return nil
 	} else {
 		chunk, found := d.scanChunks[chunkId]
-		if found == true {
+		if found {
 			chunk.ReleaseIntID(id)
 			return nil
 		}
 	}
-	err := fmt.Errorf("Unknown Id")
+	err := fmt.Errorf("unknown Id")
 	return err
 }
 
@@ -119,18 +119,18 @@ func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
 	defer d.globalChunkTblMutex.RUnlock()
 	chunkId := id >> 10
 	chunk, found := d.globalChunkTbl[chunkId]
-	if found == true {
+	if found {
 		podId := chunk.GetOwner()
 		return podId, nil
 	}
-	err := fmt.Errorf("Unknown Id")
+	err := fmt.Errorf("unknown Id")
 	return nil, err
 }
 
 func (d *Drsm) AcquireIp(pool string) (string, error) {
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("Demux mode can not allocate Ip ")
-		err := fmt.Errorf("Demux mode does not allow Resource allocation")
+		logger.AppLog.Debugf("demux mode can not allocate Ip")
+		err := fmt.Errorf("demux mode does not allow Resource allocation")
 		return "", err
 	}
 	return d.acquireIp(pool)
@@ -138,8 +138,8 @@ func (d *Drsm) AcquireIp(pool string) (string, error) {
 
 func (d *Drsm) ReleaseIp(pool, ip string) error {
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("Demux mode can not Release Resource ")
-		err := fmt.Errorf("Demux mode does not allow Resource Release")
+		logger.AppLog.Debugf("demux mode can not Release Resource")
+		err := fmt.Errorf("demux mode does not allow Resource Release")
 		return err
 	}
 	return d.releaseIp(pool, ip)

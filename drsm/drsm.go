@@ -5,7 +5,6 @@ package drsm
 
 import (
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -37,7 +36,6 @@ type chunk struct {
 }
 
 type podData struct {
-	mu            sync.Mutex       `bsin:"-" json:"-"`
 	PodId         PodId            `bson:"podId,omitempty" json:"podId,omitempty"`
 	Timestamp     time.Time        `bson:"time,omitempty" json:"time,omitempty"`
 	PrevTimestamp time.Time        `bson:"-" json:"-"`
@@ -45,7 +43,6 @@ type podData struct {
 }
 
 type Drsm struct {
-	mu                  sync.Mutex
 	sharedPoolName      string
 	clientId            PodId
 	db                  DbInfo
@@ -90,8 +87,6 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.podDown = make(chan string, 10)
 	d.scanChunks = make(map[int32]*chunk)
 	d.globalChunkTblMutex = sync.RWMutex{}
-	t := time.Now().UnixNano()
-	rand.Seed(t)
 	d.initIpam(opt)
 
 	//connect to DB
