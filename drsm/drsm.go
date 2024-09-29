@@ -58,7 +58,8 @@ type Drsm struct {
 	ipModule            ipam.Ipamer
 	prefix              map[string]*ipam.Prefix
 	mongo               *MongoDBLibrary.MongoClient
-	globalChunkTblMutex sync.Mutex
+	globalChunkTblMutex sync.RWMutex
+	punchLivenessTime   int
 }
 
 func (d *Drsm) DeletePod(podInstance string) {
@@ -85,13 +86,17 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.podMap = make(map[string]*podData)
 	d.podDown = make(chan string, 10)
 	d.scanChunks = make(map[int32]*chunk)
-	d.globalChunkTblMutex = sync.Mutex{}
+	d.globalChunkTblMutex = sync.RWMutex{}
 	d.initIpam(opt)
 
 	//connect to DB
 	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
 	logger.AppLog.Debugln("MongoClient is created.", d.db.Name)
+	_, err := d.mongo.CreateIndex(d.sharedPoolName, "_id")
 
+	if err != nil {
+		logger.AppLog.Infof("Failed to create id index: %v", err)
+	}
 	go d.handleDbUpdates()
 	go d.punchLiveness()
 	go d.podDownDetected()
