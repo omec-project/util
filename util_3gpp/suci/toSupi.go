@@ -14,7 +14,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 	"math/bits"
@@ -23,7 +22,7 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
-	"github.com/omec-project/util/util_3gpp/logger"
+	"github.com/omec-project/util/logger"
 )
 
 type SuciProfile struct {
@@ -53,7 +52,7 @@ func CompressKey(uncompressed []byte, y *big.Int) []byte {
 	} else { // 0x02
 		compressed[0] = 0x02
 	}
-	// fmt.Printf("compressed: %x\n", compressed)
+	// logger.Util3GPPLog.Debugf("compressed: %x", compressed)
 	return compressed
 }
 
@@ -87,7 +86,7 @@ func uncompressKey(compressedBytes []byte, priv []byte) (*big.Int, *big.Int) {
 	y := new(big.Int).ModSqrt(ySquared, c.P)
 	if y == nil {
 		// If this happens then you're dealing with an invalid point.
-		logger.Util3GPPLog.Errorln("Uncompressed key with invalid point")
+		logger.Util3GPPLog.Errorln("uncompressed key with invalid point")
 		return nil, nil
 	}
 
@@ -96,18 +95,18 @@ func uncompressKey(compressedBytes []byte, priv []byte) (*big.Int, *big.Int) {
 		y.Neg(y)
 		y.Mod(y, c.P)
 	}
-	// fmt.Printf("xUncom: %x\nyUncon: %x\n", x, y)
+	// logger.Util3GPPLog.Debugf("xUncom: %x\nyUncon: %x", x, y)
 	return x, y
 }
 
 func HmacSha256(input, macKey []byte, macLen int) []byte {
 	h := hmac.New(sha256.New, macKey)
 	if _, err := h.Write(input); err != nil {
-		log.Printf("HMAC SHA256 error %+v", err)
+		logger.Util3GPPLog.Errorf("HMAC SHA256 error %+v", err)
 	}
 	macVal := h.Sum(nil)
 	macTag := macVal[:macLen]
-	// fmt.Printf("macVal: %x\nmacTag: %x\n", macVal, macTag)
+	// logger.Util3GPPLog.Debugf("macVal: %x\nmacTag: %x", macVal, macTag)
 	return macTag
 }
 
@@ -115,11 +114,11 @@ func Aes128ctr(input, encKey, icb []byte) []byte {
 	output := make([]byte, len(input))
 	block, err := aes.NewCipher(encKey)
 	if err != nil {
-		log.Printf("AES128 CTR error %+v", err)
+		logger.Util3GPPLog.Errorf("AES128 CTR error %+v", err)
 	}
 	stream := cipher.NewCTR(block, icb)
 	stream.XORKeyStream(output, input)
-	// fmt.Printf("aes input: %x %x %x\naes output: %x\n", input, encKey, icb, output)
+	// logger.Util3GPPLog.Debugf("aes input: %x %x %x\naes output: %x", input, encKey, icb, output)
 	return output
 }
 
@@ -130,11 +129,11 @@ func AnsiX963KDF(sharedKey, publicKey []byte, profileEncKeyLen, profileMacKeyLen
 	for i := 1; i <= kdfRounds; i++ {
 		counterBytes := make([]byte, 4)
 		binary.BigEndian.PutUint32(counterBytes, counter)
-		// fmt.Printf("counterBytes: %x\n", counterBytes)
+		// logger.Util3GPPLog.Debugf("counterBytes: %x", counterBytes)
 		tmpK := sha256.Sum256(append(append(sharedKey, counterBytes...), publicKey...))
 		sliceK := tmpK[:]
 		kdfKey = append(kdfKey, sliceK...)
-		// fmt.Printf("kdfKey in round %d: %x\n", i, kdfKey)
+		// logger.Util3GPPLog.Debugf("kdfKey in round %d: %x", i, kdfKey)
 		counter++
 	}
 	return kdfKey
@@ -162,7 +161,7 @@ func calcSchemeResult(decryptPlainText []byte, supiType string) string {
 }
 
 func profileA(input, supiType, privateKey string) (string, error) {
-	logger.Util3GPPLog.Infoln("SuciToSupi Profile A")
+	logger.Util3GPPLog.Infoln("suciToSupi Profile A")
 	s, hexDecodeErr := hex.DecodeString(input)
 	if hexDecodeErr != nil {
 		logger.Util3GPPLog.Errorln("hex DecodeString error")
@@ -180,29 +179,29 @@ func profileA(input, supiType, privateKey string) (string, error) {
 	decryptMac := s[len(s)-ProfileAMacLen:]
 	decryptPublicKey := s[:ProfileAPubKeyLen]
 	decryptCipherText := s[ProfileAPubKeyLen : len(s)-ProfileAMacLen]
-	// fmt.Printf("dePub: %x\ndeCiph: %x\ndeMac: %x\n", decryptPublicKey, decryptCipherText, decryptMac)
+	// logger.Util3GPPLog.Debugf("dePub: %x deCiph: %x deMac: %x", decryptPublicKey, decryptCipherText, decryptMac)
 
 	// test data from TS33.501 Annex C.4
 	// aHNPriv, _ := hex.DecodeString("c53c2208b61860b06c62e5406a7b330c2b577aa5558981510d128247d38bd1d")
 	var aHNPriv []byte
 	if aHNPrivTmp, err := hex.DecodeString(privateKey); err != nil {
-		log.Printf("Decode error: %+v", err)
+		logger.Util3GPPLog.Errorf("decode error: %+v", err)
 	} else {
 		aHNPriv = aHNPrivTmp
 	}
 	var decryptSharedKey []byte
 	if decryptSharedKeyTmp, err := curve25519.X25519(aHNPriv, []byte(decryptPublicKey)); err != nil {
-		log.Printf("X25519 error: %+v", err)
+		logger.Util3GPPLog.Errorf("X25519 error: %+v", err)
 	} else {
 		decryptSharedKey = decryptSharedKeyTmp
 	}
-	// fmt.Printf("deShared: %x\n", decryptSharedKey)
+	// logger.Util3GPPLog.Debugf("deShared: %x", decryptSharedKey)
 
 	kdfKey := AnsiX963KDF(decryptSharedKey, decryptPublicKey, ProfileAEncKeyLen, ProfileAMacKeyLen, ProfileAHashLen)
 	decryptEncKey := kdfKey[:ProfileAEncKeyLen]
 	decryptIcb := kdfKey[ProfileAEncKeyLen : ProfileAEncKeyLen+ProfileAIcbLen]
 	decryptMacKey := kdfKey[len(kdfKey)-ProfileAMacKeyLen:]
-	// fmt.Printf("\ndeEncKey(size%d): %x\ndeMacKey: %x\ndeIcb: %x\n", len(decryptEncKey), decryptEncKey, decryptMacKey,
+	// logger.Util3GPPLog.Debugf("deEncKey(size%d): %x deMacKey: %x deIcb: %x", len(decryptEncKey), decryptEncKey, decryptMacKey,
 	// decryptIcb)
 
 	decryptMacTag := HmacSha256(decryptCipherText, decryptMacKey, ProfileAMacLen)
@@ -239,7 +238,7 @@ func profileB(input, supiType, privateKey string) (string, error) {
 		return "", fmt.Errorf("suci input error")
 	}
 
-	// fmt.Printf("len:%d %d\n", len(s), ProfileBPubKeyLen + ProfileBMacLen)
+	// logger.Util3GPPLog.Debugf("len:%d %d", len(s), ProfileBPubKeyLen + ProfileBMacLen)
 	if len(s) < ProfileBPubKeyLen+ProfileBMacLen {
 		logger.Util3GPPLog.Errorln("len of input data is too short")
 		return "", fmt.Errorf("suci input too short")
@@ -247,13 +246,13 @@ func profileB(input, supiType, privateKey string) (string, error) {
 	decryptPublicKey := s[:ProfileBPubKeyLen]
 	decryptMac := s[len(s)-ProfileBMacLen:]
 	decryptCipherText := s[ProfileBPubKeyLen : len(s)-ProfileBMacLen]
-	// fmt.Printf("dePub: %x\ndeCiph: %x\ndeMac: %x\n", decryptPublicKey, decryptCipherText, decryptMac)
+	// logger.Util3GPPLog.Debugf("dePub: %x deCiph: %x deMac: %x", decryptPublicKey, decryptCipherText, decryptMac)
 
 	// test data from TS33.501 Annex C.4
 	// bHNPriv, _ := hex.DecodeString("F1AB1074477EBCC7F554EA1C5FC368B1616730155E0041AC447D6301975FECDA")
 	var bHNPriv []byte
 	if bHNPrivTmp, err := hex.DecodeString(privateKey); err != nil {
-		log.Printf("Decode error: %+v", err)
+		logger.Util3GPPLog.Errorf("decode error: %+v", err)
 	} else {
 		bHNPriv = bHNPrivTmp
 	}
@@ -269,11 +268,11 @@ func profileB(input, supiType, privateKey string) (string, error) {
 			return "", fmt.Errorf("key uncompression error")
 		}
 	}
-	// fmt.Printf("xUncom: %x\nyUncom: %x\n", xUncompressed, yUncompressed)
+	// logger.Util3GPPLog.Debugf("xUncom: %x yUncom: %x", xUncompressed, yUncompressed)
 
 	// x-coordinate is the shared key
 	decryptSharedKey, _ := elliptic.P256().ScalarMult(xUncompressed, yUncompressed, bHNPriv)
-	// fmt.Printf("deShared: %x\n", decryptSharedKey.Bytes())
+	// logger.Util3GPPLog.Debugf("deShared: %x", decryptSharedKey.Bytes())
 
 	decryptPublicKeyForKDF := decryptPublicKey
 	if uncompressed {
@@ -282,11 +281,11 @@ func profileB(input, supiType, privateKey string) (string, error) {
 
 	kdfKey := AnsiX963KDF(decryptSharedKey.Bytes(), decryptPublicKeyForKDF, ProfileBEncKeyLen, ProfileBMacKeyLen,
 		ProfileBHashLen)
-	// fmt.Printf("kdfKey: %x\n", kdfKey)
+	// logger.Util3GPPLog.Debugf("kdfKey: %x", kdfKey)
 	decryptEncKey := kdfKey[:ProfileBEncKeyLen]
 	decryptIcb := kdfKey[ProfileBEncKeyLen : ProfileBEncKeyLen+ProfileBIcbLen]
 	decryptMacKey := kdfKey[len(kdfKey)-ProfileBMacKeyLen:]
-	// fmt.Printf("\ndeEncKey(size%d): %x\ndeMacKey: %x\ndeIcb: %x\n", len(decryptEncKey), decryptEncKey, decryptMacKey,
+	// logger.Util3GPPLog.Debugf("deEncKey(size%d): %x deMacKey: %x deIcb: %x", len(decryptEncKey), decryptEncKey, decryptMacKey,
 	// decryptIcb)
 
 	decryptMacTag := HmacSha256(decryptCipherText, decryptMacKey, ProfileBMacLen)
@@ -321,7 +320,7 @@ func ToSupi(suci string, suciProfiles []SuciProfile) (string, error) {
 
 	suciPrefix := suciPart[0]
 	if suciPrefix == "imsi" || suciPrefix == "nai" {
-		logger.Util3GPPLog.Infof("got supi")
+		logger.Util3GPPLog.Infoln("got supi")
 		return suci, nil
 
 	} else if suciPrefix == "suci" {
@@ -340,7 +339,7 @@ func ToSupi(suci string, suciProfiles []SuciProfile) (string, error) {
 	supiPrefix := imsiPrefix
 	if suciPrefix == "suci" && suciPart[supiTypePlace] == typeIMSI {
 		supiPrefix = imsiPrefix
-		logger.Util3GPPLog.Infof("supi type is IMSI")
+		logger.Util3GPPLog.Infoln("supi type is IMSI")
 	}
 
 	if scheme == nullScheme { // NULL scheme

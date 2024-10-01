@@ -7,11 +7,12 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/omec-project/util/logger"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Student struct {
@@ -28,7 +29,7 @@ func StudentRecordTest(c *gin.Context) {
 	collName := "student"
 	_, errVal := mongoHndl.CreateIndex(collName, "Name")
 	if errVal != nil {
-		log.Println("Create index failed on Name field : ", errVal)
+		logger.AppLog.Errorln("create index failed on Name field:", errVal)
 	}
 
 	//add document to student collection.
@@ -38,9 +39,9 @@ func StudentRecordTest(c *gin.Context) {
 	//fetch document from student db based on index
 	student, err := getStudentFromDB(collName, "Osman Amjad")
 	if err == nil {
-		log.Printf("Retrieved student %v ", student)
+		logger.AppLog.Infof("retrieved student %v", student)
 	} else {
-		log.Printf("Failed to retrieve student %v. Error - %+v", student, err)
+		logger.AppLog.Errorf("failed to retrieve student %v. Error - %+v", student, err)
 	}
 
 	insertStudentInDB(collName, "John Smith", 25)
@@ -49,9 +50,9 @@ func StudentRecordTest(c *gin.Context) {
 	qName := "Nerf Doodle"
 	_, err = getStudentFromDB(collName, qName)
 	if err == nil {
-		log.Printf("Retrieved student %v ", qName)
+		logger.AppLog.Infof("retrieved student %v", qName)
 	} else {
-		log.Printf("Failed to retrieve student %v. Error - %+v ", qName, err)
+		logger.AppLog.Errorf("failed to retrieve student %v. Error - %+v", qName, err)
 	}
 	c.JSON(http.StatusOK, gin.H{})
 }
@@ -65,10 +66,10 @@ func insertStudentInDB(collName string, name string, age int) {
 	filter := bson.M{}
 	_, err := mongoHndl.PutOneCustomDataStructure(collName, filter, student)
 	if err != nil {
-		log.Printf("Inserting student %v failed with error %+v ", student, err)
+		logger.AppLog.Errorf("inserting student %v failed with error %+v", student, err)
 		return
 	}
-	log.Printf("Inserting student %v successful ", student)
+	logger.AppLog.Infof("inserting student %v successful", student)
 }
 
 func getStudentFromDB(collName string, name string) (Student, error) {

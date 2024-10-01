@@ -15,17 +15,17 @@ import (
 // TODO : should have ability to create new instances of ipam
 func (d *Drsm) initIpam(opt *Options) {
 	if opt != nil {
-		logger.AppLog.Debugln("ipmodule ", opt)
+		logger.DrsmLog.Debugln("ipmodule", opt)
 	}
 	dbOptions := &options.ClientOptions{}
 	dbOptions = dbOptions.ApplyURI(d.db.Url)
 	dbConfig := ipam.MongoConfig{DatabaseName: d.db.Name, CollectionName: "ipaddress", MongoClientOptions: dbOptions}
 	mo, err := ipam.NewMongo(context.TODO(), dbConfig)
 	if err != nil {
-		logger.AppLog.Debugln("ipmodule error. NewMongo error  ", err)
+		logger.DrsmLog.Debugf("ipmodule error. NewMongo error: %v", err)
 	}
 	ipModule := ipam.NewWithStorage(mo)
-	logger.AppLog.Debugln("ipmodule ", ipModule)
+	logger.DrsmLog.Debugln("ipmodule", ipModule)
 	d.ipModule = ipModule
 	d.prefix = make(map[string]*ipam.Prefix)
 
@@ -36,7 +36,7 @@ func (d *Drsm) initIpam(opt *Options) {
 		}
 		d.prefix[k] = prefix
 	}
-	logger.AppLog.Debugln("ip module prefix ", d.prefix)
+	logger.DrsmLog.Debugln("ip module prefix", d.prefix)
 }
 
 func (d *Drsm) initIpPool(name string, prefix string) error {
@@ -70,7 +70,7 @@ func (d *Drsm) acquireIp(name string) (string, error) {
 		err := fmt.Errorf("no address")
 		return "", err
 	}
-	logger.AppLog.Debugln("Acquired IP ", ip.IP)
+	logger.DrsmLog.Debugln("acquired IP", ip.IP)
 	return ip.IP.String(), nil
 }
 
@@ -83,10 +83,10 @@ func (d *Drsm) releaseIp(name, ip string) error {
 
 	err := d.ipModule.ReleaseIPFromPrefix(context.TODO(), prefix.Cidr, ip)
 	if err != nil {
-		logger.AppLog.Debugln("Release IP failed - ", ip)
+		logger.DrsmLog.Debugln("release IP failed - ", ip)
 		err := fmt.Errorf("no address")
 		return err
 	}
-	logger.AppLog.Debugln("Release IP successful ", ip)
+	logger.DrsmLog.Debugln("release IP successful", ip)
 	return nil
 }

@@ -6,7 +6,6 @@ package drsm
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -25,7 +24,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	// We got to allocate new Chunk. We should select
 	// probable chunk number
 
-	logger.AppLog.Debugf("Allocate new chunk ")
+	logger.DrsmLog.Debugln("allocate new chunk")
 	// 14 bits --- 1,2,4,8,16
 	var cn int32 = 1
 	for {
@@ -37,7 +36,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 			if found {
 				continue
 			}
-			logger.AppLog.Debugln("Found chunk Id block ", cn)
+			logger.DrsmLog.Debugln("found chunk Id block", cn)
 			break
 		}
 		// Let's confirm if this gets updated in DB
@@ -46,13 +45,13 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 		update := bson.M{"_id": docId, "type": "chunk", "chunkId": docId, "podId": d.clientId.PodName, "podInstance": d.clientId.PodInstance, "podIp": d.clientId.PodIp}
 		inserted := d.mongo.RestfulAPIPostOnly(d.sharedPoolName, filter, update)
 		if !inserted {
-			log.Printf("Adding chunk %v failed. Retry again ", cn)
+			logger.DrsmLog.Errorf("Adding chunk %v failed. Retry again", cn)
 			continue
 		}
 		break
 	}
 
-	log.Printf("Adding chunk %v success ", cn)
+	logger.DrsmLog.Infof("Adding chunk %v success", cn)
 	c := &chunk{Id: cn}
 	c.AllocIds = make(map[int32]bool)
 	var i int32
@@ -69,7 +68,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 
 func (c *chunk) AllocateIntID() int32 {
 	if len(c.FreeIds) == 0 {
-		logger.AppLog.Debugf("FreeIds in chunk 0")
+		logger.DrsmLog.Debugln("freeIds in chunk 0")
 		return 0
 	}
 	id := c.FreeIds[len(c.FreeIds)-1]
@@ -81,7 +80,7 @@ func (c *chunk) ReleaseIntID(id int32) {
 	i := id & 0x3ff
 	for _, freeid := range c.FreeIds {
 		if freeid == i {
-			log.Printf("ID %v is already freed", freeid)
+			logger.DrsmLog.Warnf("id %v is already freed", freeid)
 			return
 		}
 	}
@@ -98,7 +97,7 @@ func (c *chunk) ReleaseIntID(id int32) {
 }
 
 func getChunIdFromDocId(id string) int32 {
-	log.Printf("id received: %v value", id)
+	logger.DrsmLog.Infof("id received: %v value", id)
 	z := strings.Split(id, "-")
 	if len(z) == 2 && z[0] == "chunkid" {
 		cid, _ := strconv.ParseInt(z[1], 10, 32)

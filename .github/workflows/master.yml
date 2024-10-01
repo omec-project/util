@@ -67,7 +67,6 @@ jobs:
           install-go: false
 
   lint:
-    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

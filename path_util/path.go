@@ -10,27 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/omec-project/util/path_util/logger"
+	"github.com/omec-project/util/logger"
 )
 
-// Free5gcPath ...
-/*
- * Author: Roger Chu aka Sasuke
- *
- * This package is used to locate the root directory of gofree5gc project
- * Compatible with Windows and Linux
- *
- * Please import "github.com/omec-project/path_util"
- *
- * Return value:
- * A string value of the relative path between the working directory and the root directory of the gofree5gc project
- *
- * Usage:
- * path_util.Free5gcPath("your file location starting with gofree5gc")
- *
- * Example:
- * path_util.Free5gcPath("free5gc/abcdef/abcdef.pem")
- */
 func Free5gcPath(path string) string {
 	rootCode := strings.Split(path, "/")[0]
 	cleanPath := filepath.Clean(path)
@@ -114,20 +96,20 @@ func FindModuleRoot(path string, rootCode string) (string, bool) {
 	if Exists(moduleFilePath) {
 		var file *os.File
 		if fileTmp, err := os.Open(moduleFilePath); err != nil {
-			logger.PathLog.Fatalf("Cannot open %s: %+v", moduleFilePath, err)
+			logger.PathLog.Fatalf("cannot open %s: %+v", moduleFilePath, err)
 		} else {
 			file = fileTmp
 		}
 		defer func() {
 			if err := file.Close(); err != nil {
-				logger.PathLog.Warnf("File %s cannot close: %v", moduleFilePath, err)
+				logger.PathLog.Warnf("file %s cannot close: %v", moduleFilePath, err)
 			}
 		}()
 
 		reader := bufio.NewReader(file)
 		moduleDeclearation, _, err := reader.ReadLine()
 		if err != nil {
-			logger.PathLog.Warnf("Read Line failed: %+v", err)
+			logger.PathLog.Warnf("read Line failed: %+v", err)
 		}
 		if string(moduleDeclearation) == "module "+rootCode {
 			return path, true
