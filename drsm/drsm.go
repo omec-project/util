@@ -4,7 +4,6 @@
 package drsm
 
 import (
-	"log"
 	"sync"
 	"time"
 
@@ -64,13 +63,13 @@ type Drsm struct {
 func (d *Drsm) DeletePod(podInstance string) {
 	filter := bson.M{"type": "keepalive", "podInstance": podInstance}
 	d.mongo.RestfulAPIDeleteMany(d.sharedPoolName, filter)
-	logger.AppLog.Infoln("Deleted PodId from DB: ", podInstance)
+	logger.DrsmLog.Infoln("deleted PodId from DB:", podInstance)
 }
 
 func (d *Drsm) ConstuctDrsm(opt *Options) {
 	if opt != nil {
 		d.mode = opt.Mode
-		logger.AppLog.Debugln("drsm mode set to ", d.mode)
+		logger.DrsmLog.Debugln("drsm mode set to", d.mode)
 		if opt.ResIdSize > 0 {
 			d.resIdSize = opt.ResIdSize
 		} else {
@@ -79,7 +78,7 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 		d.resourceValidCb = opt.ResourceValidCb
 	}
 	d.chunkIdRange = 1 << (d.resIdSize - 10)
-	log.Printf("ChunkId in the range of 0 to %v ", d.chunkIdRange)
+	logger.DrsmLog.Debugf("chunkId in the range of 0 to %v", d.chunkIdRange)
 	d.localChunkTbl = make(map[int32]*chunk)
 	d.globalChunkTbl = make(map[int32]*chunk)
 	d.podMap = make(map[string]*podData)
@@ -90,7 +89,7 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 
 	//connect to DB
 	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
-	logger.AppLog.Debugln("MongoClient is created.", d.db.Name)
+	logger.DrsmLog.Debugln("mongoClient is created", d.db.Name)
 
 	go d.handleDbUpdates()
 	go d.punchLiveness()

@@ -50,7 +50,7 @@ type DrsmInterface interface {
 }
 
 func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmInterface, error) {
-	logger.AppLog.Debugln("CLIENT ID: ", myid)
+	logger.DrsmLog.Debugln("client id:", myid)
 
 	d := &Drsm{sharedPoolName: sharedPoolName,
 		clientId: myid,
@@ -66,7 +66,7 @@ func (d *Drsm) AllocateInt32ID() (int32, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("demux mode can not allocate Resource index")
+		logger.DrsmLog.Debugln("demux mode can not allocate Resource index")
 		err := fmt.Errorf("demux mode does not allow Resource Id allocation")
 		return 0, err
 	}
@@ -87,7 +87,7 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("demux mode can not release Resource index")
+		logger.DrsmLog.Debugln("demux mode can not release Resource index")
 		err := fmt.Errorf("demux mode does not allow Resource Id allocation")
 		return err
 	}
@@ -96,7 +96,7 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 	chunk, found := d.localChunkTbl[chunkId]
 	if found {
 		chunk.ReleaseIntID(id)
-		logger.AppLog.Debugln("ID Released: ", id)
+		logger.DrsmLog.Debugln("id released:", id)
 		return nil
 	} else {
 		chunk, found := d.scanChunks[chunkId]
@@ -124,7 +124,7 @@ func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
 
 func (d *Drsm) AcquireIp(pool string) (string, error) {
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("demux mode can not allocate Ip")
+		logger.DrsmLog.Debugln("demux mode can not allocate Ip")
 		err := fmt.Errorf("demux mode does not allow Resource allocation")
 		return "", err
 	}
@@ -133,7 +133,7 @@ func (d *Drsm) AcquireIp(pool string) (string, error) {
 
 func (d *Drsm) ReleaseIp(pool, ip string) error {
 	if d.mode == ResourceDemux {
-		logger.AppLog.Debugf("demux mode can not Release Resource")
+		logger.DrsmLog.Debugln("demux mode can not Release Resource")
 		err := fmt.Errorf("demux mode does not allow Resource Release")
 		return err
 	}

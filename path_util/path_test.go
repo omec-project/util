@@ -7,7 +7,7 @@ package path_util
 import (
 	"testing"
 
-	"github.com/omec-project/util/path_util/logger"
+	"github.com/omec-project/util/logger"
 )
 
 func TestFree5gcPath(t *testing.T) {
