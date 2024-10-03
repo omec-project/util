@@ -14,7 +14,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.27.0
-	golang.org/x/net v0.23.0
+	golang.org/x/net v0.29.0
 )
 
 require (
