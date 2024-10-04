@@ -5,12 +5,11 @@ go 1.21
 require (
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
-	github.com/omec-project/util v1.1.0
-	go.mongodb.org/mongo-driver v1.10.1
+	github.com/omec-project/util v1.2.1
+	go.mongodb.org/mongo-driver v1.17.0
 )
 
 require (
-	github.com/antonfisher/nested-logrus-formatter v1.3.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/avast/retry-go/v4 v4.1.0 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
@@ -44,7 +43,6 @@ require (
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/thakurajayL/go-ipam v0.0.5-dev // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
