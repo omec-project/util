@@ -8,7 +8,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
-	github.com/smartystreets/goconvey v1.6.4
+	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/thakurajayL/go-ipam v0.0.5-dev
 	go.mongodb.org/mongo-driver v1.17.1
@@ -38,7 +38,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
+	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
@@ -53,7 +53,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
+	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
