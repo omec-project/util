@@ -11,7 +11,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/stretchr/testify v1.9.0
 	github.com/thakurajayL/go-ipam v0.0.5-dev
-	go.mongodb.org/mongo-driver v1.17.0
+	go.mongodb.org/mongo-driver v1.17.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.28.0
 	golang.org/x/net v0.30.0
