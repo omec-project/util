@@ -58,7 +58,7 @@ func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmI
 		db:       db,
 		mode:     ResourceClient}
 	// if punchLivenessTime == 0 {
-	// 	d.punchLivenessTime = 5000
+	d.punchLivenessTime = 5000
 	// } else {
 	// 	d.punchLivenessTime = punchLivenessTime
 	// }
