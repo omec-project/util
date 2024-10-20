@@ -5,11 +5,12 @@
 package main
 
 import (
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/omec-project/util/logger"
 )
 
 // Route is the information for every URI.
@@ -145,7 +146,7 @@ func http_server() {
 
 	httpAddr := ":" + strconv.Itoa(8000)
 	engine.Run(httpAddr)
-	log.Println("Webserver stopped/terminated/not-started ")
+	logger.AppLog.Infoln("webserver stopped/terminated/not-started")
 }
 
 func Index(c *gin.Context) {
@@ -155,53 +156,51 @@ func Index(c *gin.Context) {
 func IntegerResourceNamePost(c *gin.Context) {
 	c.String(http.StatusOK, "IntegerResourceNamePost!")
 	resName, exists := c.Params.Get("resource-name")
-	if exists == false {
-		log.Printf("Received resource delete. resource-name not found ")
+	if !exists {
+		logger.AppLog.Warnln("received resource delete. resource-name not found")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 	number, ok := c.GetQuery("number")
-	if ok == true {
+	if ok {
 		n1, _ := strconv.Atoi(number)
-		var n int32
-		n = int32(n1)
+		n := int32(n1)
 		resId := AllocateInt32Many(resName, n)
 		if len(resId) == 0 {
-			log.Println("Id allocation error ")
+			logger.AppLog.Errorln("id allocation error")
 			c.JSON(http.StatusBadRequest, gin.H{})
 		}
-		log.Printf("Received resource create. Pool name %v, Pool Id %v ", resName, resId)
+		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
 		c.JSON(http.StatusOK, gin.H{})
 
 	} else {
 		resId := AllocateInt32One(resName)
 		if resId == 0 {
-			log.Println("Id allocation error ")
+			logger.AppLog.Errorln("id allocation error")
 			c.JSON(http.StatusBadRequest, gin.H{})
 		}
-		log.Printf("Received resource create. Pool name %v, Pool Id %v ", resName, resId)
+		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
 		c.JSON(http.StatusOK, gin.H{})
 	}
-	return
 }
 
 func IntegerResourceNameDelete(c *gin.Context) {
 	c.String(http.StatusOK, "IntegerResourceNameDelete!")
 	resName, exists := c.Params.Get("resource-name")
-	if exists == false {
-		log.Printf("Received resource delete. resource-name not found ")
+	if !exists {
+		logger.AppLog.Warnln("received resource delete. resource-name not found")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	log.Printf("Received resource delete. Pool name %v ", resName)
+	logger.AppLog.Infof("received resource delete. Pool name %v", resName)
 
 	resId, exists := c.Params.Get("resource-id")
-	if exists == false {
-		log.Printf("resource-id param not found ")
+	if !exists {
+		logger.AppLog.Warnln("resource-id param not found")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	log.Printf("Received resource delete. Res Id %v ", resId)
+	logger.AppLog.Infof("received resource delete. Res Id %v", resId)
 	r, _ := strconv.Atoi(resId)
 	rid := int32(r)
 
@@ -211,127 +210,123 @@ func IntegerResourceNameDelete(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, gin.H{})
 	}
-	return
 }
 
 func Ipv4ResourceNamePost(c *gin.Context) {
 	c.String(http.StatusOK, "Ipv4ResourceNamePost!")
 	resName, exists := c.Params.Get("resource-name")
-	if exists == false {
-		log.Printf("Received resource delete. resource-name not found ")
+	if !exists {
+		logger.AppLog.Warnln("received resource delete. resource-name not found")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 	number, ok := c.GetQuery("number")
-	if ok == true {
+	if ok {
 		n1, _ := strconv.Atoi(number)
-		var n int32
-		n = int32(n1)
+		n := int32(n1)
 		resId := IpAddressAllocMany(resName, n)
 		if len(resId) == 0 {
-			log.Println("Id allocation error ")
+			logger.AppLog.Errorln("id allocation error")
 			c.JSON(http.StatusBadRequest, gin.H{})
 		}
-		log.Printf("Received resource create. Pool name %v, Pool Id %v ", resName, resId)
+		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
 		c.JSON(http.StatusOK, gin.H{})
 
 	} else {
 		resId, err := IpAddressAllocOne(resName)
 		if err != nil {
-			log.Println("Id allocation error ")
+			logger.AppLog.Errorln("id allocation error")
 			c.JSON(http.StatusBadRequest, gin.H{})
 		}
-		log.Printf("Received resource create. Pool name %v, Pool Id %v ", resName, resId)
+		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
 		c.JSON(http.StatusOK, gin.H{})
 	}
-	return
 }
 
 func Ipv4ResourceNameDelete(c *gin.Context) {
 	c.String(http.StatusOK, "Ipv4ResourceNameDelete!")
 	resName, exists := c.Params.Get("resource-name")
-	if exists == false {
-		log.Printf("Received resource delete. resource-name not found ")
+	if !exists {
+		logger.AppLog.Warnln("received resource delete. resource-name not found")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	log.Printf("Received resource delete. Pool name %v ", resName)
+	logger.AppLog.Infof("received resource delete. Pool name %v", resName)
 
 	resId, exists := c.Params.Get("resource-id")
-	if exists == false {
-		log.Printf("resource-id param not found ")
+	if !exists {
+		logger.AppLog.Warnln("resource-id param not found")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	log.Printf("Received resource delete. Res Id %v ", resId)
+	logger.AppLog.Infof("received resource delete. Res Id %v", resId)
 
 	err := IpAddressRelease(resName, resId)
 	if err != nil {
-		log.Printf("IP address %v release failed -  %v ", resId, err)
+		logger.AppLog.Errorf("ip address %v release failed -  %v", resId, err)
 		c.JSON(http.StatusBadRequest, gin.H{})
 	} else {
-		log.Printf("IP address %v release success ", resId)
+		logger.AppLog.Infof("ip address %v release success", resId)
 		c.JSON(http.StatusOK, gin.H{})
 	}
-	return
 }
 
 func GetUniqueIdentityTest(c *gin.Context) {
 	c.String(http.StatusOK, "GetUniqueIdentityTest!")
 	resName, exists := c.Params.Get("pool")
-	if exists == false {
-		log.Printf("pool param missing in URI")
+	if !exists {
+		logger.AppLog.Warnln("pool param missing in URI")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 	uniqueId := mongoHndl.GetUniqueIdentity(resName)
-	log.Println(uniqueId)
+	logger.AppLog.Infoln(uniqueId)
 	c.JSON(http.StatusOK, gin.H{})
 }
 
 func GetUniqueIdentityWithinRangeTest(c *gin.Context) {
 	c.String(http.StatusOK, "GetUniqueIdentityWithinRangeTest!")
 	resName, exists := c.Params.Get("pool")
-	if exists == false {
-		log.Printf("pool param missing in URI")
+	if !exists {
+		logger.AppLog.Infoln("pool param missing in URI")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 	min, ok := GetQuery("min", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	max, ok := GetQuery("max", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	uniqueId := mongoHndl.GetUniqueIdentityWithinRange(resName, min, max)
-	log.Println(uniqueId)
+	logger.AppLog.Infoln(uniqueId)
 	c.JSON(http.StatusOK, gin.H{})
 }
 
 func GetIdFromPoolTest(c *gin.Context) {
-	log.Println("TESTING POOL OF IDS")
+	logger.AppLog.Infoln("testing pool of ids")
 
 	poolName, exists := c.Params.Get("pool")
-	if exists == false {
-		log.Printf("pool param missing in URI")
+	if !exists {
+		logger.AppLog.Infoln("pool param missing in URI")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	min, ok := GetQuery("min", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	max, ok := GetQuery("max", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
@@ -339,44 +334,44 @@ func GetIdFromPoolTest(c *gin.Context) {
 	mongoHndl.InitializePool(poolName, min, max)
 
 	uniqueId, err := mongoHndl.GetIDFromPool(poolName)
-	log.Println(uniqueId, err)
+	logger.AppLog.Infoln(uniqueId, err)
 
 	mongoHndl.ReleaseIDToPool(poolName, uniqueId)
 
 	uniqueId, err = mongoHndl.GetIDFromPool(poolName)
-	log.Println(uniqueId, err)
+	logger.AppLog.Infoln(uniqueId, err)
 
 	uniqueId, err = mongoHndl.GetIDFromPool(poolName)
-	log.Println(uniqueId, err)
+	logger.AppLog.Infoln(uniqueId, err)
 	c.JSON(http.StatusOK, gin.H{})
 
 }
 
 func GetIdFromInsertPoolTest(c *gin.Context) {
-	log.Println("TESTING INSERT APPROACH")
+	logger.AppLog.Infoln("testing insert approach")
 	var randomId int32
 
 	pool, exists := c.Params.Get("pool")
-	if exists == false {
-		log.Printf("pool param missing in URI")
+	if !exists {
+		logger.AppLog.Infoln("pool param missing in URI")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	min, ok := GetQuery("min", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	max, ok := GetQuery("max", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	retry, ok := GetQuery("retry", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
@@ -384,21 +379,21 @@ func GetIdFromInsertPoolTest(c *gin.Context) {
 	mongoHndl.InitializeInsertPool(pool, min, max, retry)
 
 	randomId, err := mongoHndl.GetIDFromInsertPool(pool)
-	log.Println(randomId)
+	logger.AppLog.Infoln(randomId)
 	if err != nil {
-		log.Println(err.Error())
+		logger.AppLog.Errorln(err.Error())
 	}
 
 	randomId, err = mongoHndl.GetIDFromInsertPool(pool)
-	log.Println(randomId)
+	logger.AppLog.Infoln(randomId)
 	if err != nil {
-		log.Println(err.Error())
+		logger.AppLog.Errorln(err.Error())
 	}
 
 	randomId, err = mongoHndl.GetIDFromInsertPool(pool)
-	log.Println(randomId)
+	logger.AppLog.Infoln(randomId)
 	if err != nil {
-		log.Println(err.Error())
+		logger.AppLog.Errorln(err.Error())
 	}
 
 	mongoHndl.ReleaseIDToInsertPool(pool, randomId)
@@ -406,37 +401,37 @@ func GetIdFromInsertPoolTest(c *gin.Context) {
 }
 
 func GetChunkFromPoolTest(c *gin.Context) {
-	log.Println("TESTING CHUNK APPROACH")
+	logger.AppLog.Infoln("testing chunk approach")
 	var lower int32
 	var upper int32
 
 	resName, exists := c.Params.Get("chunk")
-	if exists == false {
-		log.Printf("chunk param missing in URI")
+	if !exists {
+		logger.AppLog.Warnln("chunk param missing in URI")
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	min, ok := GetQuery("min", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	max, ok := GetQuery("max", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	retry, ok := GetQuery("retry", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
 	csize, ok := GetQuery("csize", c)
-	if ok == false {
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
@@ -444,21 +439,21 @@ func GetChunkFromPoolTest(c *gin.Context) {
 	mongoHndl.InitializeChunkPool(resName, min, max, retry, csize) // min, max, retries, chunkSize
 
 	randomId, lower, upper, err := mongoHndl.GetChunkFromPool(resName)
-	log.Println(randomId, lower, upper)
+	logger.AppLog.Infoln(randomId, lower, upper)
 	if err != nil {
-		log.Println(err.Error())
+		logger.AppLog.Errorln(err.Error())
 	}
 
 	randomId, lower, upper, err = mongoHndl.GetChunkFromPool(resName)
-	log.Println(randomId, lower, upper)
+	logger.AppLog.Infoln(randomId, lower, upper)
 	if err != nil {
-		log.Println(err.Error())
+		logger.AppLog.Errorln(err.Error())
 	}
 
 	randomId, lower, upper, err = mongoHndl.GetChunkFromPool(resName)
-	log.Println(randomId, lower, upper)
+	logger.AppLog.Infoln(randomId, lower, upper)
 	if err != nil {
-		log.Println(err.Error())
+		logger.AppLog.Errorln(err.Error())
 	}
 
 	mongoHndl.ReleaseChunkToPool(resName, randomId)
@@ -469,7 +464,7 @@ func GetChunkFromPoolTest(c *gin.Context) {
 
 func GetQuery(param string, c *gin.Context) (int32, bool) {
 	p1, ok := c.GetQuery(param)
-	if ok == false {
+	if !ok {
 		return 0, false
 	}
 	p2, _ := strconv.Atoi(p1)

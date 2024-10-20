@@ -8,7 +8,6 @@ package main
 import (
 	"github.com/omec-project/util/drsm"
 	"github.com/omec-project/util/logger"
-	"log"
 	"os"
 	"time"
 )
@@ -23,13 +22,13 @@ type drsmInterface struct {
 var drsmIntf drsmInterface
 
 func scanChunk(i int32) bool {
-	logger.AppLog.Debugf("Received callback from module to scan Chunk resource %+v", i)
+	logger.AppLog.Debugf("received callback from module to scan Chunk resource %+v", i)
 	return false
 }
 
 func initDrsm(resName string) {
 
-	if drsmIntf.initDrsm == true {
+	if drsmIntf.initDrsm {
 		return
 	}
 	drsmIntf.initDrsm = true
@@ -43,7 +42,7 @@ func initDrsm(resName string) {
 	t := time.Now().UnixNano()
 	opt := &drsm.Options{}
 	if t%2 == 0 {
-		logger.AppLog.Debugf("Running in Demux Mode")
+		logger.AppLog.Debugln("running in Demux Mode")
 		drsmIntf.Mode = drsm.ResourceDemux
 	} else {
 		opt.ResourceValidCb = scanChunk
@@ -58,10 +57,10 @@ func initDrsm(resName string) {
 func AllocateInt32One(resName string) int32 {
 	id, err := drsmIntf.d.AllocateInt32ID()
 	if err != nil {
-		logger.AppLog.Debugf("Id allocation error %+v", err)
+		logger.AppLog.Debugf("id allocation error %+v", err)
 		return 0
 	}
-	log.Printf("Received id %v ", id)
+	logger.AppLog.Infof("received id %d", id)
 	return id
 }
 
@@ -71,26 +70,24 @@ func AllocateInt32Many(resName string, number int32) []int32 {
 	var count int32 = 0
 
 	ticker := time.NewTicker(50 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			id, _ := drsmIntf.d.AllocateInt32ID()
-			if id != 0 {
-				resIds = append(resIds, id)
-			}
-			log.Printf("Received id %v ", id)
-			count++
-			if count >= number {
-				return resIds
-			}
+	for range ticker.C {
+		id, _ := drsmIntf.d.AllocateInt32ID()
+		if id != 0 {
+			resIds = append(resIds, id)
+		}
+		logger.AppLog.Infof("received id %d", id)
+		count++
+		if count >= number {
+			return resIds
 		}
 	}
+	return resIds
 }
 
 func ReleaseInt32One(resName string, resId int32) error {
 	err := drsmIntf.d.ReleaseInt32ID(resId)
 	if err != nil {
-		logger.AppLog.Debugf("Id release error %+v", err)
+		logger.AppLog.Debugf("id release error %+v", err)
 		return err
 	}
 	return nil
@@ -99,10 +96,10 @@ func ReleaseInt32One(resName string, resId int32) error {
 func IpAddressAllocOne(pool string) (string, error) {
 	ip, err := drsmIntf.d.AcquireIp(pool)
 	if err != nil {
-		log.Printf("%+v : Ip allocation error %+v", pool, err)
+		logger.AppLog.Errorf("%+v: ip allocation error %+v", pool, err)
 		return "", err
 	}
-	log.Printf("%v : Received ip %v ", pool, ip)
+	logger.AppLog.Infof("%v: received ip %v", pool, ip)
 	return ip, nil
 }
 
@@ -111,22 +108,20 @@ func IpAddressAllocMany(pool string, number int32) []string {
 	var count int32 = 0
 
 	ticker := time.NewTicker(50 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			ip, err := drsmIntf.d.AcquireIp(pool)
-			if err != nil {
-				log.Printf("%v : Ip allocation error %v", pool, err)
-			} else {
-				log.Printf("%v : Received ip %v ", pool, ip)
-				resIds = append(resIds, ip)
-			}
-			count++
-			if count >= number {
-				return resIds
-			}
+	for range ticker.C {
+		ip, err := drsmIntf.d.AcquireIp(pool)
+		if err != nil {
+			logger.AppLog.Errorf("%v: ip allocation error %v", pool, err)
+		} else {
+			logger.AppLog.Infof("%v: received ip %v", pool, ip)
+			resIds = append(resIds, ip)
+		}
+		count++
+		if count >= number {
+			return resIds
 		}
 	}
+	return resIds
 }
 
 func IpAddressRelease(pool, ip string) error {

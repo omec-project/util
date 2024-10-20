@@ -7,8 +7,8 @@
 package main
 
 import (
+	"github.com/omec-project/util/logger"
 	"github.com/omec-project/util/mongoapi"
-	"log"
 )
 
 var mongoHndl *mongoapi.MongoClient
@@ -17,7 +17,7 @@ var mongoHndl *mongoapi.MongoClient
 // TODO : inbuild shell commands to
 
 func main() {
-	log.Println("dbtestapp started")
+	logger.AppLog.Infoln("dbtestapp started")
 
 	// connect to mongoDB
 	mongoHndl, _ = mongoapi.NewMongoClient("mongodb://mongodb-arbiter-headless", "sdcore")
