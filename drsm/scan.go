@@ -54,7 +54,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 					return
 				}
 			}
-			//no one is writing on stopScan for now. We will use it eventually
+			// no one is writing on stopScan for now. We will use it eventually
 		case <-c.stopScan:
 			logger.DrsmLog.Debugf("received Stop Scan. Closing scan for %v", c.Id)
 			return

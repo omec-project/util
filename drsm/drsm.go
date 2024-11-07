@@ -87,7 +87,7 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.globalChunkTblMutex = sync.Mutex{}
 	d.initIpam(opt)
 
-	//connect to DB
+	// connect to DB
 	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
 	logger.DrsmLog.Debugln("mongoClient is created", d.db.Name)
 

@@ -65,7 +65,7 @@ func (l *Logger) Validate() (bool, error) {
 }
 
 type LogSetting struct {
-	DebugLevel   string `yaml:"debugLevel" valid:"debugLevel"`
+	DebugLevel string `yaml:"debugLevel" valid:"debugLevel"`
 }
 
 func (l *LogSetting) validate() (bool, error) {

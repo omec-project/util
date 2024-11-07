@@ -45,7 +45,6 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 		}
 	}
 	return group
-
 }
 
 var routes = Routes{
@@ -128,7 +127,6 @@ var routes = Routes{
 }
 
 func http_server() {
-
 	engine := gin.New()
 	AddService(engine)
 
@@ -172,7 +170,6 @@ func IntegerResourceNamePost(c *gin.Context) {
 		}
 		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
 		c.JSON(http.StatusOK, gin.H{})
-
 	} else {
 		resId := AllocateInt32One(resName)
 		if resId == 0 {
@@ -231,7 +228,6 @@ func Ipv4ResourceNamePost(c *gin.Context) {
 		}
 		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
 		c.JSON(http.StatusOK, gin.H{})
-
 	} else {
 		resId, err := IpAddressAllocOne(resName)
 		if err != nil {
@@ -292,19 +288,19 @@ func GetUniqueIdentityWithinRangeTest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	min, ok := GetQuery("min", c)
+	minimum, ok := GetQuery("min", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
-	max, ok := GetQuery("max", c)
+	maximum, ok := GetQuery("max", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
-	uniqueId := mongoHndl.GetUniqueIdentityWithinRange(resName, min, max)
+	uniqueId := mongoHndl.GetUniqueIdentityWithinRange(resName, minimum, maximum)
 	logger.AppLog.Infoln(uniqueId)
 	c.JSON(http.StatusOK, gin.H{})
 }
@@ -319,19 +315,19 @@ func GetIdFromPoolTest(c *gin.Context) {
 		return
 	}
 
-	min, ok := GetQuery("min", c)
+	minimum, ok := GetQuery("min", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
-	max, ok := GetQuery("max", c)
+	maximum, ok := GetQuery("max", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
-	mongoHndl.InitializePool(poolName, min, max)
+	mongoHndl.InitializePool(poolName, minimum, maximum)
 
 	uniqueId, err := mongoHndl.GetIDFromPool(poolName)
 	logger.AppLog.Infoln(uniqueId, err)
@@ -344,7 +340,6 @@ func GetIdFromPoolTest(c *gin.Context) {
 	uniqueId, err = mongoHndl.GetIDFromPool(poolName)
 	logger.AppLog.Infoln(uniqueId, err)
 	c.JSON(http.StatusOK, gin.H{})
-
 }
 
 func GetIdFromInsertPoolTest(c *gin.Context) {
@@ -358,13 +353,13 @@ func GetIdFromInsertPoolTest(c *gin.Context) {
 		return
 	}
 
-	min, ok := GetQuery("min", c)
+	minimum, ok := GetQuery("min", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
-	max, ok := GetQuery("max", c)
+	maximum, ok := GetQuery("max", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
@@ -376,7 +371,7 @@ func GetIdFromInsertPoolTest(c *gin.Context) {
 		return
 	}
 
-	mongoHndl.InitializeInsertPool(pool, min, max, retry)
+	mongoHndl.InitializeInsertPool(pool, minimum, maximum, retry)
 
 	randomId, err := mongoHndl.GetIDFromInsertPool(pool)
 	logger.AppLog.Infoln(randomId)
@@ -412,13 +407,13 @@ func GetChunkFromPoolTest(c *gin.Context) {
 		return
 	}
 
-	min, ok := GetQuery("min", c)
+	minimum, ok := GetQuery("min", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
 
-	max, ok := GetQuery("max", c)
+	maximum, ok := GetQuery("max", c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
@@ -436,7 +431,7 @@ func GetChunkFromPoolTest(c *gin.Context) {
 		return
 	}
 
-	mongoHndl.InitializeChunkPool(resName, min, max, retry, csize) // min, max, retries, chunkSize
+	mongoHndl.InitializeChunkPool(resName, minimum, maximum, retry, csize) // minimum, maximum, retries, chunkSize
 
 	randomId, lower, upper, err := mongoHndl.GetChunkFromPool(resName)
 	logger.AppLog.Infoln(randomId, lower, upper)
@@ -459,7 +454,6 @@ func GetChunkFromPoolTest(c *gin.Context) {
 	mongoHndl.ReleaseChunkToPool(resName, randomId)
 
 	c.JSON(http.StatusOK, gin.H{})
-
 }
 
 func GetQuery(param string, c *gin.Context) (int32, bool) {
