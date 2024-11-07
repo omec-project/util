@@ -27,7 +27,7 @@ func iterateChangeStream(routineCtx context.Context, stream *mongo.ChangeStream)
 	}
 }
 
-func timeoutTest(c *gin.Context) {
+func TimeoutTest(c *gin.Context) {
 	c.String(http.StatusOK, "timeoutTest!")
 	logger.AppLog.Infoln("starting timeout document")
 
@@ -123,11 +123,4 @@ func createDocumentWithExpiryTime(collName string, name string, timeVal int) {
 	// putData["updatedAt"] = time.Now()
 	filter := bson.M{"name": name}
 	mongoHndl.RestfulAPIPutOne(collName, filter, putData)
-}
-
-func deleteDocumentWithTimeout(name string) {
-	putData := bson.M{}
-	putData["name"] = name
-	filter := bson.M{}
-	mongoHndl.RestfulAPIDeleteOne("timeout", filter)
 }
