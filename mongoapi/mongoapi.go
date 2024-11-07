@@ -367,7 +367,7 @@ func (c *MongoClient) GetUniqueIdentity(idName string) int32 {
 }
 
 /* Get a unique id within a given range. */
-func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, min int32, max int32) int32 {
+func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, minimum int32, maximum int32) int32 {
 	rangeCollection := c.Client.Database(c.dbName).Collection("range")
 
 	rangeFilter := bson.M{}
@@ -378,7 +378,7 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, min int32, max i
 
 		if count.Err() != nil {
 			counterData := bson.M{}
-			counterData["count"] = min
+			counterData["count"] = minimum
 			counterData["_id"] = pool
 			rangeCollection.InsertOne(context.TODO(), counterData)
 
@@ -388,7 +388,7 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, min int32, max i
 			count.Decode(&data)
 			decodedCount := data["count"].(int32)
 
-			if decodedCount >= max || decodedCount <= min {
+			if decodedCount >= maximum || decodedCount <= minimum {
 				// err := errors.New("Unique identity is out of range.")
 				// logger.MongoDBLog.Println(err)
 				return -1
@@ -398,12 +398,12 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, min int32, max i
 	}
 }
 
-/* Initialize pool of ids with max and min values and chunk size and amount of retries to get a chunk. */
-func (c *MongoClient) InitializeChunkPool(poolName string, min int32, max int32, retries int32, chunkSize int32) {
+/* Initialize pool of ids with maximum and minimum values and chunk size and amount of retries to get a chunk. */
+func (c *MongoClient) InitializeChunkPool(poolName string, minimum int32, maximum int32, retries int32, chunkSize int32) {
 	// logger.MongoDBLog.Println("ENTERING InitializeChunkPool")
 	poolData := map[string]int32{}
-	poolData["min"] = min
-	poolData["max"] = max
+	poolData["min"] = minimum
+	poolData["max"] = maximum
 	poolData["retries"] = retries
 	poolData["chunkSize"] = chunkSize
 
@@ -422,16 +422,16 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 		return -1, -1, -1, err
 	}
 
-	min := pool["min"]
-	max := pool["max"]
+	minimum := pool["min"]
+	maximum := pool["max"]
 	retries := pool["retries"]
 	chunkSize := pool["chunkSize"]
-	totalChunks := (max - min) / chunkSize
+	totalChunks := (maximum - minimum) / chunkSize
 
 	var i int32 = 0
 	for i < retries {
 		random := rand.Int31n(totalChunks)
-		lower := min + (random * chunkSize)
+		lower := minimum + (random * chunkSize)
 		upper := lower + chunkSize
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
@@ -480,12 +480,12 @@ func (c *MongoClient) ReleaseChunkToPool(poolName string, id int32) {
 	}
 }
 
-/* Initialize pool of ids with max and min values. */
-func (c *MongoClient) InitializeInsertPool(poolName string, min int32, max int32, retries int32) {
+/* Initialize pool of ids with maximum and minimum values. */
+func (c *MongoClient) InitializeInsertPool(poolName string, minimum int32, maximum int32, retries int32) {
 	// logger.MongoDBLog.Println("ENTERING InitializeInsertPool")
 	poolData := map[string]int32{}
-	poolData["min"] = min
-	poolData["max"] = max
+	poolData["min"] = minimum
+	poolData["max"] = maximum
 	poolData["retries"] = retries
 
 	c.pools[poolName] = poolData
@@ -503,12 +503,12 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 		return -1, err
 	}
 
-	min := pool["min"]
-	max := pool["max"]
+	minimum := pool["min"]
+	maximum := pool["max"]
 	retries := pool["retries"]
 	var i int32 = 0
 	for i < retries {
-		random := rand.Int31n(max-min) + min // returns random int in [0, max-min-1] + min
+		random := rand.Int31n(maximum-minimum) + minimum // returns random int in [0, maximum-minimum-1] + minimum
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 		// Create an instance of an options and set the desired options
@@ -551,8 +551,8 @@ func (c *MongoClient) ReleaseIDToInsertPool(poolName string, id int32) {
 	}
 }
 
-/* Initialize pool of ids with max and min values. */
-func (c *MongoClient) InitializePool(poolName string, min int32, max int32) {
+/* Initialize pool of ids with maximum and minimum values. */
+func (c *MongoClient) InitializePool(poolName string, minimum int32, maximum int32) {
 	// logger.MongoDBLog.Println("ENTERING InitializePool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 	names, err := c.Client.Database(c.dbName).ListCollectionNames(context.TODO(), bson.M{})
@@ -575,7 +575,7 @@ func (c *MongoClient) InitializePool(poolName string, min int32, max int32) {
 		// logger.MongoDBLog.Println("Creating collection")
 
 		array := []int32{}
-		for i := min; i < max; i++ {
+		for i := minimum; i < maximum; i++ {
 			array = append(array, i)
 		}
 		poolData := bson.M{}

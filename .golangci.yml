@@ -245,7 +245,7 @@ linters:
     - gofumpt
     - whitespace
     - unconvert
-    # - predeclared
+    - predeclared
     - noctx
     - dogsled
     # - bodyclose
