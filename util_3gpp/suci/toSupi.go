@@ -329,7 +329,6 @@ func ToSupi(suci string, suciProfiles []SuciProfile) (string, error) {
 	if suciPrefix == "imsi" || suciPrefix == "nai" {
 		logger.Util3GPPLog.Infoln("got supi")
 		return suci, nil
-
 	} else if suciPrefix == "suci" {
 		if len(suciPart) < 6 {
 			return "", fmt.Errorf("suci with wrong format")
