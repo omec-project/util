@@ -426,7 +426,7 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 	max := pool["max"]
 	retries := pool["retries"]
 	chunkSize := pool["chunkSize"]
-	totalChunks := int32((max - min) / chunkSize)
+	totalChunks := (max - min) / chunkSize
 
 	var i int32 = 0
 	for i < retries {
@@ -451,7 +451,7 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 			// means that there was no document with that id, so the upsert should have been successful
 			if result.Err() == mongo.ErrNoDocuments {
 				// logger.MongoDBLog.Println("Assigned chunk # ", random, " with range ", lower, " - ", upper)
-				return int32(random), int32(lower), int32(upper), nil
+				return random, lower, upper, nil
 			}
 
 			return -1, -1, -1, result.Err()
@@ -522,7 +522,7 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 			// means that there was no document with that id, so the upsert should have been successful
 			if result.Err().Error() == "mongo: no documents in result" {
 				// logger.MongoDBLog.Println("Assigned id: ", random)
-				return int32(random), nil
+				return random, nil
 			}
 
 			return -1, result.Err()

@@ -193,7 +193,7 @@ func profileA(input, supiType, privateKey string) (string, error) {
 		aHNPriv = aHNPrivTmp
 	}
 	var decryptSharedKey []byte
-	if decryptSharedKeyTmp, err := curve25519.X25519(aHNPriv, []byte(decryptPublicKey)); err != nil {
+	if decryptSharedKeyTmp, err := curve25519.X25519(aHNPriv, decryptPublicKey); err != nil {
 		logger.Util3GPPLog.Errorf("X25519 error: %+v", err)
 	} else {
 		decryptSharedKey = decryptSharedKeyTmp

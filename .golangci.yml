@@ -243,8 +243,8 @@ linters:
     - gci
     - misspell
     - gofumpt
-    # - whitespace
-    # - unconvert
+    - whitespace
+    - unconvert
     # - predeclared
     - noctx
     - dogsled
