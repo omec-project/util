@@ -24,6 +24,6 @@ func main() {
 
 	initDrsm("resourceids")
 
-	//blocking
+	// blocking
 	http_server()
 }

@@ -45,7 +45,6 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 		}
 	}
 	return group
-
 }
 
 var routes = Routes{
@@ -128,7 +127,6 @@ var routes = Routes{
 }
 
 func http_server() {
-
 	engine := gin.New()
 	AddService(engine)
 
@@ -344,7 +342,6 @@ func GetIdFromPoolTest(c *gin.Context) {
 	uniqueId, err = mongoHndl.GetIDFromPool(poolName)
 	logger.AppLog.Infoln(uniqueId, err)
 	c.JSON(http.StatusOK, gin.H{})
-
 }
 
 func GetIdFromInsertPoolTest(c *gin.Context) {
@@ -459,7 +456,6 @@ func GetChunkFromPoolTest(c *gin.Context) {
 	mongoHndl.ReleaseChunkToPool(resName, randomId)
 
 	c.JSON(http.StatusOK, gin.H{})
-
 }
 
 func GetQuery(param string, c *gin.Context) (int32, bool) {

@@ -31,18 +31,22 @@ type SuciProfile struct {
 }
 
 // profile A.
-const ProfileAMacKeyLen = 32 // octets
-const ProfileAEncKeyLen = 16 // octets
-const ProfileAIcbLen = 16    // octets
-const ProfileAMacLen = 8     // octets
-const ProfileAHashLen = 32   // octets
+const (
+	ProfileAMacKeyLen = 32 // octets
+	ProfileAEncKeyLen = 16 // octets
+	ProfileAIcbLen    = 16 // octets
+	ProfileAMacLen    = 8  // octets
+	ProfileAHashLen   = 32 // octets
+)
 
 // profile B.
-const ProfileBMacKeyLen = 32 // octets
-const ProfileBEncKeyLen = 16 // octets
-const ProfileBIcbLen = 16    // octets
-const ProfileBMacLen = 8     // octets
-const ProfileBHashLen = 32   // octets
+const (
+	ProfileBMacKeyLen = 32 // octets
+	ProfileBEncKeyLen = 16 // octets
+	ProfileBIcbLen    = 16 // octets
+	ProfileBMacLen    = 8  // octets
+	ProfileBHashLen   = 32 // octets
+)
 
 func CompressKey(uncompressed []byte, y *big.Int) []byte {
 	compressed := uncompressed[0:33]
@@ -301,17 +305,21 @@ func profileB(input, supiType, privateKey string) (string, error) {
 }
 
 // suci-0(SUPI type)-mcc-mnc-routingIndentifier-protectionScheme-homeNetworkPublicKeyIdentifier-schemeOutput.
-const supiTypePlace = 1
-const mccPlace = 2
-const mncPlace = 3
-const schemePlace = 5
-const HNPublicKeyIDPlace = 6
+const (
+	supiTypePlace      = 1
+	mccPlace           = 2
+	mncPlace           = 3
+	schemePlace        = 5
+	HNPublicKeyIDPlace = 6
+)
 
-const typeIMSI = "0"
-const imsiPrefix = "imsi-"
-const nullScheme = "0"
-const profileAScheme = "1"
-const profileBScheme = "2"
+const (
+	typeIMSI       = "0"
+	imsiPrefix     = "imsi-"
+	nullScheme     = "0"
+	profileAScheme = "1"
+	profileBScheme = "2"
+)
 
 func ToSupi(suci string, suciProfiles []SuciProfile) (string, error) {
 	suciPart := strings.Split(suci, "-")
@@ -326,7 +334,6 @@ func ToSupi(suci string, suciProfiles []SuciProfile) (string, error) {
 		if len(suciPart) < 6 {
 			return "", fmt.Errorf("suci with wrong format")
 		}
-
 	} else {
 		return "", fmt.Errorf("unknown suciPrefix [%s]", suciPrefix)
 	}

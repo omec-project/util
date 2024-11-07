@@ -6,10 +6,11 @@
 package main
 
 import (
-	"github.com/omec-project/util/drsm"
-	"github.com/omec-project/util/logger"
 	"os"
 	"time"
+
+	"github.com/omec-project/util/drsm"
+	"github.com/omec-project/util/logger"
 )
 
 type drsmInterface struct {
@@ -27,7 +28,6 @@ func scanChunk(i int32) bool {
 }
 
 func initDrsm(resName string) {
-
 	if drsmIntf.initDrsm {
 		return
 	}

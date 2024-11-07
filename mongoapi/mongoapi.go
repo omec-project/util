@@ -349,7 +349,7 @@ func (c *MongoClient) GetUniqueIdentity(idName string) int32 {
 		count := counterCollection.FindOneAndUpdate(context.TODO(), counterFilter, bson.M{"$inc": bson.M{"count": 1}})
 
 		if count.Err() != nil {
-			//logger.MongoDBLog.Println("FindOneAndUpdate error. Create entry for field  ")
+			// logger.MongoDBLog.Println("FindOneAndUpdate error. Create entry for field  ")
 			counterData := bson.M{}
 			counterData["count"] = 1
 			counterData["_id"] = idName
@@ -357,7 +357,7 @@ func (c *MongoClient) GetUniqueIdentity(idName string) int32 {
 
 			continue
 		} else {
-			//logger.MongoDBLog.Println("found entry. inc and return")
+			// logger.MongoDBLog.Println("found entry. inc and return")
 			data := bson.M{}
 			count.Decode(&data)
 			decodedCount := data["count"].(int32)
@@ -389,8 +389,8 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, min int32, max i
 			decodedCount := data["count"].(int32)
 
 			if decodedCount >= max || decodedCount <= min {
-				//err := errors.New("Unique identity is out of range.")
-				//logger.MongoDBLog.Println(err)
+				// err := errors.New("Unique identity is out of range.")
+				// logger.MongoDBLog.Println(err)
 				return -1
 			}
 			return decodedCount
@@ -400,22 +400,22 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, min int32, max i
 
 /* Initialize pool of ids with max and min values and chunk size and amount of retries to get a chunk. */
 func (c *MongoClient) InitializeChunkPool(poolName string, min int32, max int32, retries int32, chunkSize int32) {
-	//logger.MongoDBLog.Println("ENTERING InitializeChunkPool")
-	var poolData = map[string]int32{}
+	// logger.MongoDBLog.Println("ENTERING InitializeChunkPool")
+	poolData := map[string]int32{}
 	poolData["min"] = min
 	poolData["max"] = max
 	poolData["retries"] = retries
 	poolData["chunkSize"] = chunkSize
 
 	c.pools[poolName] = poolData
-	//logger.MongoDBLog.Println("Pools: ", pools)
+	// logger.MongoDBLog.Println("Pools: ", pools)
 }
 
 /* Get id by inserting into collection. If insert succeeds, that id is available. Else, it isn't available so retry. */
 func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, error) {
-	//logger.MongoDBLog.Println("ENTERING GetChunkFromPool")
+	// logger.MongoDBLog.Println("ENTERING GetChunkFromPool")
 
-	var pool = c.pools[poolName]
+	pool := c.pools[poolName]
 
 	if pool == nil {
 		err := errors.New("this pool has not been initialized yet. Initialize by calling InitializeChunkPool")
@@ -450,14 +450,14 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
 			if result.Err() == mongo.ErrNoDocuments {
-				//logger.MongoDBLog.Println("Assigned chunk # ", random, " with range ", lower, " - ", upper)
+				// logger.MongoDBLog.Println("Assigned chunk # ", random, " with range ", lower, " - ", upper)
 				return int32(random), int32(lower), int32(upper), nil
 			}
 
 			return -1, -1, -1, result.Err()
 		}
 		// means there was a document before the update and result contains that document.
-		//logger.MongoDBLog.Println("Chunk", random, " has already been assigned. ", retries-i-1, " retries left.")
+		// logger.MongoDBLog.Println("Chunk", random, " has already been assigned. ", retries-i-1, " retries left.")
 		i++
 	}
 
@@ -467,36 +467,36 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 
 /* Release the provided id to the provided pool. */
 func (c *MongoClient) ReleaseChunkToPool(poolName string, id int32) {
-	//logger.MongoDBLog.Println("ENTERING ReleaseChunkToPool")
+	// logger.MongoDBLog.Println("ENTERING ReleaseChunkToPool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 	// only want to delete if the currentApp is the owner of this id.
 	currentApp := os.Getenv("HOSTNAME")
-	//logger.MongoDBLog.Println(currentApp)
+	// logger.MongoDBLog.Println(currentApp)
 
 	_, err := poolCollection.DeleteOne(context.TODO(), bson.M{"_id": id, "owner": currentApp})
 	if err != nil {
-		//logger.MongoDBLog.Println("Release Chunk(", id, ") to Pool(", poolName, ") failed : ", err)
+		// logger.MongoDBLog.Println("Release Chunk(", id, ") to Pool(", poolName, ") failed : ", err)
 	}
 }
 
 /* Initialize pool of ids with max and min values. */
 func (c *MongoClient) InitializeInsertPool(poolName string, min int32, max int32, retries int32) {
-	//logger.MongoDBLog.Println("ENTERING InitializeInsertPool")
-	var poolData = map[string]int32{}
+	// logger.MongoDBLog.Println("ENTERING InitializeInsertPool")
+	poolData := map[string]int32{}
 	poolData["min"] = min
 	poolData["max"] = max
 	poolData["retries"] = retries
 
 	c.pools[poolName] = poolData
-	//logger.MongoDBLog.Println("Pools: ", pools)
+	// logger.MongoDBLog.Println("Pools: ", pools)
 }
 
 /* Get id by inserting into collection. If insert succeeds, that id is available. Else, it isn't available so retry. */
 func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
-	//logger.MongoDBLog.Println("ENTERING GetIDFromInsertPool")
+	// logger.MongoDBLog.Println("ENTERING GetIDFromInsertPool")
 
-	var pool = c.pools[poolName]
+	pool := c.pools[poolName]
 
 	if pool == nil {
 		err := errors.New("this pool has not been initialized yet. Initialize by calling InitializeInsertPool")
@@ -521,17 +521,17 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
 			if result.Err().Error() == "mongo: no documents in result" {
-				//logger.MongoDBLog.Println("Assigned id: ", random)
+				// logger.MongoDBLog.Println("Assigned id: ", random)
 				return int32(random), nil
 			}
 
 			return -1, result.Err()
 		}
 		// means there was a document before the update and result contains that document.
-		//logger.MongoDBLog.Println("This id has already been assigned. ")
+		// logger.MongoDBLog.Println("This id has already been assigned. ")
 		doc := bson.M{}
 		result.Decode(&doc)
-		//logger.MongoDBLog.Println(doc)
+		// logger.MongoDBLog.Println(doc)
 
 		i++
 	}
@@ -542,37 +542,37 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 
 /* Release the provided id to the provided pool. */
 func (c *MongoClient) ReleaseIDToInsertPool(poolName string, id int32) {
-	//logger.MongoDBLog.Println("ENTERING ReleaseIDToInsertPool")
+	// logger.MongoDBLog.Println("ENTERING ReleaseIDToInsertPool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 	_, err := poolCollection.DeleteOne(context.TODO(), bson.M{"_id": id})
 	if err != nil {
-		//logger.MongoDBLog.Println("Release Id(", id, ") to Pool(", poolName, ") failed : ", err)
+		// logger.MongoDBLog.Println("Release Id(", id, ") to Pool(", poolName, ") failed : ", err)
 	}
 }
 
 /* Initialize pool of ids with max and min values. */
 func (c *MongoClient) InitializePool(poolName string, min int32, max int32) {
-	//logger.MongoDBLog.Println("ENTERING InitializePool")
+	// logger.MongoDBLog.Println("ENTERING InitializePool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 	names, err := c.Client.Database(c.dbName).ListCollectionNames(context.TODO(), bson.M{})
 	if err != nil {
-		//logger.MongoDBLog.Println(err)
+		// logger.MongoDBLog.Println(err)
 		return
 	}
 
-	//logger.MongoDBLog.Println(names)
+	// logger.MongoDBLog.Println(names)
 
 	exists := false
 	for _, name := range names {
 		if name == poolName {
-			//logger.MongoDBLog.Println("The collection exists!")
+			// logger.MongoDBLog.Println("The collection exists!")
 			exists = true
 			break
 		}
 	}
 	if !exists {
-		//logger.MongoDBLog.Println("Creating collection")
+		// logger.MongoDBLog.Println("Creating collection")
 
 		array := []int32{}
 		for i := min; i < max; i++ {
@@ -590,7 +590,7 @@ func (c *MongoClient) InitializePool(poolName string, min int32, max int32) {
 
 /* For example IP addresses need to be assigned and then returned to be used again. */
 func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
-	//logger.MongoDBLog.Println("ENTERING GetIDFromPool")
+	// logger.MongoDBLog.Println("ENTERING GetIDFromPool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 	result := bson.M{}
@@ -603,20 +603,20 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 		array = append(array, id)
 	}
 
-	//logger.MongoDBLog.Println("Array of ids: ", array)
+	// logger.MongoDBLog.Println("Array of ids: ", array)
 	if len(array) > 0 {
 		res := array[len(array)-1]
 		return res, nil
 	} else {
 		err := errors.New("there are no available ids")
-		//logger.MongoDBLog.Println(err)
+		// logger.MongoDBLog.Println(err)
 		return -1, err
 	}
 }
 
 /* Release the provided id to the provided pool. */
 func (c *MongoClient) ReleaseIDToPool(poolName string, id int32) {
-	//logger.MongoDBLog.Println("ENTERING ReleaseIDToPool")
+	// logger.MongoDBLog.Println("ENTERING ReleaseIDToPool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 	poolCollection.UpdateOne(context.TODO(), bson.M{"_id": poolName}, bson.M{"$push": bson.M{"ids": id}})
@@ -628,7 +628,7 @@ func (c *MongoClient) GetOneCustomDataStructure(collName string, filter bson.M) 
 	val := collection.FindOne(context.TODO(), filter)
 
 	if val.Err() != nil {
-		//logger.MongoDBLog.Println("Error getting student from db: " + val.Err().Error())
+		// logger.MongoDBLog.Println("Error getting student from db: " + val.Err().Error())
 		return bson.M{}, val.Err()
 	}
 
@@ -646,7 +646,7 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 	if checkItem == nil {
 		_, err := collection.InsertOne(context.TODO(), putData)
 		if err != nil {
-			//logger.MongoDBLog.Println("insert failed : ", err)
+			// logger.MongoDBLog.Println("insert failed : ", err)
 			return false, err
 		}
 		return true, nil
@@ -666,11 +666,11 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 
 	_, err := collection.Indexes().CreateOne(context.Background(), index)
 	if err != nil {
-		//logger.MongoDBLog.Error("Create Index failed : ", keyField, err)
+		// logger.MongoDBLog.Error("Create Index failed : ", keyField, err)
 		return false, err
 	}
 
-	//logger.MongoDBLog.Println("Created index : ", idx, " on keyField : ", keyField, " for Collection : ", collName)
+	// logger.MongoDBLog.Println("Created index : ", idx, " on keyField : ", keyField, " for Collection : ", collName)
 
 	return true, nil
 }
@@ -702,10 +702,10 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	_, err := collection.Indexes().DropOne(context.Background(), timeField)
 	if err != nil {
-		//logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
+		// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
 	}
 
-	//create new index with new timeout
+	// create new index with new timeout
 	index := mongo.IndexModel{
 		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
@@ -713,7 +713,7 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 
 	_, err = collection.Indexes().CreateOne(context.Background(), index)
 	if err != nil {
-		//logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
+		// logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
 	}
 
 	return true
@@ -728,18 +728,17 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	var checkItem map[string]interface{}
 
-	//fetch all Indexes on collection
+	// fetch all Indexes on collection
 	cursor, err := collection.Indexes().List(context.TODO())
-
 	if err != nil {
-		//logger.MongoDBLog.Println("RestfulAPIPatchOneTimeout : List Index failed for collection (", collName, ") : ", err)
+		// logger.MongoDBLog.Println("RestfulAPIPatchOneTimeout : List Index failed for collection (", collName, ") : ", err)
 		return false
 	}
 
 	var result []bson.M
 	// convert to map
 	if err = cursor.All(context.TODO(), &result); err != nil {
-		//logger.MongoDBLog.Println("RestfulAPIPatchOneTimeout : Cursor decode failed for collection (", collName, ") : ", err)
+		// logger.MongoDBLog.Println("RestfulAPIPatchOneTimeout : Cursor decode failed for collection (", collName, ") : ", err)
 	}
 
 	// loop through the map and check for entry with key as name
@@ -754,7 +753,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 			if (k1 == "name") && strings.Contains(valStr, timeField) {
 				_, err = collection.Indexes().DropOne(context.Background(), valStr)
 				if err != nil {
-					//logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
+					// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
 					break
 				}
 			}
@@ -764,7 +763,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 		}
 	}
 
-	//create new index with new timeout
+	// create new index with new timeout
 	index := mongo.IndexModel{
 		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout),
@@ -772,7 +771,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 
 	_, err = collection.Indexes().CreateOne(context.Background(), index)
 	if err != nil {
-		//logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
+		// logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
 	}
 
 	collection.FindOne(context.TODO(), filter).Decode(&checkItem)
@@ -821,7 +820,7 @@ func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData 
 
 	result, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
 	if result.MatchedCount != 0 {
-		//logger.MongoDBLog.Println("matched and replaced an existing document")
+		// logger.MongoDBLog.Println("matched and replaced an existing document")
 		return nil
 	}
 	err = fmt.Errorf("failed to update document: %s", err)

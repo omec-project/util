@@ -98,15 +98,14 @@ func (d *Drsm) handleDbUpdates() {
 	pipeline := mongo.Pipeline{}
 
 	for {
-		//create stream to monitor actions on the collection
+		// create stream to monitor actions on the collection
 		updateStream, err := collection.Watch(context.TODO(), pipeline)
-
 		if err != nil {
 			time.Sleep(5000 * time.Millisecond)
 			continue
 		}
 		routineCtx, _ := context.WithCancel(context.Background())
-		//run routine to get messages from stream
+		// run routine to get messages from stream
 		iterateChangeStream(d, routineCtx, updateStream)
 	}
 }
@@ -130,14 +129,14 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 		var s streamDoc
 		bsonBytes, _ := bson.Marshal(data)
 		bson.Unmarshal(bsonBytes, &s)
-		//logger.DrsmLog.Debugf("iterate stream : ", data)
-		//logger.DrsmLog.Debugf("\ndecoded stream bson %+v \n", s)
+		// logger.DrsmLog.Debugf("iterate stream : ", data)
+		// logger.DrsmLog.Debugf("\ndecoded stream bson %+v \n", s)
 		switch s.OpType {
 		case "insert":
 			full := &s.Full
 			switch full.Type {
 			case "keepalive":
-				//logger.DrsmLog.Debugf("insert keepalive document")
+				// logger.DrsmLog.Debugf("insert keepalive document")
 				pod, found := d.podMap[full.PodId]
 				if !found {
 					d.addPod(full)
@@ -145,11 +144,11 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 					logger.DrsmLog.Debugln("keepalive insert document: found existing podId", pod)
 				}
 			case "chunk":
-				//logger.DrsmLog.Debugln("insert chunk document")
+				// logger.DrsmLog.Debugln("insert chunk document")
 				d.addChunk(full)
 			}
 		case "update":
-			//logger.DrsmLog.Debugln("update operations")
+			// logger.DrsmLog.Debugln("update operations")
 			if isChunkDoc(s.DId.Id) {
 				// update on chunkId..
 				// looks like chunk owner getting change
@@ -195,7 +194,7 @@ func (d *Drsm) punchLiveness() {
 	}
 
 	for range ticker.C {
-		//logger.DrsmLog.Debugln("update keepalive time")
+		// logger.DrsmLog.Debugln("update keepalive time")
 		filter := bson.M{"_id": d.clientId.PodName}
 
 		timein := time.Now().Local().Add(20 * time.Second)
