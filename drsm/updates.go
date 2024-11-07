@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/omec-project/util/logger"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )

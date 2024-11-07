@@ -20,9 +20,8 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/curve25519"
-
 	"github.com/omec-project/util/logger"
+	"golang.org/x/crypto/curve25519"
 )
 
 type SuciProfile struct {
