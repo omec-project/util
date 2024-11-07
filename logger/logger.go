@@ -58,7 +58,6 @@ func init() {
 	UtilLog = log.Sugar().With("component", "LIB", "category", "Util")
 	DrsmLog = log.Sugar().With("component", "LIB", "category", "DRSM")
 	FsmLog = log.Sugar().With("component", "LIB", "category", "FSM")
-	PathLog = log.Sugar().With("component", "LIB", "category", "Path")
 	Util3GPPLog = log.Sugar().With("component", "LIB", "category", "Util3GPP")
 }
 
