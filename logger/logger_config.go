@@ -30,7 +30,7 @@ type Logger struct {
 	SCTPLB *LogSetting `yaml:"SCTPLB" valid:"optional"`
 
 	Aper                         *LogSetting `yaml:"Aper" valid:"optional"`
-	FSM                          *LogSetting `yaml:"FSM" valid:"optional"`
+	Util                         *LogSetting `yaml:"Util" valid:"optional"`
 	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary" valid:"optional"`
 	NAS                          *LogSetting `yaml:"NAS" valid:"optional"`
 	NGAP                         *LogSetting `yaml:"NGAP" valid:"optional"`
