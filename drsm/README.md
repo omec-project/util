@@ -12,7 +12,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Introduction
 
-It is very common in micro services based architecture to share resources among multiple instances of the microservices.Just to explain the DRSM concepts and design we can take an example of the Access Management Function (AMF) network function. e.g. gNodeB & AMF connect over the N2 interface and NGAP protocol is used for this interface. 3gpp defines the specification of this interface. NGAP uses SCTP transport protocol for communication between gNodeB & AMF. Multiple User Equipment (UE) signaling traffic is sent over the N2 interface. Users are identified by NGAPIDs. Each subscriber is identified by the NGAAP ID of AMF & NGAAP ID of gNodeB. So it's very important for AMF, gNodeB to assign a unique NGAPP ID to UE.  When single AMF instance is running in the system then there is no issue and assigned IDs are unique. But when multiple instances of AMF are running in the system then the DRSM module helps the AMF instance for unique ID assignment.
+It is very common in micro services based architecture to share resources among multiple instances of the microservices.Just to explain the DRSM concepts and design we can take an example of the Access Management Function (AMF) network function. e.g. gNodeB & AMF connect over the N2 interface and NGAP protocol is used for this interface. 3gpp defines the specification of this interface. NGAP uses SCTP transport protocol for communication between gNodeB & AMF. Multiple User Equipment (UE) signaling traffic is sent over the N2 interface. Users are identified by NGAPIDs. Each subscriber is identified by the NGAAP ID of AMF & NGAAP ID of gNodeB. So it's very important for AMF, gNodeB to assign a unique NGAPP ID to UE. When single AMF instance is running in the system then there is no issue and assigned IDs are unique. But when multiple instances of AMF are running in the system then the DRSM module helps the AMF instance for unique ID assignment.
 
 ## Module
 
@@ -47,7 +47,7 @@ If any AMF instances crashes then the chunks owned by the crashed AMF instances 
 
     - MongoDB should run in cluster(replicaset) Mode or sharded Mode
 
-## Limitation:
+## Limitation
 
     - If application wants to use multiple Id for same session then its good to use single id is used for multiple purpose.
       e.g. AMF can use single id for ngapid as well as tmsi
@@ -68,7 +68,7 @@ If any AMF instances crashes then the chunks owned by the crashed AMF instances 
     - Pod identity is IP address + Pod Name
     - Allocate more than 1000 ids.. See if New chunk is allocated
 
-## TODO:
+## TODO
 
     -  MongoDB instance restart
     -  Rst counter to be appended to identify pod. PodId should be = K8s Pod Id + Rst Count.
