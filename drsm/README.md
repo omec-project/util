@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Block diagram
 
-![DRSM Usage in AMF](/images/drsm.png)
+![DRSM Usage in AMF](/drsm/images/drsm.png)
 
 ## Introduction
 It is very common in micro services based architecture to share resources among multiple instances of the microservices. Just to explain the DRSM concepts and design we can take an example of the Access Management Function (AMF) network function. e.g. gNodeB & AMF connect over the N2 interface and NGAP protocol is used for this interface. 3gpp defines the specification of this interface. NGAP uses SCTP transport protocol for communication between gNodeB & AMF. Multiple User Equipment (UE) signaling traffic is sent over the N2 interface. Users are identified by NGAPIDs. Each subscriber is identified by the NGAAP ID of AMF & NGAAP ID of gNodeB.
