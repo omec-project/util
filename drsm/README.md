@@ -6,6 +6,22 @@ SPDX-License-Identifier: Apache-2.0
 -->
 # Distributed Resource Sharing Module (DRSM)
 
+## Introduction
+It is very common in micro services based architecture to share resources among multiple instances of the microservices. Just to explain the DRSM concepts and design we can take an example of the Access Management Function (AMF) network function. e.g. gNodeB & AMF connect over the N2 interface and NGAP protocol is used for this interface. 3gpp defines the specification of this interface. NGAP uses SCTP transport protocol for communication between gNodeB & AMF. Multiple User Equipment (UE) signaling traffic is sent over the N2 interface. Users are identified by NGAPIDs. Each subscriber is identified by the NGAAP ID of AMF & NGAAP ID of gNodeB.
+So it's very important for AMF, gNodeB to assign a unique NGAPP ID to UE.  When single AMF instance is running in the system then there is no issue and assigned IDs are unique. But when multiple instances of AMF are running in the system then the DRSM module helps the AMF instance for unique ID assignment. 
+
+## Module 
+DRSM is a go module and can be used by go program to start using the resource allocation functionality. In 5G core it is used by SCTP load balancer & AMF.
+
+## Initialization
+During DRSM module init, AMF provides all required information to DRSM and reserves a few unique chunks. This is done through mongodb operation internally. The DRSM module provides APIs to assign IDs from these chunks. When Chunk is fully utilized then AMF creates a new unique chunk and starts assigning the Ids from the newly created chunk.
+
+## Load Balancer 
+SCTP load balancer keeps track of all the created chunks and their corresponding owner. When UE messages are received at SCTP load balancer then it reads the NGAPP id from the messages and finds the corresponding AMF instances using DRSM local lookup APIs.  This way the same AMF continues to get the same subscriber traffic and we achieve subscriber pinning to specific instances.
+
+## During redundancy event
+If any AMF instances crashes then the chunks owned by the crashed AMF instances are claimed by other running instances and this functionality is part of DRSM. This way load is distributed across remaining AMF instances after the redundancy event. Load balancer learns about change in owner and future messages are sent to updated owner.  In case a message is not received at the right AMF instance then for brief period of time redirect functionality gets exercised. 
+
 ## Resources can be
     - integer numbers (TEID, SEID, NGAPIDs,TMSI,...)
     - IP address pool
