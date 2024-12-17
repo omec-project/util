@@ -11,7 +11,7 @@ SPDX-License-Identifier: Apache-2.0
 ![DRSM Usage in AMF](/drsm/images/drsm.png)
 
 ## Introduction
-It is very common in micro services based architecture to share resources among multiple instances of the microservices. Just to explain the DRSM concepts and design we can take an example of the Access Management Function (AMF) network function. e.g. gNodeB & AMF connect over the N2 interface and NGAP protocol is used for this interface. 3gpp defines the specification of this interface. NGAP uses SCTP transport protocol for communication between gNodeB & AMF. Multiple User Equipment (UE) signaling traffic is sent over the N2 interface. Users are identified by NGAPIDs. Each subscriber is identified by the NGAAP ID of AMF & NGAAP ID of gNodeB.
+It is very common in micro services based architecture to share resources among multiple instances of the microservices.Just to explain the DRSM concepts and design we can take an example of the Access Management Function (AMF) network function. e.g. gNodeB & AMF connect over the N2 interface and NGAP protocol is used for this interface. 3gpp defines the specification of this interface. NGAP uses SCTP transport protocol for communication between gNodeB & AMF. Multiple User Equipment (UE) signaling traffic is sent over the N2 interface. Users are identified by NGAPIDs. Each subscriber is identified by the NGAAP ID of AMF & NGAAP ID of gNodeB.
 So it's very important for AMF, gNodeB to assign a unique NGAPP ID to UE.  When single AMF instance is running in the system then there is no issue and assigned IDs are unique. But when multiple instances of AMF are running in the system then the DRSM module helps the AMF instance for unique ID assignment. 
 
 ## Module 
