@@ -28,7 +28,7 @@ SCTP load balancer keeps track of all the created chunks and their corresponding
 
 ## During redundancy event
 
-If any AMF instances crashes then the chunks owned by the crashed AMF instances are claimed by other running instances and this functionality is part of DRSM. This way load is distributed across remaining AMF instances after the redundancy event. Load balancer learns about change in owner and future messages are sent to updated owner.  In case a message is not received at the right AMF instance then for brief period of time redirect functionality gets exercised.
+If any AMF instance crashes, then the chunks owned by the crashed AMF instances are claimed by other running AMF instances and this functionality is part of DRSM. This way load is distributed across remaining AMF instances after the redundancy event. Load balancer learns about change in owner and future messages are sent to updated owner.  In case a message is not received at the right AMF instance then for brief period of time redirect functionality gets exercised.
 
 ## Resources can be
 
