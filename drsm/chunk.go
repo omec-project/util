@@ -66,7 +66,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	return c, nil
 }
 
-func (c *chunk) AllocateIntID() int32 {
+func (c *chunk) AllocateIntID() (int32, error) {
 	if len(c.FreeIds) == 0 {
 		logger.DrsmLog.Errorln("freeIds in chunk 0")
 		err := fmt.Errorf("freeIds in chunk 0")
@@ -110,7 +110,7 @@ func getChunIdFromDocId(id string) int32 {
 	return 0
 }
 
-//check the id format and if its matching chunkid doc format then return true
+// check the id format and if its matching chunkid doc format then return true
 func isChunkDoc(id string) bool {
 	z := strings.Split(id, "-")
 	if len(z) == 2 && z[0] == "chunkid" {

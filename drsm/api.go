@@ -7,6 +7,7 @@ package drsm
 import (
 	"fmt"
 	"sync"
+
 	"github.com/omec-project/util/logger"
 )
 
@@ -73,14 +74,14 @@ func (d *Drsm) AllocateInt32ID() (int32, error) {
 	}
 	for _, c := range d.localChunkTbl {
 		if len(c.FreeIds) > 0 {
-			return c.AllocateIntID(), nil
+			return c.AllocateIntID()
 		}
 	}
 	// None of the Chunk has freeIds. Allocate new Chunk
 	c, err := d.GetNewChunk()
 	if err != nil {
-		logger.DrsmLog.Errorln("Failed to allocate new Chunk")
-		err := fmt.Errorf("Failed to allocate new Chunk")
+		logger.DrsmLog.Errorln("failed to allocate new Chunk")
+		err := fmt.Errorf("failed to allocate new Chunk")
 		return 0, err
 	}
 	return c.AllocateIntID()
