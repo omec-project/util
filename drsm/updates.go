@@ -148,6 +148,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				d.addChunk(full)
 			}
 		case "update":
+			// chunk ownership changed..update chunk owner
 			// logger.DrsmLog.Debugln("update operations")
 			if isChunkDoc(s.DId.Id) {
 				// update on chunkId..
@@ -169,7 +170,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 			logger.DrsmLog.Debugln("delete operations")
 			if !isChunkDoc(s.DId.Id) {
 				// not chunk type doc. So its POD doc.
-				// delete olnly gets document id
+				// delete only gets document id
 				pod, found := d.podMap[s.DId.Id]
 				if pod != nil {
 					logger.DrsmLog.Infof("Stream(Delete): Pod %v and found %v. Chunks owned by crashed pod = %v", pod, found, pod.podChunks)
@@ -180,6 +181,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 	}
 }
 
+// periodic task
 func (d *Drsm) punchLiveness() {
 	// write to DB - signature every 5 second
 	ticker := time.NewTicker(5 * time.Second)
@@ -217,6 +219,7 @@ func (d *Drsm) punchLiveness() {
 	}
 }
 
+// periodic task
 func (d *Drsm) checkAllChunks() {
 	// go through all pods to see if any pod is showing same old counter
 	// Mark it down locally
@@ -233,7 +236,7 @@ func (d *Drsm) checkAllChunks() {
 				var s FullStream
 				bsonBytes, _ := bson.Marshal(v)
 				bson.Unmarshal(bsonBytes, &s)
-				logger.DrsmLog.Infof("individual Chunk bson Element %v", s)
+				logger.DrsmLog.Debugf("individual Chunk bson Element %v", s)
 				d.addChunk(&s)
 			}
 		}
@@ -249,7 +252,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 	if did == "" {
 		did = full.ChunkId
 	}
-	logger.DrsmLog.Infof("received Chunk Doc: %v", full)
+	logger.DrsmLog.Debugf("received Chunk Doc: %v", full)
 	cid := getChunIdFromDocId(did)
 	o := PodId{PodName: full.PodId, PodInstance: full.PodInstance, PodIp: full.PodIp}
 	c := &chunk{Id: cid, Owner: o}
@@ -261,7 +264,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 	d.globalChunkTbl[cid] = c
 	d.globalChunkTblMutex.Unlock()
 
-	logger.DrsmLog.Infof("chunk id %v, podChunks %v", cid, pod.podChunks)
+	logger.DrsmLog.Debugf("chunk id %v, podChunks %v", cid, pod.podChunks)
 }
 
 func (d *Drsm) addPod(full *FullStream) *podData {

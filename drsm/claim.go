@@ -11,9 +11,9 @@ import (
 )
 
 func (d *Drsm) podDownDetected() {
-	fmt.Println("started Pod Down goroutine")
+	logger.DrsmLog.Infoln("started Pod Down goroutine")
 	for p := range d.podDown {
-		logger.DrsmLog.Infoln("pod Down detected", p)
+		logger.DrsmLog.Infoln("pod Down detected %v ", p)
 		// Given Pod find out current Chunks owned by this POD
 		pd := d.podMap[p]
 		for k := range pd.podChunks {
@@ -22,13 +22,14 @@ func (d *Drsm) podDownDetected() {
 			d.globalChunkTblMutex.Unlock()
 			logger.DrsmLog.Debugf("found: %v chunk: %v", found, c)
 			if found {
-				go c.claimChunk(d)
+				go c.claimChunk(d, pd.PodId.PodName)
 			}
 		}
 	}
 }
 
-func (c *chunk) claimChunk(d *Drsm) {
+func (c *chunk) claimChunk(d *Drsm, curOwner string) {
+	// Need optimization
 	if d.mode != ResourceClient {
 		logger.DrsmLog.Infoln("claimChunk ignored demux mode")
 		return
@@ -37,15 +38,16 @@ func (c *chunk) claimChunk(d *Drsm) {
 	logger.DrsmLog.Debugln("claimChunk started")
 	docId := fmt.Sprintf("chunkid-%d", c.Id)
 	update := bson.M{"_id": docId, "type": "chunk", "podId": d.clientId.PodName, "podInstance": d.clientId.PodInstance, "podIp": d.clientId.PodIp}
-	filter := bson.M{"_id": docId, "podId": c.Owner.PodName}
+	filter := bson.M{"_id": docId, "podId": curOwner}
 	updated := d.mongo.RestfulAPIPutOnly(d.sharedPoolName, filter, update)
 	if updated == nil {
 		// TODO : don't add to local pool yet. We can add it only if scan is done.
-		logger.DrsmLog.Debugln("claimChunk success")
+		logger.DrsmLog.Infof("claimChunk %v success", c.Id)
 		c.Owner.PodName = d.clientId.PodName
 		c.Owner.PodIp = d.clientId.PodIp
 		go c.scanChunk(d)
 	} else {
-		logger.DrsmLog.Debugln("claimChunk failure")
+		// no problem, some other POD successfully claimed this chunk
+		logger.DrsmLog.Infof("claimChunk %v failure", c.Id)
 	}
 }
