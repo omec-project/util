@@ -122,9 +122,8 @@ func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
 		podId := chunk.GetOwner()
 		return podId, nil
 	}
-	err := fmt.Errorf("unknown Id")
 	logger.DrsmLog.Errorf("failed to find POD owner for Id - %v ", id)
-	return nil, err
+	return nil, fmt.Errorf("unknown Id")
 }
 
 func (d *Drsm) AcquireIp(pool string) (string, error) {
