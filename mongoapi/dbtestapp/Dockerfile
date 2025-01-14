@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-FROM golang:1.23.2-bookworm AS test
+FROM golang:1.23.4-bookworm AS test
 
 LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>"
 
@@ -14,7 +14,7 @@ WORKDIR $GOPATH/src/dbtestapp
 COPY . .
 RUN go install
 
-FROM alpine:3.20 AS dbtestapp
+FROM alpine:3.21 AS dbtestapp
 RUN apk update && apk add -U gcompat vim strace net-tools curl netcat-openbsd bind-tools bash
 
 RUN mkdir -p /dbtestapp/bin

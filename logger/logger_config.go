@@ -30,10 +30,11 @@ type Logger struct {
 	SCTPLB *LogSetting `yaml:"SCTPLB" valid:"optional"`
 
 	Aper                         *LogSetting `yaml:"Aper" valid:"optional"`
-	FSM                          *LogSetting `yaml:"FSM" valid:"optional"`
+	Util                         *LogSetting `yaml:"Util" valid:"optional"`
 	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary" valid:"optional"`
 	NAS                          *LogSetting `yaml:"NAS" valid:"optional"`
 	NGAP                         *LogSetting `yaml:"NGAP" valid:"optional"`
+	Config5g                     *LogSetting `yaml:"Config5g" valid:"optional"`
 	OpenApi                      *LogSetting `yaml:"OpenApi" valid:"optional"`
 	NamfCommunication            *LogSetting `yaml:"NamfCommunication" valid:"optional"`
 	NamfEventExposure            *LogSetting `yaml:"NamfEventExposure" valid:"optional"`
@@ -47,7 +48,6 @@ type Logger struct {
 	NudmUEAuthentication         *LogSetting `yaml:"NudmUEAuthentication" valid:"optional"`
 	NudmUEContextManagement      *LogSetting `yaml:"NudmUEContextManagement" valid:"optional"`
 	NudrDataRepository           *LogSetting `yaml:"NudrDataRepository" valid:"optional"`
-	PathUtil                     *LogSetting `yaml:"PathUtil" valid:"optional"`
 	PFCP                         *LogSetting `yaml:"PFCP" valid:"optional"`
 }
 
@@ -65,7 +65,7 @@ func (l *Logger) Validate() (bool, error) {
 }
 
 type LogSetting struct {
-	DebugLevel   string `yaml:"debugLevel" valid:"debugLevel"`
+	DebugLevel string `yaml:"debugLevel" valid:"debugLevel"`
 }
 
 func (l *LogSetting) validate() (bool, error) {

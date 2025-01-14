@@ -32,7 +32,7 @@ const (
 )
 
 type Options struct {
-	ResIdSize       int32 //size in bits e.g. 32 bit, 24 bit.
+	ResIdSize       int32 // size in bits e.g. 32 bit, 24 bit.
 	Mode            DrsmMode
 	ResourceValidCb func(int32) bool // return if ID is in use or not used
 	IpPool          map[string]string
@@ -52,10 +52,12 @@ type DrsmInterface interface {
 func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmInterface, error) {
 	logger.DrsmLog.Debugln("client id:", myid)
 
-	d := &Drsm{sharedPoolName: sharedPoolName,
-		clientId: myid,
-		db:       db,
-		mode:     ResourceClient}
+	d := &Drsm{
+		sharedPoolName: sharedPoolName,
+		clientId:       myid,
+		db:             db,
+		mode:           ResourceClient,
+	}
 
 	d.ConstuctDrsm(opt)
 

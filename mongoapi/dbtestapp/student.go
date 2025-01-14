@@ -16,7 +16,7 @@ import (
 )
 
 type Student struct {
-	//ID     		primitive.ObjectID 	`bson:"_id,omitempty"`
+	// ID     		primitive.ObjectID 	`bson:"_id,omitempty"`
 	Name       string                 `bson:"name,omitempty"`
 	Age        int                    `bson:"age,omitempty"`
 	Subject    string                 `bson:"subject,omitempty"`
@@ -32,11 +32,11 @@ func StudentRecordTest(c *gin.Context) {
 		logger.AppLog.Errorln("create index failed on Name field:", errVal)
 	}
 
-	//add document to student collection.
+	// add document to student collection.
 	insertStudentInDB(collName, "Osman Amjad", 21)
-	//update document in student collection.
+	// update document in student collection.
 	insertStudentInDB(collName, "Osman Amjad", 22)
-	//fetch document from student db based on index
+	// fetch document from student db based on index
 	student, err := getStudentFromDB(collName, "Osman Amjad")
 	if err == nil {
 		logger.AppLog.Infof("retrieved student %v", student)

@@ -23,7 +23,6 @@ var (
 	AppLog      *zap.SugaredLogger
 	DrsmLog     *zap.SugaredLogger
 	FsmLog      *zap.SugaredLogger
-	PathLog     *zap.SugaredLogger
 	UtilLog     *zap.SugaredLogger
 	Util3GPPLog *zap.SugaredLogger
 	atomicLevel zap.AtomicLevel
@@ -55,10 +54,10 @@ func init() {
 		panic(err)
 	}
 
-	UtilLog = log.Sugar().With("component", "LIB", "category", "Util")
+	AppLog = log.Sugar().With("component", "dbtestapp", "category", "mongoapi")
 	DrsmLog = log.Sugar().With("component", "LIB", "category", "DRSM")
 	FsmLog = log.Sugar().With("component", "LIB", "category", "FSM")
-	PathLog = log.Sugar().With("component", "LIB", "category", "Path")
+	UtilLog = log.Sugar().With("component", "LIB", "category", "Util")
 	Util3GPPLog = log.Sugar().With("component", "LIB", "category", "Util3GPP")
 }
 

@@ -16,7 +16,6 @@ import (
 
 func (c *chunk) GetOwner() *PodId {
 	return &c.Owner
-
 }
 
 func (d *Drsm) GetNewChunk() (*chunk, error) {
@@ -106,6 +105,7 @@ func getChunIdFromDocId(id string) int32 {
 	}
 	return 0
 }
+
 func isChunkDoc(id string) bool {
 	z := strings.Split(id, "-")
 	if len(z) == 2 && z[0] == "chunkid" {
