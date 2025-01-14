@@ -840,12 +840,15 @@ func (c *MongoClient) StartSession() (mongo.Session, error) {
 	return c.Client.StartSession()
 }
 
-func (c *MongoClient) IsReplicaSet() (bool, error) {
+func (c *MongoClient) SupportsTransactions() (bool, error) {
 	command := bson.D{{"hello", 1}}
 	result := c.Client.Database(c.dbName).RunCommand(context.Background(), command)
 	var status bson.M
 	if err := result.Decode(&status); err != nil {
 		return false, fmt.Errorf("failed to get server status: %v", err)
+	}
+	if msg, ok := status["msg"]; ok && msg == "isdbgrid" {
+		return true, nil // Sharded clusters support transactions
 	}
 	if _, ok := status["setName"]; ok {
 		return true, nil

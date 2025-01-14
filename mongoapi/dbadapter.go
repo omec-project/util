@@ -32,7 +32,7 @@ type DBInterface interface {
 	GetUniqueIdentity(idName string) int32
 	CreateIndex(collName string, keyField string) (bool, error)
 	StartSession() (mongo.Session, error)
-	IsReplicaSet() (bool, error)
+	SupportsTransactions() (bool, error)
 }
 
 var CommonDBClient DBInterface
@@ -142,6 +142,6 @@ func (db *MongoDBClient) StartSession() (mongo.Session, error) {
 	return db.MongoClient.StartSession()
 }
 
-func (db *MongoDBClient) IsReplicaSet() (bool, error) {
-	return db.MongoClient.IsReplicaSet()
+func (db *MongoDBClient) SupportsTransactions() (bool, error) {
+	return db.MongoClient.SupportsTransactions()
 }
