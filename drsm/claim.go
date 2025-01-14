@@ -13,7 +13,7 @@ import (
 func (d *Drsm) podDownDetected() {
 	logger.DrsmLog.Infoln("started Pod Down goroutine")
 	for p := range d.podDown {
-		logger.DrsmLog.Infoln("pod Down detected %v ", p)
+		logger.DrsmLog.Infof("pod Down detected %v", p)
 		// Given Pod find out current Chunks owned by this POD
 		pd := d.podMap[p]
 		for k := range pd.podChunks {
