@@ -109,9 +109,8 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 			return nil
 		}
 	}
-	err := fmt.Errorf("unknown Id")
 	logger.DrsmLog.Errorf("failed to release id - %v", id)
-	return err
+	return fmt.Errorf("unknown Id")
 }
 
 func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
