@@ -5,10 +5,12 @@
 package mongoapi
 
 import (
+	"context"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type DBInterface interface {
@@ -19,14 +21,18 @@ type DBInterface interface {
 	RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error)
 	RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]interface{}) error
 	RestfulAPIDeleteOne(collName string, filter bson.M) error
+	RestfulAPIDeleteOneWithContext(collName string, filter bson.M, context context.Context) error
 	RestfulAPIDeleteMany(collName string, filter bson.M) error
 	RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]interface{}) error
 	RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error
+	RestfulAPIJSONPatchWithContext(collName string, filter bson.M, patchJSON []byte, context context.Context) error
 	RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error
 	RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error)
 	RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error
 	GetUniqueIdentity(idName string) int32
 	CreateIndex(collName string, keyField string) (bool, error)
+	StartSession() (mongo.Session, error)
+	IsReplicaSet() (bool, error)
 }
 
 var CommonDBClient DBInterface
@@ -92,6 +98,10 @@ func (db *MongoDBClient) RestfulAPIDeleteOne(collName string, filter bson.M) err
 	return db.MongoClient.RestfulAPIDeleteOne(collName, filter)
 }
 
+func (db *MongoDBClient) RestfulAPIDeleteOneWithContext(collName string, filter bson.M, context context.Context) error {
+	return db.MongoClient.RestfulAPIDeleteOneWithContext(collName, filter, context)
+}
+
 func (db *MongoDBClient) RestfulAPIDeleteMany(collName string, filter bson.M) error {
 	return db.MongoClient.RestfulAPIDeleteMany(collName, filter)
 }
@@ -102,6 +112,10 @@ func (db *MongoDBClient) RestfulAPIMergePatch(collName string, filter bson.M, pa
 
 func (db *MongoDBClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error {
 	return db.MongoClient.RestfulAPIJSONPatch(collName, filter, patchJSON)
+}
+
+func (db *MongoDBClient) RestfulAPIJSONPatchWithContext(collName string, filter bson.M, patchJSON []byte, context context.Context) error {
+	return db.MongoClient.RestfulAPIJSONPatchWithContext(collName, filter, patchJSON, context)
 }
 
 func (db *MongoDBClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error {
@@ -122,4 +136,12 @@ func (db *MongoDBClient) GetUniqueIdentity(idName string) int32 {
 
 func (db *MongoDBClient) CreateIndex(collName string, keyField string) (bool, error) {
 	return db.MongoClient.CreateIndex(collName, keyField)
+}
+
+func (db *MongoDBClient) StartSession() (mongo.Session, error) {
+	return db.MongoClient.StartSession()
+}
+
+func (db *MongoDBClient) IsReplicaSet() (bool, error) {
+	return db.MongoClient.IsReplicaSet()
 }
