@@ -68,8 +68,8 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 
 func (c *chunk) AllocateIntID() (int32, error) {
 	if len(c.FreeIds) == 0 {
-		logger.DrsmLog.Errorln("freeIds in chunk 0")
 		err := fmt.Errorf("freeIds in chunk 0")
+		logger.DrsmLog.Errorf("%v", err)
 		return 0, err
 	}
 	id := c.FreeIds[len(c.FreeIds)-1]
