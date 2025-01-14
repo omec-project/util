@@ -129,8 +129,7 @@ func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
 func (d *Drsm) AcquireIp(pool string) (string, error) {
 	if d.mode == ResourceDemux {
 		logger.DrsmLog.Errorln("demux mode can not allocate Ip")
-		err := fmt.Errorf("demux mode does not allow Resource allocation")
-		return "", err
+		return "", fmt.Errorf("demux mode does not allow Resource allocation")
 	}
 	return d.acquireIp(pool)
 }
