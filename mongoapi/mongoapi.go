@@ -194,9 +194,13 @@ func (c *MongoClient) RestfulAPIPutMany(collName string, filterArray []bson.M, p
 }
 
 func (c *MongoClient) RestfulAPIDeleteOne(collName string, filter bson.M) error {
+	return c.RestfulAPIDeleteOneWithContext(collName, filter, context.TODO())
+}
+
+func (c *MongoClient) RestfulAPIDeleteOneWithContext(collName string, filter bson.M, context context.Context) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
-	if _, err := collection.DeleteOne(context.TODO(), filter); err != nil {
+	if _, err := collection.DeleteOne(context, filter); err != nil {
 		return fmt.Errorf("RestfulAPIDeleteOne err: %+v", err)
 	}
 	return nil
@@ -245,6 +249,10 @@ func (c *MongoClient) RestfulAPIMergePatch(collName string, filter bson.M, patch
 }
 
 func (c *MongoClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error {
+	return c.RestfulAPIJSONPatchWithContext(collName, filter, patchJSON, context.TODO())
+}
+
+func (c *MongoClient) RestfulAPIJSONPatchWithContext(collName string, filter bson.M, patchJSON []byte, context context.Context) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	originalData, err := getOrigData(collection, filter)
@@ -271,7 +279,7 @@ func (c *MongoClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJ
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch Unmarshal err: %+v", err)
 	}
-	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": modifiedData}); err != nil {
+	if _, err := collection.UpdateOne(context, filter, bson.M{"$set": modifiedData}); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch UpdateOne err: %+v", err)
 	}
 	return nil
@@ -825,4 +833,24 @@ func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData 
 	}
 	err = fmt.Errorf("failed to update document: %s", err)
 	return err
+}
+
+func (c *MongoClient) StartSession() (mongo.Session, error) {
+	return c.Client.StartSession()
+}
+
+func (c *MongoClient) SupportsTransactions() (bool, error) {
+	command := bson.D{{"hello", 1}}
+	result := c.Client.Database(c.dbName).RunCommand(context.Background(), command)
+	var status bson.M
+	if err := result.Decode(&status); err != nil {
+		return false, fmt.Errorf("failed to get server status: %v", err)
+	}
+	if msg, ok := status["msg"]; ok && msg == "isdbgrid" {
+		return true, nil // Sharded clusters support transactions
+	}
+	if _, ok := status["setName"]; ok {
+		return true, nil
+	}
+	return false, nil
 }
