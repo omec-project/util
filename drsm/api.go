@@ -137,8 +137,7 @@ func (d *Drsm) AcquireIp(pool string) (string, error) {
 func (d *Drsm) ReleaseIp(pool, ip string) error {
 	if d.mode == ResourceDemux {
 		logger.DrsmLog.Errorln("demux mode can not Release Resource")
-		err := fmt.Errorf("demux mode does not allow Resource Release")
-		return err
+		return fmt.Errorf("demux mode does not allow Resource Release")
 	}
 	return d.releaseIp(pool, ip)
 }
