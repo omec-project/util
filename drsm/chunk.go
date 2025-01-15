@@ -99,8 +99,8 @@ func (c *chunk) ReleaseIntID(id int32) {
 }
 
 // chunkid-123456
-func getChunIdFromDocId(id string) int32 {
-	logger.DrsmLog.Infof("id received: %v value", id)
+func getChunkIdFromDocId(id string) int32 {
+	logger.DrsmLog.Debugf("id received: %v value", id)
 	z := strings.Split(id, "-")
 	if len(z) == 2 && z[0] == "chunkid" {
 		cid, _ := strconv.ParseInt(z[1], 10, 32)

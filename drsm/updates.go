@@ -154,7 +154,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				// update on chunkId..
 				// looks like chunk owner getting change
 				owner := s.Update.UpdFields.PodId
-				c := getChunIdFromDocId(s.DId.Id)
+				c := getChunkIdFromDocId(s.DId.Id)
 				d.globalChunkTblMutex.Lock()
 				cp := d.globalChunkTbl[c]
 				d.globalChunkTblMutex.Unlock()
@@ -253,7 +253,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 		did = full.ChunkId
 	}
 	logger.DrsmLog.Debugf("received Chunk Doc: %v", full)
-	cid := getChunIdFromDocId(did)
+	cid := getChunkIdFromDocId(did)
 	o := PodId{PodName: full.PodId, PodInstance: full.PodInstance, PodIp: full.PodIp}
 	c := &chunk{Id: cid, Owner: o}
 	c.resourceValidCb = d.resourceValidCb
