@@ -50,7 +50,7 @@ type DrsmInterface interface {
 }
 
 func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmInterface, error) {
-	logger.DrsmLog.Debugln("client id:", myid)
+	logger.DrsmLog.Infoln("client id:", myid)
 
 	d := &Drsm{
 		sharedPoolName: sharedPoolName,
@@ -68,21 +68,23 @@ func (d *Drsm) AllocateInt32ID() (int32, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	if d.mode == ResourceDemux {
-		logger.DrsmLog.Debugln("demux mode can not allocate Resource index")
+		logger.DrsmLog.Errorln("demux mode can not allocate Resource index")
 		err := fmt.Errorf("demux mode does not allow Resource Id allocation")
 		return 0, err
 	}
 	for _, c := range d.localChunkTbl {
 		if len(c.FreeIds) > 0 {
-			return c.AllocateIntID(), nil
+			return c.AllocateIntID()
 		}
 	}
+	// None of the Chunk has freeIds. Allocate new Chunk
 	c, err := d.GetNewChunk()
 	if err != nil {
-		err := fmt.Errorf("ids not available")
+		logger.DrsmLog.Errorln("failed to allocate new Chunk")
+		err := fmt.Errorf("failed to allocate new Chunk")
 		return 0, err
 	}
-	return c.AllocateIntID(), nil
+	return c.AllocateIntID()
 }
 
 func (d *Drsm) ReleaseInt32ID(id int32) error {
@@ -107,8 +109,8 @@ func (d *Drsm) ReleaseInt32ID(id int32) error {
 			return nil
 		}
 	}
-	err := fmt.Errorf("unknown Id")
-	return err
+	logger.DrsmLog.Errorf("failed to release id - %v", id)
+	return fmt.Errorf("unknown Id")
 }
 
 func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
@@ -120,24 +122,22 @@ func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
 		podId := chunk.GetOwner()
 		return podId, nil
 	}
-	err := fmt.Errorf("unknown Id")
-	return nil, err
+	logger.DrsmLog.Errorf("failed to find POD owner for Id - %v ", id)
+	return nil, fmt.Errorf("unknown Id")
 }
 
 func (d *Drsm) AcquireIp(pool string) (string, error) {
 	if d.mode == ResourceDemux {
-		logger.DrsmLog.Debugln("demux mode can not allocate Ip")
-		err := fmt.Errorf("demux mode does not allow Resource allocation")
-		return "", err
+		logger.DrsmLog.Errorln("demux mode can not allocate Ip")
+		return "", fmt.Errorf("demux mode does not allow Resource allocation")
 	}
 	return d.acquireIp(pool)
 }
 
 func (d *Drsm) ReleaseIp(pool, ip string) error {
 	if d.mode == ResourceDemux {
-		logger.DrsmLog.Debugln("demux mode can not Release Resource")
-		err := fmt.Errorf("demux mode does not allow Resource Release")
-		return err
+		logger.DrsmLog.Errorln("demux mode can not Release Resource")
+		return fmt.Errorf("demux mode does not allow Resource Release")
 	}
 	return d.releaseIp(pool, ip)
 }

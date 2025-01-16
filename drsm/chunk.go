@@ -23,7 +23,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	// We got to allocate new Chunk. We should select
 	// probable chunk number
 
-	logger.DrsmLog.Debugln("allocate new chunk")
+	logger.DrsmLog.Infoln("allocate new chunk")
 	// 14 bits --- 1,2,4,8,16
 	var cn int32 = 1
 	for {
@@ -35,7 +35,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 			if found {
 				continue
 			}
-			logger.DrsmLog.Debugln("found chunk Id block", cn)
+			logger.DrsmLog.Debugln("found free chunk Id block", cn)
 			break
 		}
 		// Let's confirm if this gets updated in DB
@@ -62,21 +62,24 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	d.localChunkTbl[cn] = c
 
 	// add Ids to freeIds
+	// why we are not adding in global table right away???
 	return c, nil
 }
 
-func (c *chunk) AllocateIntID() int32 {
+func (c *chunk) AllocateIntID() (int32, error) {
 	if len(c.FreeIds) == 0 {
-		logger.DrsmLog.Debugln("freeIds in chunk 0")
-		return 0
+		err := fmt.Errorf("freeIds in chunk 0")
+		logger.DrsmLog.Errorf("%v", err)
+		return 0, err
 	}
 	id := c.FreeIds[len(c.FreeIds)-1]
 	c.FreeIds = c.FreeIds[:len(c.FreeIds)-1]
-	return (c.Id << 10) | id
+	return (c.Id << 10) | id, nil
 }
 
 func (c *chunk) ReleaseIntID(id int32) {
 	i := id & 0x3ff
+	// not efficient but we are doing cross checks
 	for _, freeid := range c.FreeIds {
 		if freeid == i {
 			logger.DrsmLog.Warnf("id %v is already freed", freeid)
@@ -95,8 +98,9 @@ func (c *chunk) ReleaseIntID(id int32) {
 	}
 }
 
-func getChunIdFromDocId(id string) int32 {
-	logger.DrsmLog.Infof("id received: %v value", id)
+// chunkid-123456
+func getChunkIdFromDocId(id string) int32 {
+	logger.DrsmLog.Debugf("id received: %v value", id)
 	z := strings.Split(id, "-")
 	if len(z) == 2 && z[0] == "chunkid" {
 		cid, _ := strconv.ParseInt(z[1], 10, 32)
@@ -106,6 +110,7 @@ func getChunIdFromDocId(id string) int32 {
 	return 0
 }
 
+// check the id format and if its matching chunkid doc format then return true
 func isChunkDoc(id string) bool {
 	z := strings.Split(id, "-")
 	if len(z) == 2 && z[0] == "chunkid" {
