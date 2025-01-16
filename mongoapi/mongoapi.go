@@ -125,6 +125,11 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 
 // if no error happened, return true means data existed and false means data not existed
 func (c *MongoClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
+	return c.RestfulAPIPutOneWithContext(collName, filter, putData, context.TODO())
+}
+
+// if no error happened, return true means data existed and false means data not existed
+func (c *MongoClient) RestfulAPIPutOneWithContext(collName string, filter bson.M, putData map[string]interface{}, context context.Context) (bool, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	existed, err := checkDataExisted(collection, filter)
 	if err != nil {
@@ -132,13 +137,13 @@ func (c *MongoClient) RestfulAPIPutOne(collName string, filter bson.M, putData m
 	}
 
 	if existed {
-		if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+		if _, err := collection.UpdateOne(context, filter, bson.M{"$set": putData}); err != nil {
 			return false, fmt.Errorf("RestfulAPIPutOne UpdateOne err: %+v", err)
 		}
 		return true, nil
 	}
 
-	if _, err := collection.InsertOne(context.TODO(), putData); err != nil {
+	if _, err := collection.InsertOne(context, putData); err != nil {
 		return false, fmt.Errorf("RestfulAPIPutOne InsertOne err: %+v", err)
 	}
 	return false, nil
