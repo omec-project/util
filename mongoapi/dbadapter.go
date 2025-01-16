@@ -18,6 +18,7 @@ type DBInterface interface {
 	RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]interface{}, error)
 	RestfulAPIPutOneTimeout(collName string, filter bson.M, putData map[string]interface{}, timeout int32, timeField string) bool
 	RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error)
+	RestfulAPIPutOneWithContext(collName string, filter bson.M, putData map[string]interface{}, context context.Context) (bool, error)
 	RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error)
 	RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]interface{}) error
 	RestfulAPIDeleteOne(collName string, filter bson.M) error
@@ -85,6 +86,10 @@ func (db *MongoDBClient) RestfulAPIPutOneTimeout(collName string, filter bson.M,
 
 func (db *MongoDBClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
 	return db.MongoClient.RestfulAPIPutOne(collName, filter, putData)
+}
+
+func (db *MongoDBClient) RestfulAPIPutOneWithContext(collName string, filter bson.M, putData map[string]interface{}, context context.Context) (bool, error) {
+	return db.MongoClient.RestfulAPIPutOneWithContext(collName, filter, putData, context)
 }
 
 func (db *MongoDBClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
