@@ -30,6 +30,7 @@ type DBInterface interface {
 	RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error
 	RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error)
 	RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error
+	RestfulAPIPostManyWithContext(collName string, filter bson.M, postDataArray []interface{}, context context.Context) error
 	GetUniqueIdentity(idName string) int32
 	CreateIndex(collName string, keyField string) (bool, error)
 	StartSession() (mongo.Session, error)
@@ -134,6 +135,10 @@ func (db *MongoDBClient) RestfulAPIPost(collName string, filter bson.M, postData
 
 func (db *MongoDBClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error {
 	return db.MongoClient.RestfulAPIPostMany(collName, filter, postDataArray)
+}
+
+func (db *MongoDBClient) RestfulAPIPostManyWithContext(collName string, filter bson.M, postDataArray []interface{}, context context.Context) error {
+	return db.MongoClient.RestfulAPIPostManyWithContext(collName, filter, postDataArray, context)
 }
 
 func (db *MongoDBClient) GetUniqueIdentity(idName string) int32 {
