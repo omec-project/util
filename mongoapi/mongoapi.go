@@ -328,10 +328,18 @@ func (c *MongoClient) RestfulAPIPost(collName string, filter bson.M, postData ma
 	return c.RestfulAPIPutOne(collName, filter, postData)
 }
 
+func (c *MongoClient) RestfulAPIPostWithContext(collName string, filter bson.M, postData map[string]interface{}, context context.Context) (bool, error) {
+	return c.RestfulAPIPutOneWithContext(collName, filter, postData, context)
+}
+
 func (c *MongoClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error {
+	return c.RestfulAPIPostManyWithContext(collName, filter, postDataArray, context.TODO())
+}
+
+func (c *MongoClient) RestfulAPIPostManyWithContext(collName string, filter bson.M, postDataArray []interface{}, context context.Context) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
-	if _, err := collection.InsertMany(context.TODO(), postDataArray); err != nil {
+	if _, err := collection.InsertMany(context, postDataArray); err != nil {
 		return fmt.Errorf("RestfulAPIPostMany err: %+v", err)
 	}
 	return nil
