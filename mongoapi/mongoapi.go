@@ -328,6 +328,10 @@ func (c *MongoClient) RestfulAPIPost(collName string, filter bson.M, postData ma
 	return c.RestfulAPIPutOne(collName, filter, postData)
 }
 
+func (c *MongoClient) RestfulAPIPostWithContext(collName string, filter bson.M, postData map[string]interface{}, context context.Context) (bool, error) {
+	return c.RestfulAPIPutOneWithContext(collName, filter, postData, context)
+}
+
 func (c *MongoClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error {
 	return c.RestfulAPIPostManyWithContext(collName, filter, postDataArray, context.TODO())
 }
