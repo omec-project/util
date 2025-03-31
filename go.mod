@@ -1,6 +1,6 @@
 module github.com/omec-project/util
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
