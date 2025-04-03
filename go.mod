@@ -1,6 +1,7 @@
 module github.com/omec-project/util
 
 go 1.24.0
+
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/evanphx/json-patch v5.9.11+incompatible
