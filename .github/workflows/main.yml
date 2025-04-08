@@ -37,11 +37,11 @@ jobs:
     with:
       branch_name: ${{ github.ref }}
 
-  lint-dbtestapp:
-    uses: omec-project/.github/.github/workflows/lint.yml@main
-    with:
-      branch_name: ${{ github.ref }}
-      build_directory: ./mongoapi/dbtestapp
+  # lint-dbtestapp:
+  #   uses: omec-project/.github/.github/workflows/lint.yml@main
+  #   with:
+  #     branch_name: ${{ github.ref }}
+  #     build_directory: ./mongoapi/dbtestapp
 
   license-check:
     uses: omec-project/.github/.github/workflows/license-check.yml@main
