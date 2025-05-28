@@ -14,6 +14,7 @@ type Logger struct {
 	AMF      *LogSetting `yaml:"AMF" valid:"optional"`
 	AUSF     *LogSetting `yaml:"AUSF" valid:"optional"`
 	N3IWF    *LogSetting `yaml:"N3IWF" valid:"optional"`
+	NFCONFIG *LogSetting `yaml:"NFCONFIG" valid:"optional"`
 	NRF      *LogSetting `yaml:"NRF" valid:"optional"`
 	NSSF     *LogSetting `yaml:"NSSF" valid:"optional"`
 	PCF      *LogSetting `yaml:"PCF" valid:"optional"`
@@ -28,7 +29,6 @@ type Logger struct {
 	NWDAF    *LogSetting `yaml:"NWDAF" valid:"optional"`
 	WEBUI    *LogSetting `yaml:"WEBUI" valid:"optional"`
 	SCTPLB   *LogSetting `yaml:"SCTPLB" valid:"optional"`
-	NFCONFIG *LogSetting `yaml:"NFCONFIG" valid:"optional"`
 
 	Aper                         *LogSetting `yaml:"Aper" valid:"optional"`
 	Util                         *LogSetting `yaml:"Util" valid:"optional"`
