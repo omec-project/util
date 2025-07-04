@@ -5,6 +5,7 @@
 package fsm
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -18,7 +19,7 @@ type (
 )
 
 type (
-	Callback  func(*State, EventType, ArgsType)
+	Callback  func(*State, EventType, ArgsType, context.Context)
 	Callbacks map[StateType]Callback
 )
 
@@ -89,7 +90,7 @@ func NewFSM(transitions Transitions, callbacks Callbacks) (*FSM, error) {
 //   - on exit callback: call when fsm leave one state, with ExitEvent event
 //   - event callback: call when user trigger a user-defined event
 //   - on entry callback: call when fsm enter one state, with EntryEvent event
-func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
+func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType, ctx context.Context) error {
 	key := eventKey{
 		From:  state.Current(),
 		Event: event,
@@ -99,17 +100,17 @@ func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
 		logger.FsmLog.Infof("handle event[%s], transition from [%s] to [%s]", event, trans.From, trans.To)
 
 		// event callback
-		fsm.callbacks[trans.From](state, event, args)
+		fsm.callbacks[trans.From](state, event, args, ctx)
 
 		// exit callback
 		if trans.From != trans.To {
-			fsm.callbacks[trans.From](state, ExitEvent, args)
+			fsm.callbacks[trans.From](state, ExitEvent, args, ctx)
 		}
 
 		// entry callback
 		if trans.From != trans.To {
 			state.Set(trans.To)
-			fsm.callbacks[trans.To](state, EntryEvent, args)
+			fsm.callbacks[trans.To](state, EntryEvent, args, ctx)
 		}
 		return nil
 	} else {
