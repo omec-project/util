@@ -5,6 +5,7 @@
 package fsm
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -40,10 +41,10 @@ func TestFSM(t *testing.T) {
 		{Event: Open, From: Opened, To: Opened},
 		{Event: Close, From: Closed, To: Closed},
 	}, Callbacks{
-		Opened: func(state *State, event EventType, args ArgsType) {
+		Opened: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		Closed: func(state *State, event EventType, args ArgsType) {
+		Closed: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
 	})
@@ -52,12 +53,12 @@ func TestFSM(t *testing.T) {
 
 	assert.Nil(t, err, "NewFSM() failed")
 
-	assert.Nil(t, f.SendEvent(s, Open, ArgsType{"TestArg": "test arg"}), "SendEvent() failed")
-	assert.Nil(t, f.SendEvent(s, Close, ArgsType{"TestArg": "test arg"}), "SendEvent() failed")
+	assert.Nil(t, f.SendEvent(s, Open, ArgsType{"TestArg": "test arg"}, context.Background()), "SendEvent() failed")
+	assert.Nil(t, f.SendEvent(s, Close, ArgsType{"TestArg": "test arg"}, context.Background()), "SendEvent() failed")
 	assert.True(t, s.Is(Closed), "Transition failed")
 
 	fakeEvent := EventType("fake event")
-	assert.EqualError(t, f.SendEvent(s, fakeEvent, nil),
+	assert.EqualError(t, f.SendEvent(s, fakeEvent, nil, context.Background()),
 		fmt.Sprintf("unknown transition[From: %s, Event: %s]", s.Current(), fakeEvent))
 }
 
@@ -72,10 +73,10 @@ func TestFSMInitFail(t *testing.T) {
 		{Event: Open, From: Opened, To: Opened},
 		{Event: Close, From: Closed, To: Closed},
 	}, Callbacks{
-		Opened: func(state *State, event EventType, args ArgsType) {
+		Opened: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		Closed: func(state *State, event EventType, args ArgsType) {
+		Closed: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
 	})
@@ -90,13 +91,13 @@ func TestFSMInitFail(t *testing.T) {
 		{Event: Open, From: Opened, To: Opened},
 		{Event: Close, From: Closed, To: Closed},
 	}, Callbacks{
-		Opened: func(state *State, event EventType, args ArgsType) {
+		Opened: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		Closed: func(state *State, event EventType, args ArgsType) {
+		Closed: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		fakeState: func(state *State, event EventType, args ArgsType) {
+		fakeState: func(state *State, event EventType, args ArgsType, ctx context.Context) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
 	})
