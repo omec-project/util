@@ -41,10 +41,10 @@ func TestFSM(t *testing.T) {
 		{Event: Open, From: Opened, To: Opened},
 		{Event: Close, From: Closed, To: Closed},
 	}, Callbacks{
-		Opened: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		Opened: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		Closed: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		Closed: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
 	})
@@ -73,10 +73,10 @@ func TestFSMInitFail(t *testing.T) {
 		{Event: Open, From: Opened, To: Opened},
 		{Event: Close, From: Closed, To: Closed},
 	}, Callbacks{
-		Opened: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		Opened: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		Closed: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		Closed: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
 	})
@@ -91,13 +91,13 @@ func TestFSMInitFail(t *testing.T) {
 		{Event: Open, From: Opened, To: Opened},
 		{Event: Close, From: Closed, To: Closed},
 	}, Callbacks{
-		Opened: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		Opened: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		Closed: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		Closed: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
-		fakeState: func(state *State, event EventType, args ArgsType, ctx context.Context) {
+		fakeState: func(ctx context.Context, state *State, event EventType, args ArgsType) {
 			fmt.Printf("event [%+v] at state [%+v]\n", event, state.Current())
 		},
 	})

@@ -19,7 +19,7 @@ type (
 )
 
 type (
-	Callback  func(*State, EventType, ArgsType, context.Context)
+	Callback  func(context.Context, *State, EventType, ArgsType)
 	Callbacks map[StateType]Callback
 )
 
@@ -100,17 +100,17 @@ func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType, ctx cont
 		logger.FsmLog.Infof("handle event[%s], transition from [%s] to [%s]", event, trans.From, trans.To)
 
 		// event callback
-		fsm.callbacks[trans.From](state, event, args, ctx)
+		fsm.callbacks[trans.From](ctx, state, event, args)
 
 		// exit callback
 		if trans.From != trans.To {
-			fsm.callbacks[trans.From](state, ExitEvent, args, ctx)
+			fsm.callbacks[trans.From](ctx, state, ExitEvent, args)
 		}
 
 		// entry callback
 		if trans.From != trans.To {
 			state.Set(trans.To)
-			fsm.callbacks[trans.To](state, EntryEvent, args, ctx)
+			fsm.callbacks[trans.To](ctx, state, EntryEvent, args)
 		}
 		return nil
 	} else {
