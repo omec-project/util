@@ -53,12 +53,12 @@ func TestFSM(t *testing.T) {
 
 	assert.Nil(t, err, "NewFSM() failed")
 
-	assert.Nil(t, f.SendEvent(s, Open, ArgsType{"TestArg": "test arg"}, context.Background()), "SendEvent() failed")
-	assert.Nil(t, f.SendEvent(s, Close, ArgsType{"TestArg": "test arg"}, context.Background()), "SendEvent() failed")
+	assert.Nil(t, f.SendEvent(context.Background(), s, Open, ArgsType{"TestArg": "test arg"}), "SendEvent() failed")
+	assert.Nil(t, f.SendEvent(context.Background(), s, Close, ArgsType{"TestArg": "test arg"}), "SendEvent() failed")
 	assert.True(t, s.Is(Closed), "Transition failed")
 
 	fakeEvent := EventType("fake event")
-	assert.EqualError(t, f.SendEvent(s, fakeEvent, nil, context.Background()),
+	assert.EqualError(t, f.SendEvent(context.Background(), s, fakeEvent, nil),
 		fmt.Sprintf("unknown transition[From: %s, Event: %s]", s.Current(), fakeEvent))
 }
 

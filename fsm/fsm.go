@@ -90,7 +90,7 @@ func NewFSM(transitions Transitions, callbacks Callbacks) (*FSM, error) {
 //   - on exit callback: call when fsm leave one state, with ExitEvent event
 //   - event callback: call when user trigger a user-defined event
 //   - on entry callback: call when fsm enter one state, with EntryEvent event
-func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType, ctx context.Context) error {
+func (fsm *FSM) SendEvent(ctx context.Context, state *State, event EventType, args ArgsType) error {
 	key := eventKey{
 		From:  state.Current(),
 		Event: event,
