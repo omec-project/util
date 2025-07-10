@@ -5,6 +5,7 @@
 package fsm
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -14,11 +15,11 @@ import (
 
 type (
 	EventType string
-	ArgsType  map[string]interface{}
+	ArgsType  map[string]any
 )
 
 type (
-	Callback  func(*State, EventType, ArgsType)
+	Callback  func(context.Context, *State, EventType, ArgsType)
 	Callbacks map[StateType]Callback
 )
 
@@ -89,7 +90,7 @@ func NewFSM(transitions Transitions, callbacks Callbacks) (*FSM, error) {
 //   - on exit callback: call when fsm leave one state, with ExitEvent event
 //   - event callback: call when user trigger a user-defined event
 //   - on entry callback: call when fsm enter one state, with EntryEvent event
-func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
+func (fsm *FSM) SendEvent(ctx context.Context, state *State, event EventType, args ArgsType) error {
 	key := eventKey{
 		From:  state.Current(),
 		Event: event,
@@ -99,17 +100,17 @@ func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
 		logger.FsmLog.Infof("handle event[%s], transition from [%s] to [%s]", event, trans.From, trans.To)
 
 		// event callback
-		fsm.callbacks[trans.From](state, event, args)
+		fsm.callbacks[trans.From](ctx, state, event, args)
 
 		// exit callback
 		if trans.From != trans.To {
-			fsm.callbacks[trans.From](state, ExitEvent, args)
+			fsm.callbacks[trans.From](ctx, state, ExitEvent, args)
 		}
 
 		// entry callback
 		if trans.From != trans.To {
 			state.Set(trans.To)
-			fsm.callbacks[trans.To](state, EntryEvent, args)
+			fsm.callbacks[trans.To](ctx, state, EntryEvent, args)
 		}
 		return nil
 	} else {
@@ -117,7 +118,7 @@ func (fsm *FSM) SendEvent(state *State, event EventType, args ArgsType) error {
 	}
 }
 
-// ExportDot export fsm in dot format to outfile, which can be visualize by graphviz
+// ExportDot export fsm in dot format to outfile, which can be visualized by graphviz
 func ExportDot(fsm *FSM, outfile string) error {
 	dot := `digraph FSM {
 	rankdir=LR
