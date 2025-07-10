@@ -15,7 +15,7 @@ import (
 
 type (
 	EventType string
-	ArgsType  map[string]interface{}
+	ArgsType  map[string]any
 )
 
 type (
@@ -118,7 +118,7 @@ func (fsm *FSM) SendEvent(ctx context.Context, state *State, event EventType, ar
 	}
 }
 
-// ExportDot export fsm in dot format to outfile, which can be visualize by graphviz
+// ExportDot export fsm in dot format to outfile, which can be visualized by graphviz
 func ExportDot(fsm *FSM, outfile string) error {
 	dot := `digraph FSM {
 	rankdir=LR
