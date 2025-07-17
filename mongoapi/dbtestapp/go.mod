@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
-	github.com/omec-project/util v1.3.2
+	github.com/omec-project/util v1.4.0
 	go.mongodb.org/mongo-driver v1.17.4
 )
 
