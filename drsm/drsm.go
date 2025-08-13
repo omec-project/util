@@ -82,7 +82,6 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.podDown = make(chan string, 10)
 	d.scanChunks = make(map[int32]*chunk)
 	d.globalChunkTblMutex = sync.Mutex{}
-	d.initIpam(opt)
 
 	// connect to DB
 	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
