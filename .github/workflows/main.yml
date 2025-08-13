@@ -15,18 +15,6 @@ jobs:
     with:
       branch_name: ${{ github.ref }}
 
-  build-dbtestapp:
-    uses: omec-project/.github/.github/workflows/build.yml@main
-    with:
-      branch_name: ${{ github.ref }}
-      build_directory: mongoapi/dbtestapp
-
-  docker-build-dbtestapp:
-    uses: omec-project/.github/.github/workflows/docker-build.yml@main
-    with:
-      branch_name: ${{ github.ref }}
-      build_directory: mongoapi/dbtestapp
-
   static-analysis:
     uses: omec-project/.github/.github/workflows/static-analysis.yml@main
     with:
@@ -36,12 +24,6 @@ jobs:
     uses: omec-project/.github/.github/workflows/lint.yml@main
     with:
       branch_name: ${{ github.ref }}
-
-  # lint-dbtestapp:
-  #   uses: omec-project/.github/.github/workflows/lint.yml@main
-  #   with:
-  #     branch_name: ${{ github.ref }}
-  #     build_directory: ./mongoapi/dbtestapp
 
   license-check:
     uses: omec-project/.github/.github/workflows/license-check.yml@main
