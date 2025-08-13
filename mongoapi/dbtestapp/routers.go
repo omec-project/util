@@ -70,20 +70,6 @@ var routes = Routes{
 	},
 
 	{
-		"AcquireIpv4Resource",
-		http.MethodPost,
-		"/ipv4-resource/:resource-name", // "/ipv4-resource"
-		Ipv4ResourceNamePost,
-	},
-
-	{
-		"ReleaseIpv4Resource",
-		http.MethodDelete,
-		"/ipv4-resource/:resource-name/:resource-id", // "/integer-resource/pool1/1.1.1.1"
-		Ipv4ResourceNameDelete,
-	},
-
-	{
 		"studentRecordTest",
 		http.MethodPost,
 		"/student-record-test",
@@ -205,64 +191,6 @@ func IntegerResourceNameDelete(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{})
 	} else {
-		c.JSON(http.StatusOK, gin.H{})
-	}
-}
-
-func Ipv4ResourceNamePost(c *gin.Context) {
-	c.String(http.StatusOK, "Ipv4ResourceNamePost!")
-	resName, exists := c.Params.Get("resource-name")
-	if !exists {
-		logger.AppLog.Warnln("received resource delete. resource-name not found")
-		c.JSON(http.StatusBadRequest, gin.H{})
-		return
-	}
-	number, ok := c.GetQuery("number")
-	if ok {
-		n1, _ := strconv.Atoi(number)
-		n := int32(n1)
-		resId := IpAddressAllocMany(resName, n)
-		if len(resId) == 0 {
-			logger.AppLog.Errorln("id allocation error")
-			c.JSON(http.StatusBadRequest, gin.H{})
-		}
-		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
-		c.JSON(http.StatusOK, gin.H{})
-	} else {
-		resId, err := IpAddressAllocOne(resName)
-		if err != nil {
-			logger.AppLog.Errorln("id allocation error")
-			c.JSON(http.StatusBadRequest, gin.H{})
-		}
-		logger.AppLog.Infof("received resource create. Pool name %v, Pool Id %v", resName, resId)
-		c.JSON(http.StatusOK, gin.H{})
-	}
-}
-
-func Ipv4ResourceNameDelete(c *gin.Context) {
-	c.String(http.StatusOK, "Ipv4ResourceNameDelete!")
-	resName, exists := c.Params.Get("resource-name")
-	if !exists {
-		logger.AppLog.Warnln("received resource delete. resource-name not found")
-		c.JSON(http.StatusBadRequest, gin.H{})
-		return
-	}
-	logger.AppLog.Infof("received resource delete. Pool name %v", resName)
-
-	resId, exists := c.Params.Get("resource-id")
-	if !exists {
-		logger.AppLog.Warnln("resource-id param not found")
-		c.JSON(http.StatusBadRequest, gin.H{})
-		return
-	}
-	logger.AppLog.Infof("received resource delete. Res Id %v", resId)
-
-	err := IpAddressRelease(resName, resId)
-	if err != nil {
-		logger.AppLog.Errorf("ip address %v release failed -  %v", resId, err)
-		c.JSON(http.StatusBadRequest, gin.H{})
-	} else {
-		logger.AppLog.Infof("ip address %v release success", resId)
 		c.JSON(http.StatusOK, gin.H{})
 	}
 }

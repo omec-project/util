@@ -92,39 +92,3 @@ func ReleaseInt32One(resName string, resId int32) error {
 	}
 	return nil
 }
-
-func IpAddressAllocOne(pool string) (string, error) {
-	ip, err := drsmIntf.d.AcquireIp(pool)
-	if err != nil {
-		logger.AppLog.Errorf("%+v: ip allocation error %+v", pool, err)
-		return "", err
-	}
-	logger.AppLog.Infof("%v: received ip %v", pool, ip)
-	return ip, nil
-}
-
-func IpAddressAllocMany(pool string, number int32) []string {
-	var resIds []string
-	var count int32 = 0
-
-	ticker := time.NewTicker(50 * time.Millisecond)
-	for range ticker.C {
-		ip, err := drsmIntf.d.AcquireIp(pool)
-		if err != nil {
-			logger.AppLog.Errorf("%v: ip allocation error %v", pool, err)
-		} else {
-			logger.AppLog.Infof("%v: received ip %v", pool, ip)
-			resIds = append(resIds, ip)
-		}
-		count++
-		if count >= number {
-			return resIds
-		}
-	}
-	return resIds
-}
-
-func IpAddressRelease(pool, ip string) error {
-	err := drsmIntf.d.ReleaseIp(pool, ip)
-	return err
-}
