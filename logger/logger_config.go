@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/asaskevich/govalidator"
+	"go.uber.org/zap/zapcore"
 )
 
 type Logger struct {
@@ -34,7 +35,6 @@ type Logger struct {
 	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary" valid:"optional"`
 	NAS                          *LogSetting `yaml:"NAS" valid:"optional"`
 	NGAP                         *LogSetting `yaml:"NGAP" valid:"optional"`
-	Config5g                     *LogSetting `yaml:"Config5g" valid:"optional"`
 	OpenApi                      *LogSetting `yaml:"OpenApi" valid:"optional"`
 	NamfCommunication            *LogSetting `yaml:"NamfCommunication" valid:"optional"`
 	NamfEventExposure            *LogSetting `yaml:"NamfEventExposure" valid:"optional"`
@@ -48,7 +48,6 @@ type Logger struct {
 	NudmUEAuthentication         *LogSetting `yaml:"NudmUEAuthentication" valid:"optional"`
 	NudmUEContextManagement      *LogSetting `yaml:"NudmUEContextManagement" valid:"optional"`
 	NudrDataRepository           *LogSetting `yaml:"NudrDataRepository" valid:"optional"`
-	PFCP                         *LogSetting `yaml:"PFCP" valid:"optional"`
 }
 
 func (l *Logger) Validate() (bool, error) {
@@ -70,12 +69,10 @@ type LogSetting struct {
 
 func (l *LogSetting) validate() (bool, error) {
 	govalidator.TagMap["debugLevel"] = govalidator.Validator(func(str string) bool {
-		if str == "panic" || str == "fatal" || str == "error" || str == "warn" ||
-			str == "info" || str == "debug" {
+		if _, err := zapcore.ParseLevel(str); err == nil {
 			return true
-		} else {
-			return false
 		}
+		return false
 	})
 
 	result, err := govalidator.ValidateStruct(l)
