@@ -42,10 +42,6 @@ type DrsmInterface interface {
 	AllocateInt32ID() (int32, error)
 	ReleaseInt32ID(id int32) error
 	FindOwnerInt32ID(id int32) (*PodId, error)
-	AcquireIp(pool string) (string, error)
-	ReleaseIp(pool, ip string) error
-	CreateIpPool(poolName string, ipPool string) error
-	DeleteIpPool(poolName string) error
 	DeletePod(string)
 }
 
@@ -124,30 +120,4 @@ func (d *Drsm) FindOwnerInt32ID(id int32) (*PodId, error) {
 	}
 	logger.DrsmLog.Errorf("failed to find POD owner for Id - %v ", id)
 	return nil, fmt.Errorf("unknown Id")
-}
-
-func (d *Drsm) AcquireIp(pool string) (string, error) {
-	if d.mode == ResourceDemux {
-		logger.DrsmLog.Errorln("demux mode can not allocate Ip")
-		return "", fmt.Errorf("demux mode does not allow Resource allocation")
-	}
-	return d.acquireIp(pool)
-}
-
-func (d *Drsm) ReleaseIp(pool, ip string) error {
-	if d.mode == ResourceDemux {
-		logger.DrsmLog.Errorln("demux mode can not Release Resource")
-		return fmt.Errorf("demux mode does not allow Resource Release")
-	}
-	return d.releaseIp(pool, ip)
-}
-
-func (d *Drsm) CreateIpPool(poolName string, ipPool string) error {
-	err := d.initIpPool(poolName, ipPool)
-	return err
-}
-
-func (d *Drsm) DeleteIpPool(poolName string) error {
-	err := d.deleteIpPool(poolName)
-	return err
 }

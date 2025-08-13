@@ -9,7 +9,6 @@ import (
 
 	"github.com/omec-project/util/logger"
 	MongoDBLibrary "github.com/omec-project/util/mongoapi"
-	ipam "github.com/thakurajayL/go-ipam"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -54,8 +53,6 @@ type Drsm struct {
 	scanChunks          map[int32]*chunk
 	chunkIdRange        int32
 	resourceValidCb     func(int32) bool
-	ipModule            ipam.Ipamer
-	prefix              map[string]*ipam.Prefix
 	mongo               *MongoDBLibrary.MongoClient
 	globalChunkTblMutex sync.Mutex
 }
@@ -85,7 +82,6 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.podDown = make(chan string, 10)
 	d.scanChunks = make(map[int32]*chunk)
 	d.globalChunkTblMutex = sync.Mutex{}
-	d.initIpam(opt)
 
 	// connect to DB
 	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)

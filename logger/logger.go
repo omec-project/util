@@ -54,7 +54,6 @@ func init() {
 		panic(err)
 	}
 
-	AppLog = log.Sugar().With("component", "dbtestapp", "category", "mongoapi")
 	DrsmLog = log.Sugar().With("component", "LIB", "category", "DRSM")
 	FsmLog = log.Sugar().With("component", "LIB", "category", "FSM")
 	UtilLog = log.Sugar().With("component", "LIB", "category", "Util")
