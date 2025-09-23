@@ -1,80 +1,135 @@
 // Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
 //
+// SPDX-FileCopyrightText: 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 package logger
 
 import (
+	"fmt"
 	"reflect"
 
-	"github.com/asaskevich/govalidator"
 	"go.uber.org/zap/zapcore"
 )
 
 type Logger struct {
-	AMF    *LogSetting `yaml:"AMF" valid:"optional"`
-	AUSF   *LogSetting `yaml:"AUSF" valid:"optional"`
-	N3IWF  *LogSetting `yaml:"N3IWF" valid:"optional"`
-	NRF    *LogSetting `yaml:"NRF" valid:"optional"`
-	NSSF   *LogSetting `yaml:"NSSF" valid:"optional"`
-	PCF    *LogSetting `yaml:"PCF" valid:"optional"`
-	SMF    *LogSetting `yaml:"SMF" valid:"optional"`
-	UDM    *LogSetting `yaml:"UDM" valid:"optional"`
-	UDR    *LogSetting `yaml:"UDR" valid:"optional"`
-	UPF    *LogSetting `yaml:"UPF" valid:"optional"`
-	NEF    *LogSetting `yaml:"NEF" valid:"optional"`
-	BSF    *LogSetting `yaml:"BSF" valid:"optional"`
-	CHF    *LogSetting `yaml:"CHF" valid:"optional"`
-	UDSF   *LogSetting `yaml:"UDSF" valid:"optional"`
-	NWDAF  *LogSetting `yaml:"NWDAF" valid:"optional"`
-	WEBUI  *LogSetting `yaml:"WEBUI" valid:"optional"`
-	SCTPLB *LogSetting `yaml:"SCTPLB" valid:"optional"`
+	AMF    *LogSetting `yaml:"AMF"`
+	AUSF   *LogSetting `yaml:"AUSF"`
+	N3IWF  *LogSetting `yaml:"N3IWF"`
+	NRF    *LogSetting `yaml:"NRF"`
+	NSSF   *LogSetting `yaml:"NSSF"`
+	PCF    *LogSetting `yaml:"PCF"`
+	SMF    *LogSetting `yaml:"SMF"`
+	UDM    *LogSetting `yaml:"UDM"`
+	UDR    *LogSetting `yaml:"UDR"`
+	UPF    *LogSetting `yaml:"UPF"`
+	NEF    *LogSetting `yaml:"NEF"`
+	BSF    *LogSetting `yaml:"BSF"`
+	CHF    *LogSetting `yaml:"CHF"`
+	UDSF   *LogSetting `yaml:"UDSF"`
+	NWDAF  *LogSetting `yaml:"NWDAF"`
+	WEBUI  *LogSetting `yaml:"WEBUI"`
+	SCTPLB *LogSetting `yaml:"SCTPLB"`
 
-	Aper                         *LogSetting `yaml:"Aper" valid:"optional"`
-	Util                         *LogSetting `yaml:"Util" valid:"optional"`
-	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary" valid:"optional"`
-	NAS                          *LogSetting `yaml:"NAS" valid:"optional"`
-	NGAP                         *LogSetting `yaml:"NGAP" valid:"optional"`
-	OpenApi                      *LogSetting `yaml:"OpenApi" valid:"optional"`
-	NamfCommunication            *LogSetting `yaml:"NamfCommunication" valid:"optional"`
-	NamfEventExposure            *LogSetting `yaml:"NamfEventExposure" valid:"optional"`
-	NnssfNSSAIAvailability       *LogSetting `yaml:"NnssfNSSAIAvailability" valid:"optional"`
-	NnssfNSSelection             *LogSetting `yaml:"NnssfNSSelection" valid:"optional"`
-	NsmfEventExposure            *LogSetting `yaml:"NsmfEventExposure" valid:"optional"`
-	NsmfPDUSession               *LogSetting `yaml:"NsmfPDUSession" valid:"optional"`
-	NudmEventExposure            *LogSetting `yaml:"NudmEventExposure" valid:"optional"`
-	NudmParameterProvision       *LogSetting `yaml:"NudmParameterProvision" valid:"optional"`
-	NudmSubscriberDataManagement *LogSetting `yaml:"NudmSubscriberDataManagement" valid:"optional"`
-	NudmUEAuthentication         *LogSetting `yaml:"NudmUEAuthentication" valid:"optional"`
-	NudmUEContextManagement      *LogSetting `yaml:"NudmUEContextManagement" valid:"optional"`
-	NudrDataRepository           *LogSetting `yaml:"NudrDataRepository" valid:"optional"`
+	Util                         *LogSetting `yaml:"Util"`
+	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary"`
+	NAS                          *LogSetting `yaml:"NAS"`
+	NGAP                         *LogSetting `yaml:"NGAP"`
+	OpenApi                      *LogSetting `yaml:"OpenApi"`
+	NamfCommunication            *LogSetting `yaml:"NamfCommunication"`
+	NamfEventExposure            *LogSetting `yaml:"NamfEventExposure"`
+	NnssfNSSAIAvailability       *LogSetting `yaml:"NnssfNSSAIAvailability"`
+	NnssfNSSelection             *LogSetting `yaml:"NnssfNSSelection"`
+	NsmfEventExposure            *LogSetting `yaml:"NsmfEventExposure"`
+	NsmfPDUSession               *LogSetting `yaml:"NsmfPDUSession"`
+	NudmEventExposure            *LogSetting `yaml:"NudmEventExposure"`
+	NudmParameterProvision       *LogSetting `yaml:"NudmParameterProvision"`
+	NudmSubscriberDataManagement *LogSetting `yaml:"NudmSubscriberDataManagement"`
+	NudmUEAuthentication         *LogSetting `yaml:"NudmUEAuthentication"`
+	NudmUEContextManagement      *LogSetting `yaml:"NudmUEContextManagement"`
+	NudrDataRepository           *LogSetting `yaml:"NudrDataRepository"`
 }
 
 func (l *Logger) Validate() (bool, error) {
+	if l == nil {
+		return false, fmt.Errorf("logger is nil")
+	}
+
 	logger := reflect.ValueOf(l).Elem()
+	loggerType := reflect.TypeOf(l).Elem()
+
 	for i := 0; i < logger.NumField(); i++ {
-		if logSetting := logger.Field(i).Interface().(*LogSetting); logSetting != nil {
-			result, err := logSetting.validate()
-			return result, err
+		field := logger.Field(i)
+		fieldType := loggerType.Field(i)
+
+		// Skip unexported fields
+		if !field.CanInterface() {
+			continue
+		}
+
+		if field.Kind() == reflect.Ptr && !field.IsNil() {
+			if logSetting, ok := field.Interface().(*LogSetting); ok && logSetting != nil {
+				if valid, err := logSetting.validate(); !valid {
+					return false, fmt.Errorf("validation failed for field %s: %w", fieldType.Name, err)
+				}
+			}
 		}
 	}
 
-	result, err := govalidator.ValidateStruct(l)
-	return result, err
+	return true, nil
 }
 
 type LogSetting struct {
-	DebugLevel string `yaml:"debugLevel" valid:"debugLevel"`
+	DebugLevel string `yaml:"debugLevel"`
 }
 
 func (l *LogSetting) validate() (bool, error) {
-	govalidator.TagMap["debugLevel"] = govalidator.Validator(func(str string) bool {
-		if _, err := zapcore.ParseLevel(str); err == nil {
-			return true
-		}
-		return false
-	})
+	if l == nil {
+		return false, fmt.Errorf("log setting is nil")
+	}
 
-	result, err := govalidator.ValidateStruct(l)
-	return result, err
+	if l.DebugLevel == "" {
+		return false, fmt.Errorf("debugLevel cannot be empty")
+	}
+
+	if !isValidDebugLevel(l.DebugLevel) {
+		return false, fmt.Errorf("invalid debugLevel: %s", l.DebugLevel)
+	}
+
+	return true, nil
+}
+
+// isValidDebugLevel validates if the debug level is supported by zap
+func isValidDebugLevel(level string) bool {
+	_, err := zapcore.ParseLevel(level)
+	return err == nil
+}
+
+// GetLogSettingName returns the field name for a given LogSetting pointer
+func GetLogSettingName(logger *Logger, target *LogSetting) (string, error) {
+	if logger == nil {
+		return "", fmt.Errorf("logger is nil")
+	}
+
+	if target == nil {
+		return "", fmt.Errorf("target LogSetting is nil")
+	}
+
+	loggerValue := reflect.ValueOf(logger).Elem()
+	loggerType := reflect.TypeOf(logger).Elem()
+	logSettingType := reflect.TypeOf((*LogSetting)(nil))
+
+	for i := 0; i < loggerValue.NumField(); i++ {
+		field := loggerValue.Field(i)
+		fieldType := loggerType.Field(i)
+
+		// Check if the field is of type *LogSetting and matches target
+		if fieldType.Type == logSettingType && !field.IsNil() {
+			if field.Interface().(*LogSetting) == target {
+				return fieldType.Name, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("LogSetting not found in logger")
 }
