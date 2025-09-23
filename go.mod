@@ -7,7 +7,6 @@ require (
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/gin-gonic/gin v1.10.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.11.1
 	go.mongodb.org/mongo-driver v1.17.4

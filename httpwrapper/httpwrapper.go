@@ -12,7 +12,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -54,7 +53,7 @@ func NewResponse(code int, h http.Header, body interface{}) *Response {
 // **it still returns server instance** but without the secret log and error indication
 func NewHttp2Server(bindAddr string, preMasterSecretLogPath string, handler http.Handler) (*http.Server, error) {
 	if handler == nil {
-		return nil, errors.New("server needs handler to handle request")
+		return nil, fmt.Errorf("server needs handler to handle request")
 	}
 
 	h2Server := &http2.Server{
