@@ -1,5 +1,6 @@
 // Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
 //
+// SPDX-FileCopyrightText: 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 package logger
@@ -116,13 +117,14 @@ func GetLogSettingName(logger *Logger, target *LogSetting) (string, error) {
 
 	loggerValue := reflect.ValueOf(logger).Elem()
 	loggerType := reflect.TypeOf(logger).Elem()
+	logSettingType := reflect.TypeOf((*LogSetting)(nil))
 
 	for i := 0; i < loggerValue.NumField(); i++ {
 		field := loggerValue.Field(i)
 		fieldType := loggerType.Field(i)
 
 		// Check if the field is of type *LogSetting and matches target
-		if fieldType.Type == reflect.TypeOf((*LogSetting)(nil)) && !field.IsNil() {
+		if fieldType.Type == logSettingType && !field.IsNil() {
 			if field.Interface().(*LogSetting) == target {
 				return fieldType.Name, nil
 			}
