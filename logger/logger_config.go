@@ -32,7 +32,6 @@ type Logger struct {
 	SCTPLB *LogSetting `yaml:"SCTPLB"`
 
 	Util                         *LogSetting `yaml:"Util"`
-	MongoDBLibrary               *LogSetting `yaml:"MongoDBLibrary"`
 	NAS                          *LogSetting `yaml:"NAS"`
 	NGAP                         *LogSetting `yaml:"NGAP"`
 	OpenApi                      *LogSetting `yaml:"OpenApi"`
