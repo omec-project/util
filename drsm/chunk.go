@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/omec-project/util/logger"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/omec-project/util/v2/logger"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func (c *chunk) GetOwner() *PodId {

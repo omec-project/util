@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/omec-project/util/logger"
+	"github.com/omec-project/util/v2/logger"
 )
 
 type (

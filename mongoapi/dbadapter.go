@@ -8,9 +8,8 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type DBInterface interface {
@@ -20,7 +19,7 @@ type DBInterface interface {
 	RestfulAPIPutOne(collName string, filter bson.M, putData map[string]any) (bool, error)
 	RestfulAPIPutOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) (bool, error)
 	RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]any) (bool, error)
-	RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]any) error
+	RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]any) error
 	RestfulAPIDeleteOne(collName string, filter bson.M) error
 	RestfulAPIDeleteOneWithContext(context context.Context, collName string, filter bson.M) error
 	RestfulAPIDeleteMany(collName string, filter bson.M) error
@@ -34,7 +33,7 @@ type DBInterface interface {
 	RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []any) error
 	GetUniqueIdentity(idName string) int32
 	CreateIndex(collName string, keyField string) (bool, error)
-	StartSession() (mongo.Session, error)
+	StartSession() (*mongo.Session, error)
 	SupportsTransactions() (bool, error)
 }
 
@@ -98,7 +97,7 @@ func (db *MongoDBClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.
 	return db.MongoClient.RestfulAPIPutOneNotUpdate(collName, filter, putData)
 }
 
-func (db *MongoDBClient) RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]any) error {
+func (db *MongoDBClient) RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]any) error {
 	return db.MongoClient.RestfulAPIPutMany(collName, filterArray, putDataArray)
 }
 
@@ -154,7 +153,7 @@ func (db *MongoDBClient) CreateIndex(collName string, keyField string) (bool, er
 	return db.MongoClient.CreateIndex(collName, keyField)
 }
 
-func (db *MongoDBClient) StartSession() (mongo.Session, error) {
+func (db *MongoDBClient) StartSession() (*mongo.Session, error) {
 	return db.MongoClient.StartSession()
 }
 

@@ -7,9 +7,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/omec-project/util/logger"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/omec-project/util/v2/logger"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type UpdatedFields struct {

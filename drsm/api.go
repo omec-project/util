@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/omec-project/util/logger"
+	"github.com/omec-project/util/v2/logger"
 )
 
 type DbInfo struct {

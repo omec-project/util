@@ -15,10 +15,10 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/omec-project/util/v2/logger"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type MongoClient struct {
@@ -30,9 +30,7 @@ type MongoClient struct {
 
 func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	c := MongoClient{url: url, dbName: dbName}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(c.url))
+	client, err := mongo.Connect(options.Client().ApplyURI(c.url))
 	if err != nil {
 		return nil, fmt.Errorf("MongoClient Creation err: %+v", err)
 	}
@@ -40,16 +38,31 @@ func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	return &c, nil
 }
 
-func findOneAndDecode(collection *mongo.Collection, filter bson.M) (map[string]any, error) {
+func convertBsonMToMapStringInterface(input bson.M) (map[string]any, error) {
+	jsonBytes, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal BSON to JSON: %w", err)
+	}
 	var result map[string]any
-	if err := collection.FindOne(context.TODO(), filter).Decode(&result); err != nil {
-		// ErrNoDocuments means that the filter did not match any documents in
-		// the collection.
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func findOneAndDecode(collection *mongo.Collection, filter bson.M) (map[string]any, error) {
+	var resultBson bson.M
+	if err := collection.FindOne(context.TODO(), filter).Decode(&resultBson); err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
 		return nil, err
 	}
+	result, err := convertBsonMToMapStringInterface(resultBson)
+	if err != nil {
+		return nil, err
+	}
+	logger.MongoapiLog.Debugf("findOneAndDecode result: %+v", result)
 	return result, nil
 }
 
@@ -107,11 +120,14 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 
 	var resultArray []map[string]any
 	for cur.Next(ctx) {
-		var result map[string]any
-		if err := cur.Decode(&result); err != nil {
+		var resultBson bson.M
+		if err := cur.Decode(&resultBson); err != nil {
 			return nil, fmt.Errorf("RestfulAPIGetMany err: %+v", err)
 		}
-
+		result, err := convertBsonMToMapStringInterface(resultBson)
+		if err != nil {
+			return nil, err
+		}
 		// Delete "_id" entry which is auto-inserted by MongoDB
 		delete(result, "_id")
 		resultArray = append(resultArray, result)
@@ -461,16 +477,12 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 		// Create an instance of an options and set the desired options
-		upsert := true
-		opt := options.FindOneAndUpdateOptions{
-			Upsert: &upsert,
-		}
 		data := bson.M{}
 		data["_id"] = random
 		data["lower"] = lower
 		data["upper"] = upper
 		data["owner"] = os.Getenv("HOSTNAME")
-		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$setOnInsert": data}, &opt)
+		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$setOnInsert": data}, options.FindOneAndUpdate().SetUpsert(true))
 
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
@@ -537,11 +549,7 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 		// Create an instance of an options and set the desired options
-		upsert := true
-		opt := options.FindOneAndUpdateOptions{
-			Upsert: &upsert,
-		}
-		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$set": bson.M{"_id": random}}, &opt)
+		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$set": bson.M{"_id": random}}, options.FindOneAndUpdate().SetUpsert(true))
 
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
@@ -622,7 +630,7 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result)
 
 	var array []int32
-	interfaces := []any(result["ids"].(primitive.A))
+	interfaces := []any(result["ids"].(bson.A))
 	for _, s := range interfaces {
 		id := s.(int32)
 		array = append(array, id)
@@ -632,11 +640,10 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	if len(array) > 0 {
 		res := array[len(array)-1]
 		return res, nil
-	} else {
-		err := errors.New("there are no available ids")
-		// logger.MongoDBLog.Println(err)
-		return -1, err
 	}
+	err := errors.New("there are no available ids")
+	// logger.MongoDBLog.Println(err)
+	return -1, err
 }
 
 /* Release the provided id to the provided pool. */
@@ -675,10 +682,9 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 			return false, err
 		}
 		return true, nil
-	} else {
-		collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-		return true, nil
 	}
+	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	return true, nil
 }
 
 func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error) {
@@ -718,14 +724,14 @@ func (c *MongoClient) RestfulAPICreateTTLIndex(collName string, timeout int32, t
 // Use this API to drop TTL Index.
 func (c *MongoClient) RestfulAPIDropTTLIndex(collName string, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	_, err := collection.Indexes().DropOne(context.Background(), timeField)
+	err := collection.Indexes().DropOne(context.Background(), timeField)
 	return err == nil
 }
 
 // Use this API to update timeout value for TTL Index.
 func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	_, err := collection.Indexes().DropOne(context.Background(), timeField)
+	err := collection.Indexes().DropOne(context.Background(), timeField)
 	if err != nil {
 		// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
 	}
@@ -776,7 +782,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 		for k1, v1 := range v {
 			valStr := fmt.Sprint(v1)
 			if (k1 == "name") && strings.Contains(valStr, timeField) {
-				_, err = collection.Indexes().DropOne(context.Background(), valStr)
+				err = collection.Indexes().DropOne(context.Background(), valStr)
 				if err != nil {
 					// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
 					break
@@ -804,10 +810,9 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 	if checkItem == nil {
 		collection.InsertOne(context.TODO(), putData)
 		return false
-	} else {
-		collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-		return true
 	}
+	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	return true
 }
 
 // This API adds document to collection with name : "collName"
@@ -827,10 +832,9 @@ func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, pu
 	if checkItem == nil {
 		collection.InsertOne(context.TODO(), putData)
 		return false
-	} else {
-		collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-		return true
 	}
+	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	return true
 }
 
 func (c *MongoClient) RestfulAPIPostOnly(collName string, filter bson.M, postData map[string]any) bool {
@@ -852,12 +856,12 @@ func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData 
 	return err
 }
 
-func (c *MongoClient) StartSession() (mongo.Session, error) {
+func (c *MongoClient) StartSession() (*mongo.Session, error) {
 	return c.Client.StartSession()
 }
 
 func (c *MongoClient) SupportsTransactions() (bool, error) {
-	command := bson.D{{"hello", 1}}
+	command := bson.D{{Key: "hello", Value: 1}}
 	result := c.Client.Database(c.dbName).RunCommand(context.Background(), command)
 	var status bson.M
 	if err := result.Decode(&status); err != nil {

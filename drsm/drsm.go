@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/omec-project/util/logger"
-	MongoDBLibrary "github.com/omec-project/util/mongoapi"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/omec-project/util/v2/logger"
+	MongoDBLibrary "github.com/omec-project/util/v2/mongoapi"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type chunkState int

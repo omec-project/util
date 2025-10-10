@@ -6,7 +6,7 @@ package drsm
 import (
 	"time"
 
-	"github.com/omec-project/util/logger"
+	"github.com/omec-project/util/v2/logger"
 )
 
 func (c *chunk) scanChunk(d *Drsm) {
