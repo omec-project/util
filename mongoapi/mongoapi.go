@@ -40,8 +40,8 @@ func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	return &c, nil
 }
 
-func findOneAndDecode(collection *mongo.Collection, filter bson.M) (map[string]interface{}, error) {
-	var result map[string]interface{}
+func findOneAndDecode(collection *mongo.Collection, filter bson.M) (map[string]any, error) {
+	var result map[string]any
 	if err := collection.FindOne(context.TODO(), filter).Decode(&result); err != nil {
 		// ErrNoDocuments means that the filter did not match any documents in
 		// the collection.
@@ -53,7 +53,7 @@ func findOneAndDecode(collection *mongo.Collection, filter bson.M) (map[string]i
 	return result, nil
 }
 
-func getOrigData(collection *mongo.Collection, filter bson.M) (map[string]interface{}, error) {
+func getOrigData(collection *mongo.Collection, filter bson.M) (map[string]any, error) {
 	result, err := findOneAndDecode(collection, filter)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (c *MongoClient) GetCollection(collName string) *mongo.Collection {
 	return collection
 }
 
-func (c *MongoClient) RestfulAPIGetOne(collName string, filter bson.M) (map[string]interface{}, error) {
+func (c *MongoClient) RestfulAPIGetOne(collName string, filter bson.M) (map[string]any, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	result, err := getOrigData(collection, filter)
 	if err != nil {
@@ -90,7 +90,7 @@ func (c *MongoClient) RestfulAPIGetOne(collName string, filter bson.M) (map[stri
 	return result, nil
 }
 
-func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]interface{}, error) {
+func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]any, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -105,9 +105,9 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 		}
 	}(ctx)
 
-	var resultArray []map[string]interface{}
+	var resultArray []map[string]any
 	for cur.Next(ctx) {
-		var result map[string]interface{}
+		var result map[string]any
 		if err := cur.Decode(&result); err != nil {
 			return nil, fmt.Errorf("RestfulAPIGetMany err: %+v", err)
 		}
@@ -124,12 +124,12 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 }
 
 // if no error happened, return true means data existed and false means data not existed
-func (c *MongoClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
+func (c *MongoClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]any) (bool, error) {
 	return c.RestfulAPIPutOneWithContext(context.TODO(), collName, filter, putData)
 }
 
 // if no error happened, return true means data existed and false means data not existed
-func (c *MongoClient) RestfulAPIPutOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
+func (c *MongoClient) RestfulAPIPutOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) (bool, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	existed, err := checkDataExisted(collection, filter)
 	if err != nil {
@@ -149,11 +149,11 @@ func (c *MongoClient) RestfulAPIPutOneWithContext(context context.Context, collN
 	return false, nil
 }
 
-func (c *MongoClient) RestfulAPIPullOne(collName string, filter bson.M, putData map[string]interface{}) error {
+func (c *MongoClient) RestfulAPIPullOne(collName string, filter bson.M, putData map[string]any) error {
 	return c.RestfulAPIPullOneWithContext(context.TODO(), collName, filter, putData)
 }
 
-func (c *MongoClient) RestfulAPIPullOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]interface{}) error {
+func (c *MongoClient) RestfulAPIPullOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	if _, err := collection.UpdateOne(context, filter, bson.M{"$pull": putData}); err != nil {
 		return fmt.Errorf("RestfulAPIPullOne err: %+v", err)
@@ -162,7 +162,7 @@ func (c *MongoClient) RestfulAPIPullOneWithContext(context context.Context, coll
 }
 
 // if no error happened, return true means data existed (not updated) and false means data not existed
-func (c *MongoClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]interface{}) (bool, error) {
+func (c *MongoClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]any) (bool, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	existed, err := checkDataExisted(collection, filter)
 	if err != nil {
@@ -179,7 +179,7 @@ func (c *MongoClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, 
 	return false, nil
 }
 
-func (c *MongoClient) RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]interface{}) error {
+func (c *MongoClient) RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	for i, putData := range putDataArray {
@@ -224,7 +224,7 @@ func (c *MongoClient) RestfulAPIDeleteMany(collName string, filter bson.M) error
 	return nil
 }
 
-func (c *MongoClient) RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]interface{}) error {
+func (c *MongoClient) RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	originalData, err := getOrigData(collection, filter)
@@ -247,7 +247,7 @@ func (c *MongoClient) RestfulAPIMergePatch(collName string, filter bson.M, patch
 		return fmt.Errorf("RestfulAPIMergePatch MergePatch err: %+v", err)
 	}
 
-	var modifiedData map[string]interface{}
+	var modifiedData map[string]any
 	if err := json.Unmarshal(modifiedAlternative, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIMergePatch Unmarshal err: %+v", err)
 	}
@@ -284,7 +284,7 @@ func (c *MongoClient) RestfulAPIJSONPatchWithContext(context context.Context, co
 		return fmt.Errorf("RestfulAPIJSONPatch Apply err: %+v", err)
 	}
 
-	var modifiedData map[string]interface{}
+	var modifiedData map[string]any
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch Unmarshal err: %+v", err)
 	}
@@ -318,7 +318,7 @@ func (c *MongoClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, 
 		return fmt.Errorf("RestfulAPIJSONPatchExtend Apply err: %+v", err)
 	}
 
-	var modifiedData map[string]interface{}
+	var modifiedData map[string]any
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatchExtend Unmarshal err: %+v", err)
 	}
@@ -328,19 +328,19 @@ func (c *MongoClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, 
 	return nil
 }
 
-func (c *MongoClient) RestfulAPIPost(collName string, filter bson.M, postData map[string]interface{}) (bool, error) {
+func (c *MongoClient) RestfulAPIPost(collName string, filter bson.M, postData map[string]any) (bool, error) {
 	return c.RestfulAPIPutOne(collName, filter, postData)
 }
 
-func (c *MongoClient) RestfulAPIPostWithContext(context context.Context, collName string, filter bson.M, postData map[string]interface{}) (bool, error) {
+func (c *MongoClient) RestfulAPIPostWithContext(context context.Context, collName string, filter bson.M, postData map[string]any) (bool, error) {
 	return c.RestfulAPIPutOneWithContext(context, collName, filter, postData)
 }
 
-func (c *MongoClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []interface{}) error {
+func (c *MongoClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []any) error {
 	return c.RestfulAPIPostManyWithContext(context.TODO(), collName, filter, postDataArray)
 }
 
-func (c *MongoClient) RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []interface{}) error {
+func (c *MongoClient) RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	if _, err := collection.InsertMany(context, postDataArray); err != nil {
@@ -622,7 +622,7 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result)
 
 	var array []int32
-	interfaces := []interface{}(result["ids"].(primitive.A))
+	interfaces := []any(result["ids"].(primitive.A))
 	for _, s := range interfaces {
 		id := s.(int32)
 		array = append(array, id)
@@ -662,10 +662,10 @@ func (c *MongoClient) GetOneCustomDataStructure(collName string, filter bson.M) 
 	return result, err
 }
 
-func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, putData interface{}) (bool, error) {
+func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, putData any) (bool, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
-	var checkItem map[string]interface{}
+	var checkItem map[string]any
 	collection.FindOne(context.TODO(), filter).Decode(&checkItem)
 
 	if checkItem == nil {
@@ -749,9 +749,9 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 // It checks if an Index with name "indexName" exists on the collection.
 // If such an Index is "indexName" is found, we drop the index and then
 // add new Index with new timeout value.
-func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, putData map[string]interface{}, timeout int32, timeField string) bool {
+func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, putData map[string]any, timeout int32, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	var checkItem map[string]interface{}
+	var checkItem map[string]any
 
 	// fetch all Indexes on collection
 	cursor, err := collection.Indexes().List(context.TODO())
@@ -818,9 +818,9 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 // does not create a new one.
 // If the Index exists on the same "timeField" with a different timeout,
 // then API will return error saying Index already exists.
-func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, putData map[string]interface{}, timeout int32, timeField string) bool {
+func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, putData map[string]any, timeout int32, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	var checkItem map[string]interface{}
+	var checkItem map[string]any
 
 	collection.FindOne(context.TODO(), filter).Decode(&checkItem)
 
@@ -833,14 +833,14 @@ func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, pu
 	}
 }
 
-func (c *MongoClient) RestfulAPIPostOnly(collName string, filter bson.M, postData map[string]interface{}) bool {
+func (c *MongoClient) RestfulAPIPostOnly(collName string, filter bson.M, postData map[string]any) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	_, err := collection.InsertOne(context.TODO(), postData)
 	return err == nil
 }
 
-func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData map[string]interface{}) error {
+func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	result, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})

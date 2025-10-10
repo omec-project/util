@@ -20,11 +20,11 @@ type Request struct {
 	Params map[string]string
 	Header http.Header
 	Query  url.Values
-	Body   interface{}
+	Body   any
 	URL    *url.URL
 }
 
-func NewRequest(req *http.Request, body interface{}) *Request {
+func NewRequest(req *http.Request, body any) *Request {
 	ret := &Request{}
 	ret.Query = req.URL.Query()
 	ret.Header = req.Header
@@ -37,10 +37,10 @@ func NewRequest(req *http.Request, body interface{}) *Request {
 type Response struct {
 	Header http.Header
 	Status int
-	Body   interface{}
+	Body   any
 }
 
-func NewResponse(code int, h http.Header, body interface{}) *Response {
+func NewResponse(code int, h http.Header, body any) *Response {
 	ret := &Response{}
 	ret.Status = code
 	ret.Header = h

@@ -33,7 +33,7 @@ const (
 	Out Direction = "out"
 )
 
-func flowDescErrorf(format string, a ...interface{}) error {
+func flowDescErrorf(format string, a ...any) error {
 	msg := fmt.Sprintf(format, a...)
 	return fmt.Errorf("flowdesc: %s", msg)
 }
