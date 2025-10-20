@@ -154,15 +154,34 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				// update on chunkId..
 				// looks like chunk owner getting change
 				owner := s.Update.UpdFields.PodId
+				if owner == "" {
+					logger.DrsmLog.Warnf("stream(Update): missing owner in update for doc %s", s.DId.Id)
+					continue
+				}
 				c := getChunkIdFromDocId(s.DId.Id)
 				d.globalChunkTblMutex.Lock()
 				cp := d.globalChunkTbl[c]
 				d.globalChunkTblMutex.Unlock()
+				if cp == nil {
+					logger.DrsmLog.Warnf("stream(Update): chunk %d not found in global table for owner %s - will be corrected by periodic resync", c, owner)
+					// Without a chunk reference there is nothing to update; skip to avoid panic.
+					// The periodic checkAllChunks() will resync state from MongoDB.
+					continue
+				}
 				// TODO update IP address as well.
 				cp.Owner.PodName = owner
 				cp.Owner.PodIp = s.Update.UpdFields.PodIp
 				cp.Owner.PodInstance = s.Update.UpdFields.PodInstance
-				podD := d.podMap[owner]
+				podD, found := d.podMap[owner]
+				if !found || podD == nil {
+					logger.DrsmLog.Warnf("stream(Update): pod %s not in local map for chunk %d update - will be corrected when keepalive arrives or during periodic resync", owner, c)
+					// Wait for proper pod initialization via keepalive. Eventual consistency will be maintained by periodic resync and proper keepalive events.
+					continue
+				}
+				if podD.podChunks == nil {
+					// Defensive: should never happen if addPod() was called, but prevents panic
+					podD.podChunks = make(map[int32]*chunk)
+				}
 				podD.podChunks[c] = cp // add chunk to pod
 				logger.DrsmLog.Infof("stream(Update): pod to chunk map %v", podD.podChunks)
 			}
