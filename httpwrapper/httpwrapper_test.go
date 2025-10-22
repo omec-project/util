@@ -8,30 +8,49 @@ import (
 	"context"
 	"net/http"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRequest(t *testing.T) {
 	req, err := http.NewRequestWithContext(context.Background(),
-		"GET", "http://localhost:8080?name=NCTU&location=Hsinchu", nil)
+		"GET", "http://localhost:8080?name=Aether&location=USA", nil)
 	if err != nil {
 		t.Errorf("TestNewRequest error: %+v", err)
 	}
-	req.Header.Set("Location", "https://www.nctu.edu.tw/")
+	req.Header.Set("Location", "https://aetherproject.org/")
 	request := NewRequest(req, 1000)
-	assert.Equal(t, "https://www.nctu.edu.tw/", request.Header.Get("Location"))
-	assert.Equal(t, "NCTU", request.Query.Get("name"))
-	assert.Equal(t, "Hsinchu", request.Query.Get("location"))
-	assert.Equal(t, 1000, request.Body)
+
+	if got := request.Header.Get("Location"); got != "https://aetherproject.org/" {
+		t.Errorf("Header.Get(\"Location\") = %q, want %q", got, "https://aetherproject.org/")
+	}
+
+	if got := request.Query.Get("name"); got != "Aether" {
+		t.Errorf("Query.Get(\"name\") = %q, want %q", got, "Aether")
+	}
+
+	if got := request.Query.Get("location"); got != "USA" {
+		t.Errorf("Query.Get(\"location\") = %q, want %q", got, "USA")
+	}
+
+	if got := request.Body; got != 1000 {
+		t.Errorf("Body = %v, want %v", got, 1000)
+	}
 }
 
 func TestNewResponse(t *testing.T) {
 	response := NewResponse(http.StatusCreated, map[string][]string{
-		"Location": {"https://www.nctu.edu.tw/"},
-		"Refresh":  {"url=https://free5gc.org"},
+		"Location": {"https://aetherproject.org/"},
+		"Refresh":  {"url=https://docs.sd-core.opennetworking.org"},
 	}, 1000)
-	assert.Equal(t, "https://www.nctu.edu.tw/", response.Header.Get("Location"))
-	assert.Equal(t, "url=https://free5gc.org", response.Header.Get("Refresh"))
-	assert.Equal(t, 1000, response.Body)
+
+	if got := response.Header.Get("Location"); got != "https://aetherproject.org/" {
+		t.Errorf("Header.Get(\"Location\") = %q, want %q", got, "https://aetherproject.org/")
+	}
+
+	if got := response.Header.Get("Refresh"); got != "url=https://docs.sd-core.opennetworking.org" {
+		t.Errorf("Header.Get(\"Refresh\") = %q, want %q", got, "url=https://docs.sd-core.opennetworking.org")
+	}
+
+	if got := response.Body; got != 1000 {
+		t.Errorf("Body = %v, want %v", got, 1000)
+	}
 }

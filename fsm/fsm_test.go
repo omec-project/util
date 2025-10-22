@@ -8,8 +8,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -25,13 +23,23 @@ const (
 func TestState(t *testing.T) {
 	s := NewState(Closed)
 
-	assert.Equal(t, Closed, s.Current(), "Current() failed")
-	assert.True(t, s.Is(Closed), "Is() failed")
+	if s.Current() != Closed {
+		t.Errorf("Current() failed: expected %v, got %v", Closed, s.Current())
+	}
+
+	if !s.Is(Closed) {
+		t.Error("Is() failed: expected true for Closed state")
+	}
 
 	s.Set(Opened)
 
-	assert.Equal(t, Opened, s.Current(), "Current() failed")
-	assert.True(t, s.Is(Opened), "Is() failed")
+	if s.Current() != Opened {
+		t.Errorf("Current() failed: expected %v, got %v", Opened, s.Current())
+	}
+
+	if !s.Is(Opened) {
+		t.Error("Is() failed: expected true for Opened state")
+	}
 }
 
 func TestFSM(t *testing.T) {
@@ -52,15 +60,29 @@ func TestFSM(t *testing.T) {
 
 	s := NewState(Closed)
 
-	assert.Nil(t, err, "NewFSM() failed")
+	if err != nil {
+		t.Errorf("NewFSM() failed: expected nil error, got %v", err)
+	}
 
-	assert.Nil(t, f.SendEvent(ctx, s, Open, ArgsType{"TestArg": "test arg"}), "SendEvent() failed")
-	assert.Nil(t, f.SendEvent(ctx, s, Close, ArgsType{"TestArg": "test arg"}), "SendEvent() failed")
-	assert.True(t, s.Is(Closed), "Transition failed")
+	if err := f.SendEvent(ctx, s, Open, ArgsType{"TestArg": "test arg"}); err != nil {
+		t.Errorf("SendEvent() failed: expected nil error, got %v", err)
+	}
+
+	if err := f.SendEvent(ctx, s, Close, ArgsType{"TestArg": "test arg"}); err != nil {
+		t.Errorf("SendEvent() failed: expected nil error, got %v", err)
+	}
+
+	if !s.Is(Closed) {
+		t.Error("Transition failed: expected state to be Closed")
+	}
 
 	fakeEvent := EventType("fake event")
-	assert.EqualError(t, f.SendEvent(ctx, s, fakeEvent, nil),
-		fmt.Sprintf("unknown transition[From: %s, Event: %s]", s.Current(), fakeEvent))
+	expectedError := fmt.Sprintf("unknown transition[From: %s, Event: %s]", s.Current(), fakeEvent)
+	if err := f.SendEvent(ctx, s, fakeEvent, nil); err == nil {
+		t.Error("SendEvent() should have failed with fake event")
+	} else if err.Error() != expectedError {
+		t.Errorf("SendEvent() error mismatch: expected %q, got %q", expectedError, err.Error())
+	}
 }
 
 func TestFSMInitFail(t *testing.T) {
@@ -82,7 +104,12 @@ func TestFSMInitFail(t *testing.T) {
 		},
 	})
 
-	assert.EqualError(t, err, fmt.Sprintf("duplicate transition: %+v", duplicateTrans))
+	expectedError := fmt.Sprintf("duplicate transition: %+v", duplicateTrans)
+	if err == nil {
+		t.Error("NewFSM() should have failed with duplicate transition")
+	} else if err.Error() != expectedError {
+		t.Errorf("NewFSM() error mismatch: expected %q, got %q", expectedError, err.Error())
+	}
 
 	fakeState := StateType("fake state")
 
@@ -103,5 +130,10 @@ func TestFSMInitFail(t *testing.T) {
 		},
 	})
 
-	assert.EqualError(t, err, fmt.Sprintf("unknown state: %+v", fakeState))
+	expectedError = fmt.Sprintf("unknown state: %+v", fakeState)
+	if err == nil {
+		t.Error("NewFSM() should have failed with unknown state")
+	} else if err.Error() != expectedError {
+		t.Errorf("NewFSM() error mismatch: expected %q, got %q", expectedError, err.Error())
+	}
 }
