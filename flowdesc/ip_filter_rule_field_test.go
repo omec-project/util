@@ -6,8 +6,6 @@ package flowdesc
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestBuildIPFilterRuleFromField(t *testing.T) {
@@ -94,10 +92,16 @@ func TestBuildIPFilterRuleFromField(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ipFilterRule, err := BuildIPFilterRuleFromField(tc.configList)
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			filterRuleContent, err := Encode(ipFilterRule)
-			require.NoError(t, err)
-			require.Equal(t, tc.ipFilterRule, filterRuleContent)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.ipFilterRule != filterRuleContent {
+				t.Fatalf("expected %v, got %v", tc.ipFilterRule, filterRuleContent)
+			}
 		})
 	}
 }
