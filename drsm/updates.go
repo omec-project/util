@@ -104,9 +104,10 @@ func (d *Drsm) handleDbUpdates() {
 			time.Sleep(5000 * time.Millisecond)
 			continue
 		}
-		routineCtx, _ := context.WithCancel(context.Background())
+		routineCtx, cancel := context.WithCancel(context.Background())
 		// run routine to get messages from stream
 		iterateChangeStream(d, routineCtx, updateStream)
+		cancel()
 	}
 }
 
@@ -130,11 +131,15 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 	for stream.Next(routineCtx) {
 		var data bson.M
 		if err := stream.Decode(&data); err != nil {
-			panic(err)
+			logger.DrsmLog.Errorf("failed to decode stream data: %v", err)
+			continue
 		}
 		var s streamDoc
 		bsonBytes, _ := bson.Marshal(data)
-		bson.Unmarshal(bsonBytes, &s)
+		if err := bson.Unmarshal(bsonBytes, &s); err != nil {
+			logger.DrsmLog.Errorf("failed to unmarshal stream data: %v", err)
+			continue
+		}
 		// logger.DrsmLog.Debugf("iterate stream : ", data)
 		// logger.DrsmLog.Debugf("\ndecoded stream bson %+v \n", s)
 		switch s.OpType {
@@ -166,9 +171,9 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				}
 				c := getChunkIdFromDocId(s.DId.Id)
 				d.globalChunkTblMutex.Lock()
-				cp := d.globalChunkTbl[c]
+				cp, found := d.globalChunkTbl[c]
 				d.globalChunkTblMutex.Unlock()
-				if cp == nil {
+				if !found {
 					logger.DrsmLog.Warnf("stream(Update): chunk %d not found in global table for owner %s - will be corrected by periodic resync", c, owner)
 					// Without a chunk reference there is nothing to update; skip to avoid panic.
 					// The periodic checkAllChunks() will resync state from MongoDB.
@@ -225,12 +230,12 @@ func (d *Drsm) punchLiveness() {
 		timein := time.Now().Local().Add(20 * time.Second)
 
 		update := bson.D{
-			{"_id", d.clientId.PodName},
-			{"type", "keepalive"},
-			{"podIp", d.clientId.PodIp},
-			{"podId", d.clientId.PodName},
-			{"podInstance", d.clientId.PodInstance},
-			{"expireAt", timein},
+			{Key: "_id", Value: d.clientId.PodName},
+			{Key: "type", Value: "keepalive"},
+			{Key: "podIp", Value: d.clientId.PodIp},
+			{Key: "podId", Value: d.clientId.PodName},
+			{Key: "podInstance", Value: d.clientId.PodInstance},
+			{Key: "expireAt", Value: timein},
 		}
 
 		_, err := d.mongo.PutOneCustomDataStructure(d.sharedPoolName, filter, update)
