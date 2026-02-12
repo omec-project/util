@@ -73,32 +73,64 @@ func restoreNilAndEmptyValues[T any](original, copied T) T {
 		return copied
 	}
 
-	// Handle top-level pointer to struct
-	if originalVal.Kind() == reflect.Pointer && copiedVal.Kind() == reflect.Pointer {
-		if !originalVal.IsNil() && !copiedVal.IsNil() {
-			if originalVal.Elem().Kind() == reflect.Struct && copiedVal.Elem().Kind() == reflect.Struct {
-				// Create a new pointer that we can modify
-				newCopied := reflect.New(copiedVal.Elem().Type())
-				newCopied.Elem().Set(copiedVal.Elem())
-				restoreNilAndEmptyValuesInStruct(originalVal.Elem(), newCopied.Elem())
-				return newCopied.Interface().(T)
-			}
-		}
+	// Unwrap pointers and interfaces to find the underlying struct
+	unwrappedOriginal, ptrDepth := unwrapToStruct(originalVal)
+	unwrappedCopied, _ := unwrapToStruct(copiedVal)
+
+	// If we didn't find a struct after unwrapping, return as-is
+	if !unwrappedOriginal.IsValid() || unwrappedOriginal.Kind() != reflect.Struct {
 		return copied
 	}
 
-	// Only process structs
-	if originalVal.Kind() != reflect.Struct || copiedVal.Kind() != reflect.Struct {
+	if !unwrappedCopied.IsValid() || unwrappedCopied.Kind() != reflect.Struct {
 		return copied
 	}
 
 	// Create a new value that we can modify
-	newCopied := reflect.New(copiedVal.Type()).Elem()
-	newCopied.Set(copiedVal)
+	newUnwrapped := reflect.New(unwrappedCopied.Type()).Elem()
+	newUnwrapped.Set(unwrappedCopied)
 
-	restoreNilAndEmptyValuesInStruct(originalVal, newCopied)
+	// Restore nil and empty values in the struct
+	restoreNilAndEmptyValuesInStruct(unwrappedOriginal, newUnwrapped)
 
-	return newCopied.Interface().(T)
+	// Re-wrap to the original type T by reconstructing the pointer chain
+	result := rewrapFromStruct(newUnwrapped, ptrDepth)
+	return result.Interface().(T)
+}
+
+// unwrapToStruct unwraps pointers and interfaces to get to the underlying struct.
+// Returns the unwrapped value and the depth of pointer indirection.
+func unwrapToStruct(v reflect.Value) (reflect.Value, int) {
+	depth := 0
+	for v.IsValid() {
+		kind := v.Kind()
+		if kind == reflect.Struct {
+			return v, depth
+		}
+		if kind == reflect.Pointer || kind == reflect.Interface {
+			if v.IsNil() {
+				return reflect.Value{}, depth
+			}
+			depth++
+			v = v.Elem()
+		} else {
+			// Not a pointer, interface, or struct - stop unwrapping
+			return reflect.Value{}, depth
+		}
+	}
+	return reflect.Value{}, depth
+}
+
+// rewrapFromStruct wraps a struct value back through the specified number of pointer levels.
+func rewrapFromStruct(v reflect.Value, ptrDepth int) reflect.Value {
+	result := v
+	for i := 0; i < ptrDepth; i++ {
+		// Create a new pointer to the current value
+		ptr := reflect.New(result.Type())
+		ptr.Elem().Set(result)
+		result = ptr
+	}
+	return result
 }
 
 // restoreNilAndEmptyValuesInStruct recursively restores nil and empty values in struct fields

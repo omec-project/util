@@ -354,12 +354,12 @@ func TestDeepCopyNilPointer(t *testing.T) {
 
 func TestDeepCopyPointerToStructWithNilAndEmptyFields(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       *Person
-		checkHobby  bool
-		hobbyIsNil  bool
-		checkScore  bool
-		scoreIsNil  bool
+		name       string
+		input      *Person
+		checkHobby bool
+		hobbyIsNil bool
+		checkScore bool
+		scoreIsNil bool
 	}{
 		{
 			name: "pointer to struct with nil slice",
@@ -554,7 +554,7 @@ func TestDeepCopyFunction(t *testing.T) {
 func TestDeepCopyInvalidGobData(t *testing.T) {
 	// This test verifies the decode error path by using reflection
 	// to inject a corrupted state (indirectly tested through type that causes issues)
-	
+
 	// Create a type with a field that might cause gob issues
 	type Problematic struct {
 		Name string
@@ -613,6 +613,7 @@ func TestDeepCopyMutationIndependence(t *testing.T) {
 		t.Errorf("Original Scores was modified: %d", original.Scores["test"])
 	}
 }
+
 // TestDeepCopyPointerToBasicType tests copying pointers to basic types
 func TestDeepCopyPointerToBasicType(t *testing.T) {
 	intVal := 42
@@ -767,5 +768,114 @@ func TestDeepCopyComplexNestedStructs(t *testing.T) {
 	}
 	if result.Level1.Nested.Meta == nil {
 		t.Error("DeepCopy() Level1.Nested.Meta is nil, want empty map")
+	}
+}
+
+// TestDeepCopyMultipleLevelsOfPointers tests that the unwrapping logic handles
+// multiple levels of pointer indirection (e.g., **Person, ***Person)
+func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupInput  func() interface{}
+		verifyFunc  func(t *testing.T, result interface{})
+		description string
+	}{
+		{
+			name: "double pointer to struct with nil/empty fields",
+			setupInput: func() interface{} {
+				person := &Person{
+					Name:    "Alice",
+					Age:     30,
+					Hobbies: nil,
+					Scores:  map[string]int{},
+				}
+				return &person
+			},
+			verifyFunc: func(t *testing.T, result interface{}) {
+				pperson := result.(**Person)
+				if pperson == nil || *pperson == nil {
+					t.Fatal("Result should not be nil")
+				}
+				person := **pperson
+
+				if person.Hobbies != nil {
+					t.Errorf("Hobbies should be nil, got %v", person.Hobbies)
+				}
+
+				if person.Scores == nil {
+					t.Error("Scores should be empty map, not nil")
+				}
+				if len(person.Scores) != 0 {
+					t.Errorf("Scores should be empty, got length %d", len(person.Scores))
+				}
+			},
+			description: "Tests **Person with nil slice and empty map",
+		},
+		{
+			name: "pointer to pointer to pointer",
+			setupInput: func() interface{} {
+				person := &Person{
+					Name:    "Bob",
+					Age:     25,
+					Hobbies: []string{},
+					Scores:  nil,
+				}
+				pperson := &person
+				return &pperson
+			},
+			verifyFunc: func(t *testing.T, result interface{}) {
+				ppperson := result.(***Person)
+				if ppperson == nil || *ppperson == nil || **ppperson == nil {
+					t.Fatal("Result should not be nil at any level")
+				}
+				person := ***ppperson
+
+				if person.Hobbies == nil {
+					t.Error("Hobbies should be empty slice, not nil")
+				}
+				if len(person.Hobbies) != 0 {
+					t.Errorf("Hobbies should be empty, got length %d", len(person.Hobbies))
+				}
+
+				if person.Scores != nil {
+					t.Errorf("Scores should be nil, got %v", person.Scores)
+				}
+			},
+			description: "Tests ***Person with empty slice and nil map",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := tt.setupInput()
+
+			// Use type switch to call DeepCopy with the correct type
+			var err error
+			var resultInterface interface{}
+
+			switch v := input.(type) {
+			case **Person:
+				result, e := DeepCopy(v)
+				err = e
+				resultInterface = result
+			case ***Person:
+				result, e := DeepCopy(v)
+				err = e
+				resultInterface = result
+			default:
+				t.Fatalf("Unexpected type: %T", input)
+			}
+
+			if err != nil {
+				t.Fatalf("DeepCopy() unexpected error: %v", err)
+			}
+
+			tt.verifyFunc(t, resultInterface)
+
+			// Verify deep equality using reflection
+			if !reflect.DeepEqual(input, resultInterface) {
+				t.Errorf("DeepCopy() result does not match input")
+			}
+		})
 	}
 }
