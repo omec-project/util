@@ -73,6 +73,20 @@ func restoreNilAndEmptyValues[T any](original, copied T) T {
 		return copied
 	}
 
+	// Handle top-level pointer to struct
+	if originalVal.Kind() == reflect.Pointer && copiedVal.Kind() == reflect.Pointer {
+		if !originalVal.IsNil() && !copiedVal.IsNil() {
+			if originalVal.Elem().Kind() == reflect.Struct && copiedVal.Elem().Kind() == reflect.Struct {
+				// Create a new pointer that we can modify
+				newCopied := reflect.New(copiedVal.Elem().Type())
+				newCopied.Elem().Set(copiedVal.Elem())
+				restoreNilAndEmptyValuesInStruct(originalVal.Elem(), newCopied.Elem())
+				return newCopied.Interface().(T)
+			}
+		}
+		return copied
+	}
+
 	// Only process structs
 	if originalVal.Kind() != reflect.Struct || copiedVal.Kind() != reflect.Struct {
 		return copied

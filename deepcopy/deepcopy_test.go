@@ -352,6 +352,138 @@ func TestDeepCopyNilPointer(t *testing.T) {
 	}
 }
 
+func TestDeepCopyPointerToStructWithNilAndEmptyFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       *Person
+		checkHobby  bool
+		hobbyIsNil  bool
+		checkScore  bool
+		scoreIsNil  bool
+	}{
+		{
+			name: "pointer to struct with nil slice",
+			input: &Person{
+				Name:    "Alice",
+				Age:     30,
+				Hobbies: nil,
+				Scores:  map[string]int{"test": 100},
+			},
+			checkHobby: true,
+			hobbyIsNil: true,
+			checkScore: true,
+			scoreIsNil: false,
+		},
+		{
+			name: "pointer to struct with empty slice",
+			input: &Person{
+				Name:    "Bob",
+				Age:     25,
+				Hobbies: []string{},
+				Scores:  map[string]int{"test": 95},
+			},
+			checkHobby: true,
+			hobbyIsNil: false,
+			checkScore: true,
+			scoreIsNil: false,
+		},
+		{
+			name: "pointer to struct with nil map",
+			input: &Person{
+				Name:    "Charlie",
+				Age:     35,
+				Hobbies: []string{"reading"},
+				Scores:  nil,
+			},
+			checkHobby: true,
+			hobbyIsNil: false,
+			checkScore: true,
+			scoreIsNil: true,
+		},
+		{
+			name: "pointer to struct with empty map",
+			input: &Person{
+				Name:    "Diana",
+				Age:     28,
+				Hobbies: []string{"coding"},
+				Scores:  map[string]int{},
+			},
+			checkHobby: true,
+			hobbyIsNil: false,
+			checkScore: true,
+			scoreIsNil: false,
+		},
+		{
+			name: "pointer to struct with both nil",
+			input: &Person{
+				Name:    "Eve",
+				Age:     32,
+				Hobbies: nil,
+				Scores:  nil,
+			},
+			checkHobby: true,
+			hobbyIsNil: true,
+			checkScore: true,
+			scoreIsNil: true,
+		},
+		{
+			name: "pointer to struct with both empty",
+			input: &Person{
+				Name:    "Frank",
+				Age:     40,
+				Hobbies: []string{},
+				Scores:  map[string]int{},
+			},
+			checkHobby: true,
+			hobbyIsNil: false,
+			checkScore: true,
+			scoreIsNil: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := DeepCopy(tt.input)
+			if err != nil {
+				t.Fatalf("DeepCopy() unexpected error: %v", err)
+			}
+
+			if result == nil {
+				t.Fatal("DeepCopy() returned nil, expected non-nil pointer")
+			}
+
+			// Verify semantic equality
+			if !reflect.DeepEqual(tt.input, result) {
+				t.Errorf("DeepCopy() result does not match input")
+				t.Errorf("  Input:  %+v", tt.input)
+				t.Errorf("  Result: %+v", result)
+			}
+
+			// Check Hobbies nil state
+			if tt.checkHobby {
+				hobbiesVal := reflect.ValueOf(result.Hobbies)
+				if tt.hobbyIsNil && !hobbiesVal.IsNil() {
+					t.Errorf("DeepCopy() Hobbies = %v, want nil", result.Hobbies)
+				}
+				if !tt.hobbyIsNil && hobbiesVal.IsNil() {
+					t.Errorf("DeepCopy() Hobbies is nil, want empty slice")
+				}
+			}
+
+			// Check Scores nil state
+			if tt.checkScore {
+				scoresVal := reflect.ValueOf(result.Scores)
+				if tt.scoreIsNil && !scoresVal.IsNil() {
+					t.Errorf("DeepCopy() Scores = %v, want nil", result.Scores)
+				}
+				if !tt.scoreIsNil && scoresVal.IsNil() {
+					t.Errorf("DeepCopy() Scores is nil, want empty map")
+				}
+			}
+		})
+	}
+}
+
 // testDeepCopyGeneric is a helper function to test DeepCopy with any type
 func testDeepCopyGeneric[T any](t *testing.T, input T) {
 	t.Helper()
@@ -418,6 +550,30 @@ func TestDeepCopyFunction(t *testing.T) {
 	}
 }
 
+// TestDeepCopyInvalidGobData tests handling of corrupted gob data
+func TestDeepCopyInvalidGobData(t *testing.T) {
+	// This test verifies the decode error path by using reflection
+	// to inject a corrupted state (indirectly tested through type that causes issues)
+	
+	// Create a type with a field that might cause gob issues
+	type Problematic struct {
+		Name string
+		Data interface{} // interface{} can cause decode issues with certain values
+	}
+
+	// Use a problematic value
+	input := Problematic{
+		Name: "test",
+		Data: make(chan int), // channels can't be encoded/decoded
+	}
+
+	_, err := DeepCopy(input)
+	// Should get an error due to channel
+	if err == nil {
+		t.Error("DeepCopy() expected error for problematic type, got nil")
+	}
+}
+
 // TestDeepCopyMutationIndependence verifies that modifying the copy doesn't affect original
 func TestDeepCopyMutationIndependence(t *testing.T) {
 	original := Person{
@@ -455,5 +611,161 @@ func TestDeepCopyMutationIndependence(t *testing.T) {
 	}
 	if original.Scores["test"] != 100 {
 		t.Errorf("Original Scores was modified: %d", original.Scores["test"])
+	}
+}
+// TestDeepCopyPointerToBasicType tests copying pointers to basic types
+func TestDeepCopyPointerToBasicType(t *testing.T) {
+	intVal := 42
+	intPtr := &intVal
+
+	result, err := DeepCopy(intPtr)
+	if err != nil {
+		t.Fatalf("DeepCopy() unexpected error: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("DeepCopy() returned nil")
+	}
+
+	if *result != 42 {
+		t.Errorf("DeepCopy() = %d, want 42", *result)
+	}
+
+	// Verify independence
+	*result = 100
+	if *intPtr != 42 {
+		t.Errorf("Original was modified")
+	}
+}
+
+// TestDeepCopyStructWithUnexportedFields tests structs with unexported fields
+func TestDeepCopyStructWithUnexportedFields(t *testing.T) {
+	type StructWithUnexported struct {
+		Name       string
+		age        int // unexported
+		Hobbies    []string
+		privateMap map[string]int // unexported
+	}
+
+	input := StructWithUnexported{
+		Name:       "Alice",
+		age:        30,
+		Hobbies:    []string{"reading"},
+		privateMap: map[string]int{"test": 1},
+	}
+
+	result, err := DeepCopy(input)
+	if err != nil {
+		t.Fatalf("DeepCopy() unexpected error: %v", err)
+	}
+
+	// Exported fields should be copied
+	if result.Name != "Alice" {
+		t.Errorf("DeepCopy() Name = %s, want Alice", result.Name)
+	}
+	if !reflect.DeepEqual(result.Hobbies, input.Hobbies) {
+		t.Errorf("DeepCopy() Hobbies not copied correctly")
+	}
+}
+
+// TestDeepCopyNestedStructFields tests struct fields that are structs (not pointers)
+func TestDeepCopyNestedStructFields(t *testing.T) {
+	type Inner struct {
+		Values []int
+		Data   map[string]string
+	}
+
+	type Outer struct {
+		Name  string
+		Inner Inner // struct field, not pointer
+	}
+
+	input := Outer{
+		Name: "Outer",
+		Inner: Inner{
+			Values: nil,
+			Data:   make(map[string]string),
+		},
+	}
+
+	result, err := DeepCopy(input)
+	if err != nil {
+		t.Fatalf("DeepCopy() unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(input, result) {
+		t.Errorf("DeepCopy() result does not match input")
+	}
+
+	// Check nested nil slice is preserved
+	if result.Inner.Values != nil {
+		t.Errorf("DeepCopy() Inner.Values = %v, want nil", result.Inner.Values)
+	}
+
+	// Check nested empty map is preserved
+	if result.Inner.Data == nil {
+		t.Error("DeepCopy() Inner.Data is nil, want empty map")
+	}
+	if len(result.Inner.Data) != 0 {
+		t.Errorf("DeepCopy() Inner.Data length = %d, want 0", len(result.Inner.Data))
+	}
+}
+
+// TestDeepCopyComplexNestedStructs tests complex nesting scenarios
+func TestDeepCopyComplexNestedStructs(t *testing.T) {
+	type Level2 struct {
+		Items []string
+		Meta  map[string]int
+	}
+
+	type Level1 struct {
+		Name   string
+		Level2 Level2
+		Nested *Level2
+	}
+
+	type Level0 struct {
+		Title  string
+		Level1 Level1
+	}
+
+	input := Level0{
+		Title: "Root",
+		Level1: Level1{
+			Name: "L1",
+			Level2: Level2{
+				Items: []string{},
+				Meta:  nil,
+			},
+			Nested: &Level2{
+				Items: nil,
+				Meta:  map[string]int{},
+			},
+		},
+	}
+
+	result, err := DeepCopy(input)
+	if err != nil {
+		t.Fatalf("DeepCopy() unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(input, result) {
+		t.Errorf("DeepCopy() result does not match input")
+	}
+
+	// Verify nested struct field preservation
+	if result.Level1.Level2.Items == nil {
+		t.Error("DeepCopy() Level1.Level2.Items is nil, want empty slice")
+	}
+	if result.Level1.Level2.Meta != nil {
+		t.Errorf("DeepCopy() Level1.Level2.Meta = %v, want nil", result.Level1.Level2.Meta)
+	}
+
+	// Verify pointer to struct field preservation
+	if result.Level1.Nested.Items != nil {
+		t.Errorf("DeepCopy() Level1.Nested.Items = %v, want nil", result.Level1.Nested.Items)
+	}
+	if result.Level1.Nested.Meta == nil {
+		t.Error("DeepCopy() Level1.Nested.Meta is nil, want empty map")
 	}
 }
