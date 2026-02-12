@@ -41,8 +41,7 @@ func TestDeepCopyEmptySlice(t *testing.T) {
 	}
 
 	// Check that result is not nil
-	resultVal := reflect.ValueOf(result)
-	if resultVal.IsNil() {
+	if result == nil {
 		t.Errorf("DeepCopy() = nil, want empty slice")
 		return
 	}
@@ -84,8 +83,7 @@ func TestDeepCopyEmptyMap(t *testing.T) {
 	}
 
 	// Check that result is not nil
-	resultVal := reflect.ValueOf(result)
-	if resultVal.IsNil() {
+	if result == nil {
 		t.Errorf("DeepCopy() = nil, want empty map")
 		return
 	}
@@ -558,7 +556,7 @@ func TestDeepCopyInvalidGobData(t *testing.T) {
 	// Create a type with a field that might cause gob issues
 	type Problematic struct {
 		Name string
-		Data interface{} // interface{} can cause decode issues with certain values
+		Data any // any can cause decode issues with certain values
 	}
 
 	// Use a problematic value
@@ -771,18 +769,35 @@ func TestDeepCopyComplexNestedStructs(t *testing.T) {
 	}
 }
 
+// TestDeepCopyNilInterface tests handling of nil interfaces.
+// Note: gob has limitations with interface types - concrete types in interfaces
+// may require registration with gob.Register. The code explicitly checks for
+// nil interfaces to handle them gracefully.
+func TestDeepCopyNilInterface(t *testing.T) {
+	var nilInterface any = nil
+
+	result, err := DeepCopy(nilInterface)
+	if err != nil {
+		t.Fatalf("DeepCopy() unexpected error: %v", err)
+	}
+
+	if result != nil {
+		t.Errorf("DeepCopy() = %v, want nil", result)
+	}
+}
+
 // TestDeepCopyMultipleLevelsOfPointers tests that the unwrapping logic handles
 // multiple levels of pointer indirection (e.g., **Person, ***Person)
 func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupInput  func() interface{}
-		verifyFunc  func(t *testing.T, result interface{})
+		setupInput  func() any
+		verifyFunc  func(t *testing.T, result any)
 		description string
 	}{
 		{
 			name: "double pointer to struct with nil/empty fields",
-			setupInput: func() interface{} {
+			setupInput: func() any {
 				person := &Person{
 					Name:    "Alice",
 					Age:     30,
@@ -791,7 +806,7 @@ func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 				}
 				return &person
 			},
-			verifyFunc: func(t *testing.T, result interface{}) {
+			verifyFunc: func(t *testing.T, result any) {
 				pperson := result.(**Person)
 				if pperson == nil || *pperson == nil {
 					t.Fatal("Result should not be nil")
@@ -813,7 +828,7 @@ func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 		},
 		{
 			name: "pointer to pointer to pointer",
-			setupInput: func() interface{} {
+			setupInput: func() any {
 				person := &Person{
 					Name:    "Bob",
 					Age:     25,
@@ -823,7 +838,7 @@ func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 				pperson := &person
 				return &pperson
 			},
-			verifyFunc: func(t *testing.T, result interface{}) {
+			verifyFunc: func(t *testing.T, result any) {
 				ppperson := result.(***Person)
 				if ppperson == nil || *ppperson == nil || **ppperson == nil {
 					t.Fatal("Result should not be nil at any level")
@@ -851,7 +866,7 @@ func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 
 			// Use type switch to call DeepCopy with the correct type
 			var err error
-			var resultInterface interface{}
+			var resultInterface any
 
 			switch v := input.(type) {
 			case **Person:

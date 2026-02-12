@@ -9,16 +9,29 @@ import (
 	"reflect"
 )
 
-// DeepCopy creates a deep copy of any type using gob encoding.
+// DeepCopy creates a deep copy of a value using encoding/gob.
+// The type T must be gob-encodable: only exported struct fields are copied, and
+// certain kinds (such as channels and functions) are not supported. Interface
+// values may require prior registration with gob.Register for correct encoding.
 // This function preserves the semantic difference between nil and empty slices/maps,
 // which is important for correct serialization (e.g., JSON null vs []).
 // Returns the deep copy and any error encountered during encoding/decoding.
 func DeepCopy[T any](src T) (T, error) {
 	var zero T
 
-	// Handle nil pointers and nil interfaces
+	// Handle invalid values
 	srcValue := reflect.ValueOf(src)
-	if !srcValue.IsValid() || (srcValue.Kind() == reflect.Pointer && srcValue.IsNil()) {
+	if !srcValue.IsValid() {
+		return zero, nil
+	}
+
+	// Handle nil interfaces - preserve the typed-nil by returning the original
+	if srcValue.Kind() == reflect.Interface && srcValue.IsNil() {
+		return src, nil
+	}
+
+	// Handle nil pointers
+	if srcValue.Kind() == reflect.Pointer && srcValue.IsNil() {
 		return zero, nil
 	}
 
@@ -64,7 +77,9 @@ func DeepCopy[T any](src T) (T, error) {
 	return dst, nil
 }
 
-// restoreNilAndEmptyValues recursively restores nil and empty slices/maps in structs
+// restoreNilAndEmptyValues recursively restores nil and empty slices/maps in structs.
+// It unwraps pointers (but not interfaces) to find the underlying struct, applies the
+// restoration, and re-wraps to match the original type structure.
 func restoreNilAndEmptyValues[T any](original, copied T) T {
 	originalVal := reflect.ValueOf(original)
 	copiedVal := reflect.ValueOf(copied)
@@ -73,9 +88,9 @@ func restoreNilAndEmptyValues[T any](original, copied T) T {
 		return copied
 	}
 
-	// Unwrap pointers and interfaces to find the underlying struct
-	unwrappedOriginal, ptrDepth := unwrapToStruct(originalVal)
-	unwrappedCopied, _ := unwrapToStruct(copiedVal)
+	// Unwrap only pointers (not interfaces) to find the underlying struct
+	unwrappedOriginal, ptrDepth := unwrapPointersToStruct(originalVal)
+	unwrappedCopied, _ := unwrapPointersToStruct(copiedVal)
 
 	// If we didn't find a struct after unwrapping, return as-is
 	if !unwrappedOriginal.IsValid() || unwrappedOriginal.Kind() != reflect.Struct {
@@ -94,35 +109,36 @@ func restoreNilAndEmptyValues[T any](original, copied T) T {
 	restoreNilAndEmptyValuesInStruct(unwrappedOriginal, newUnwrapped)
 
 	// Re-wrap to the original type T by reconstructing the pointer chain
-	result := rewrapFromStruct(newUnwrapped, ptrDepth)
+	result := rewrapWithPointers(newUnwrapped, ptrDepth)
 	return result.Interface().(T)
 }
 
-// unwrapToStruct unwraps pointers and interfaces to get to the underlying struct.
+// unwrapPointersToStruct unwraps only pointers (not interfaces) to get to the underlying struct.
 // Returns the unwrapped value and the depth of pointer indirection.
-func unwrapToStruct(v reflect.Value) (reflect.Value, int) {
+// We only unwrap pointers because we can reliably reconstruct the pointer chain afterward.
+func unwrapPointersToStruct(v reflect.Value) (reflect.Value, int) {
 	depth := 0
 	for v.IsValid() {
 		kind := v.Kind()
 		if kind == reflect.Struct {
 			return v, depth
 		}
-		if kind == reflect.Pointer || kind == reflect.Interface {
+		if kind == reflect.Pointer {
 			if v.IsNil() {
 				return reflect.Value{}, depth
 			}
 			depth++
 			v = v.Elem()
 		} else {
-			// Not a pointer, interface, or struct - stop unwrapping
+			// Not a pointer or struct - stop unwrapping
 			return reflect.Value{}, depth
 		}
 	}
 	return reflect.Value{}, depth
 }
 
-// rewrapFromStruct wraps a struct value back through the specified number of pointer levels.
-func rewrapFromStruct(v reflect.Value, ptrDepth int) reflect.Value {
+// rewrapWithPointers wraps a struct value back through the specified number of pointer levels.
+func rewrapWithPointers(v reflect.Value, ptrDepth int) reflect.Value {
 	result := v
 	for i := 0; i < ptrDepth; i++ {
 		// Create a new pointer to the current value
