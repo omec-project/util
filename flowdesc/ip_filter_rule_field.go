@@ -14,8 +14,16 @@ type IPFilterAction struct {
 	Action Action
 }
 
+func (i *IPFilterAction) Set(r *IPFilterRule) error {
+	return r.SetAction(i.Action)
+}
+
 type IPFilterDirection struct {
 	Direction Direction
+}
+
+func (i *IPFilterDirection) Set(r *IPFilterRule) error {
+	return r.SetDirection(i.Direction)
 }
 
 type IPFilterProto struct {

@@ -40,10 +40,6 @@ type DBInterface interface {
 
 var CommonDBClient DBInterface
 
-type MongoDBClient struct {
-	MongoClient
-}
-
 // Set CommonDBClient
 func setCommonDBClient(url string, dbname string) error {
 	mClient, errConnect := NewMongoClient(url, dbname)

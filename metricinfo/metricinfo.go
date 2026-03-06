@@ -293,3 +293,78 @@ const (
 	Amf_msg_type_ngap_handover_failure
 	Amf_msg_type_ngap_ue_ctxt_mod_failure
 )
+
+func (t AmfMsgType) String() string {
+	switch t {
+	case Amf_msg_type_invalid:
+		return "Amf_msg_type_invalid"
+	case Amf_msg_type_ngap_ng_setup_req:
+		return "Amf_msg_type_ngap_ng_setup_req"
+	case Amf_msg_type_ngap_ng_setup_rsp:
+		return "Amf_msg_type_ngap_ng_setup_rsp"
+	case Amf_msg_type_ngap_ng_setup_failure:
+		return "Amf_msg_type_ngap_ng_setup_failure"
+	case Amf_msg_type_ngap_init_ue:
+		return "Amf_msg_type_ngap_init_ue"
+	case Amf_msg_type_ngap_ul_nas_transport:
+		return "Amf_msg_type_ngap_ul_nas_transport"
+	case Amf_msg_type_ngap_reset_req:
+		return "Amf_msg_type_ngap_reset_req"
+	case Amf_msg_type_ngap_reset_ack:
+		return "Amf_msg_type_ngap_reset_ack"
+	case Amf_msg_type_ngap_handover_cancel:
+		return "Amf_msg_type_ngap_handover_cancel"
+	case Amf_msg_type_ngap_ue_ctxt_rel_req:
+		return "Amf_msg_type_ngap_ue_ctxt_rel_req"
+	case Amf_msg_type_ngap_ue_ctxt_rel_complete:
+		return "Amf_msg_type_ngap_ue_ctxt_rel_complete"
+	case Amf_msg_type_ngap_nas_non_dlvry_ind:
+		return "Amf_msg_type_ngap_nas_non_dlvry_ind"
+	case Amf_msg_type_ngap_location_report_fail_ind:
+		return "Amf_msg_type_ngap_location_report_fail_ind"
+	case Amf_msg_type_ngap_error_ind:
+		return "Amf_msg_type_ngap_error_ind"
+	case Amf_msg_type_ngap_ue_radio_cap_ind:
+		return "Amf_msg_type_ngap_ue_radio_cap_ind"
+	case Amf_msg_type_ngap_handover_notify:
+		return "Amf_msg_type_ngap_handover_notify"
+	case Amf_msg_type_ngap_handover_prep:
+		return "Amf_msg_type_ngap_handover_prep"
+	case Amf_msg_type_ngap_ran_config_update:
+		return "Amf_msg_type_ngap_ran_config_update"
+	case Amf_msg_type_ngap_rrc_inactive_trans_report:
+		return "Amf_msg_type_ngap_rrc_inactive_trans_report"
+	case Amf_msg_type_ngap_pdu_sess_resource_notify:
+		return "Amf_msg_type_ngap_pdu_sess_resource_notify"
+	case Amf_msg_type_ngap_path_switch_req:
+		return "Amf_msg_type_ngap_path_switch_req"
+	case Amf_msg_type_ngap_pdu_sess_resource_mod_ind:
+		return "Amf_msg_type_ngap_pdu_sess_resource_mod_ind"
+	case Amf_msg_type_ngap_resource_rel:
+		return "Amf_msg_type_ngap_resource_rel"
+	case Amf_msg_type_ngap_ue_radio_cap_check:
+		return "Amf_msg_type_ngap_ue_radio_cap_check"
+	case Amf_msg_type_ngap_amd_config_update:
+		return "Amf_msg_type_ngap_amd_config_update"
+	case Amf_msg_type_ngap_initial_ctxt_rsp:
+		return "Amf_msg_type_ngap_initial_ctxt_rsp"
+	case Amf_msg_type_ngap_ue_ctxt_mod_rsp:
+		return "Amf_msg_type_ngap_ue_ctxt_mod_rsp"
+	case Amf_msg_type_ngap_resource_setup_rsp:
+		return "Amf_msg_type_ngap_resource_setup_rsp"
+	case Amf_msg_type_ngap_pdu_sess_resource_mod_rsp:
+		return "Amf_msg_type_ngap_pdu_sess_resource_mod_rsp"
+	case Amf_msg_type_ngap_handover_req_ack:
+		return "Amf_msg_type_ngap_handover_req_ack"
+	case Amf_msg_type_ngap_amf_config_update_failure:
+		return "Amf_msg_type_ngap_amf_config_update_failure"
+	case Amf_msg_type_ngap_initial_ctxt_setup_failure:
+		return "Amf_msg_type_ngap_initial_ctxt_setup_failure"
+	case Amf_msg_type_ngap_handover_failure:
+		return "Amf_msg_type_ngap_handover_failure"
+	case Amf_msg_type_ngap_ue_ctxt_mod_failure:
+		return "Amf_msg_type_ngap_ue_ctxt_mod_failure"
+	default:
+		return "Amf_msg_type_unknown"
+	}
+}
