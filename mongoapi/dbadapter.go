@@ -40,10 +40,6 @@ type DBInterface interface {
 
 var CommonDBClient DBInterface
 
-type MongoDBClient struct {
-	MongoClient
-}
-
 // Set CommonDBClient
 func setCommonDBClient(url string, dbname string) error {
 	mClient, errConnect := NewMongoClient(url, dbname)
@@ -72,92 +68,4 @@ ConnectMongo:
 			return
 		}
 	}
-}
-
-func (db *MongoDBClient) RestfulAPIGetOne(collName string, filter bson.M) (map[string]any, error) {
-	return db.MongoClient.RestfulAPIGetOne(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[string]any, error) {
-	return db.MongoClient.RestfulAPIGetMany(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, putData map[string]any, timeout int32, timeField string) bool {
-	return db.MongoClient.RestfulAPIPutOneTimeout(collName, filter, putData, timeout, timeField)
-}
-
-func (db *MongoDBClient) RestfulAPIPutOne(collName string, filter bson.M, putData map[string]any) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOne(collName, filter, putData)
-}
-
-func (db *MongoDBClient) RestfulAPIPutOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOneWithContext(context, collName, filter, putData)
-}
-
-func (db *MongoDBClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]any) (bool, error) {
-	return db.MongoClient.RestfulAPIPutOneNotUpdate(collName, filter, putData)
-}
-
-func (db *MongoDBClient) RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]any) error {
-	return db.MongoClient.RestfulAPIPutMany(collName, filterArray, putDataArray)
-}
-
-func (db *MongoDBClient) RestfulAPIDeleteOne(collName string, filter bson.M) error {
-	return db.MongoClient.RestfulAPIDeleteOne(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIDeleteOneWithContext(context context.Context, collName string, filter bson.M) error {
-	return db.MongoClient.RestfulAPIDeleteOneWithContext(context, collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIDeleteMany(collName string, filter bson.M) error {
-	return db.MongoClient.RestfulAPIDeleteMany(collName, filter)
-}
-
-func (db *MongoDBClient) RestfulAPIMergePatch(collName string, filter bson.M, patchData map[string]any) error {
-	return db.MongoClient.RestfulAPIMergePatch(collName, filter, patchData)
-}
-
-func (db *MongoDBClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJSON []byte) error {
-	return db.MongoClient.RestfulAPIJSONPatch(collName, filter, patchJSON)
-}
-
-func (db *MongoDBClient) RestfulAPIJSONPatchWithContext(context context.Context, collName string, filter bson.M, patchJSON []byte) error {
-	return db.MongoClient.RestfulAPIJSONPatchWithContext(context, collName, filter, patchJSON)
-}
-
-func (db *MongoDBClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, patchJSON []byte, dataName string) error {
-	return db.MongoClient.RestfulAPIJSONPatchExtend(collName, filter, patchJSON, dataName)
-}
-
-func (db *MongoDBClient) RestfulAPIPost(collName string, filter bson.M, postData map[string]any) (bool, error) {
-	return db.MongoClient.RestfulAPIPost(collName, filter, postData)
-}
-
-func (db *MongoDBClient) RestfulAPIPostWithContext(context context.Context, collName string, filter bson.M, postData map[string]any) (bool, error) {
-	return db.MongoClient.RestfulAPIPostWithContext(context, collName, filter, postData)
-}
-
-func (db *MongoDBClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []any) error {
-	return db.MongoClient.RestfulAPIPostMany(collName, filter, postDataArray)
-}
-
-func (db *MongoDBClient) RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []any) error {
-	return db.MongoClient.RestfulAPIPostManyWithContext(context, collName, filter, postDataArray)
-}
-
-func (db *MongoDBClient) GetUniqueIdentity(idName string) int32 {
-	return db.MongoClient.GetUniqueIdentity(idName)
-}
-
-func (db *MongoDBClient) CreateIndex(collName string, keyField string) (bool, error) {
-	return db.MongoClient.CreateIndex(collName, keyField)
-}
-
-func (db *MongoDBClient) StartSession() (mongo.Session, error) {
-	return db.MongoClient.StartSession()
-}
-
-func (db *MongoDBClient) SupportsTransactions() (bool, error) {
-	return db.MongoClient.SupportsTransactions()
 }

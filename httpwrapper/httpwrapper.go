@@ -5,15 +5,8 @@
 package httpwrapper
 
 import (
-	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
-	"os"
-	"time"
-
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 type Request struct {
@@ -46,34 +39,4 @@ func NewResponse(code int, h http.Header, body any) *Response {
 	ret.Header = h
 	ret.Body = body
 	return ret
-}
-
-// NewHttp2Server returns a server instance with HTTP/2.0 and HTTP/2.0 cleartext support
-// If this function cannot open or create the secret log file,
-// **it still returns server instance** but without the secret log and error indication
-func NewHttp2Server(bindAddr string, preMasterSecretLogPath string, handler http.Handler) (*http.Server, error) {
-	if handler == nil {
-		return nil, fmt.Errorf("server needs handler to handle request")
-	}
-
-	h2Server := &http2.Server{
-		// TODO: extends the idle time after re-use openapi client
-		IdleTimeout: 1 * time.Millisecond,
-	}
-	server := &http.Server{
-		Addr:    bindAddr,
-		Handler: h2c.NewHandler(handler, h2Server),
-	}
-
-	if preMasterSecretLogPath != "" {
-		preMasterSecretFile, err := os.OpenFile(preMasterSecretLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-		if err != nil {
-			return nil, fmt.Errorf("create pre-master-secret log [%s] fail: %s", preMasterSecretLogPath, err)
-		}
-		server.TLSConfig = &tls.Config{
-			KeyLogWriter: preMasterSecretFile,
-		}
-	}
-
-	return server, nil
 }

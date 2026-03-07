@@ -857,7 +857,7 @@ func (c *MongoClient) StartSession() (mongo.Session, error) {
 }
 
 func (c *MongoClient) SupportsTransactions() (bool, error) {
-	command := bson.D{{"hello", 1}}
+	command := bson.D{{Key: "hello", Value: 1}}
 	result := c.Client.Database(c.dbName).RunCommand(context.Background(), command)
 	var status bson.M
 	if err := result.Decode(&status); err != nil {
