@@ -53,7 +53,7 @@ If any AMF instance crashes, then the chunks owned by the crashed AMF instances 
       e.g. AMF can use single id for ngapid as well as tmsi
 
 ## Testing
-    
+
     - All the DRSM clients discover other clients through pub/sub
     - Allocate resource id ( indirectly chunk). Other Pods should get notification of newly allocated chunk
     - POD down event should be detected
