@@ -89,7 +89,7 @@ func (l *LogSetting) validate() (bool, error) {
 	}
 
 	if l.DebugLevel == "" {
-		return false, fmt.Errorf("debugLevel cannot be empty")
+		return true, nil
 	}
 
 	if !isValidDebugLevel(l.DebugLevel) {
@@ -137,14 +137,14 @@ func GetLogSettingName(logger *Logger, target *LogSetting) (string, error) {
 // ApplyLogSetting sets a module logger level from config, defaulting to info.
 func ApplyLogSetting(moduleName string, moduleCfg *LogSetting, logObj *zap.SugaredLogger, setLevel func(zapcore.Level)) {
 	if moduleCfg == nil || moduleCfg.DebugLevel == "" {
-		logObj.Warnf("%s Log level not set. Default setting to [info] level", moduleName)
+		logObj.Warnf("%s log level not set; defaulting to [info] level", moduleName)
 		setLevel(zap.InfoLevel)
 		return
 	}
 
 	level, err := zapcore.ParseLevel(moduleCfg.DebugLevel)
 	if err != nil {
-		logObj.Warnf("%s Log level [%s] is invalid, setting to [info] level", moduleName, moduleCfg.DebugLevel)
+		logObj.Warnf("%s log level [%s] is invalid; defaulting to [info] level", moduleName, moduleCfg.DebugLevel)
 		setLevel(zap.InfoLevel)
 		return
 	}
