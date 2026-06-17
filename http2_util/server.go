@@ -1,5 +1,5 @@
+// Copyright (C) 2026 Intel Corporation
 // Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
-//
 // SPDX-License-Identifier: Apache-2.0
 
 //go:build !debug
@@ -29,6 +29,7 @@ func NewServer(bindAddr string, preMasterSecretLogPath string, handler http.Hand
 
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
 	protocols.SetUnencryptedHTTP2(true)
 
 	server = &http.Server{
