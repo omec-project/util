@@ -83,8 +83,26 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.scanChunks = make(map[int32]*chunk)
 	d.globalChunkTblMutex = sync.Mutex{}
 
-	// connect to DB
-	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
+	// connect to DB — retry until MongoDB is reachable so that the goroutines
+	// spawned below are never handed a nil client.
+	const (
+		retryInterval = 2 * time.Second
+		maxWait       = 120 * time.Second
+	)
+	deadline := time.Now().Add(maxWait)
+	for {
+		var err error
+		d.mongo, err = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			logger.DrsmLog.Errorf("drsm: mongodb not reachable after %v: %v; goroutines will not be started", maxWait, err)
+			return
+		}
+		logger.DrsmLog.Warnf("drsm: waiting for mongodb (%v), retrying in %v", err, retryInterval)
+		time.Sleep(retryInterval)
+	}
 	logger.DrsmLog.Debugln("mongoClient is created", d.db.Name)
 
 	go d.handleDbUpdates()
