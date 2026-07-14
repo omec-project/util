@@ -4,6 +4,7 @@
 package drsm
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -63,7 +64,7 @@ func (d *Drsm) DeletePod(podInstance string) {
 	logger.DrsmLog.Infoln("deleted PodId from DB:", podInstance)
 }
 
-func (d *Drsm) ConstuctDrsm(opt *Options) {
+func (d *Drsm) ConstuctDrsm(opt *Options) error {
 	if opt != nil {
 		d.mode = opt.Mode
 		logger.DrsmLog.Debugln("drsm mode set to", d.mode)
@@ -97,10 +98,10 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 			break
 		}
 		if time.Now().After(deadline) {
-			logger.DrsmLog.Errorf("drsm: mongodb not reachable after %v: %v; goroutines will not be started", maxWait, err)
-			return
+			logger.DrsmLog.Errorf("drsm: mongodb not reachable after %v; goroutines will not be started", maxWait)
+			return fmt.Errorf("drsm: mongodb not reachable after %v", maxWait)
 		}
-		logger.DrsmLog.Warnf("drsm: waiting for mongodb (%v), retrying in %v", err, retryInterval)
+		logger.DrsmLog.Warnf("drsm: waiting for mongodb, retrying in %v", retryInterval)
 		time.Sleep(retryInterval)
 	}
 	logger.DrsmLog.Debugln("mongoClient is created", d.db.Name)
@@ -109,4 +110,5 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	go d.punchLiveness()
 	go d.podDownDetected()
 	go d.checkAllChunks()
+	return nil
 }
