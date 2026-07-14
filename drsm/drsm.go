@@ -4,6 +4,7 @@
 package drsm
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -63,7 +64,7 @@ func (d *Drsm) DeletePod(podInstance string) {
 	logger.DrsmLog.Infoln("deleted PodId from DB:", podInstance)
 }
 
-func (d *Drsm) ConstuctDrsm(opt *Options) {
+func (d *Drsm) ConstuctDrsm(opt *Options) error {
 	if opt != nil {
 		d.mode = opt.Mode
 		logger.DrsmLog.Debugln("drsm mode set to", d.mode)
@@ -83,12 +84,31 @@ func (d *Drsm) ConstuctDrsm(opt *Options) {
 	d.scanChunks = make(map[int32]*chunk)
 	d.globalChunkTblMutex = sync.Mutex{}
 
-	// connect to DB
-	d.mongo, _ = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
+	// connect to DB — retry until MongoDB is reachable so that the goroutines
+	// spawned below are never handed a nil client.
+	const (
+		retryInterval = 2 * time.Second
+		maxWait       = 120 * time.Second
+	)
+	deadline := time.Now().Add(maxWait)
+	for {
+		var err error
+		d.mongo, err = MongoDBLibrary.NewMongoClient(d.db.Url, d.db.Name)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			logger.DrsmLog.Errorf("drsm: mongodb not reachable after %v; goroutines will not be started", maxWait)
+			return fmt.Errorf("drsm: mongodb not reachable after %v", maxWait)
+		}
+		logger.DrsmLog.Warnf("drsm: waiting for mongodb, retrying in %v", retryInterval)
+		time.Sleep(retryInterval)
+	}
 	logger.DrsmLog.Debugln("mongoClient is created", d.db.Name)
 
 	go d.handleDbUpdates()
 	go d.punchLiveness()
 	go d.podDownDetected()
 	go d.checkAllChunks()
+	return nil
 }

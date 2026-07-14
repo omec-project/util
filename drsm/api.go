@@ -55,7 +55,9 @@ func InitDRSM(sharedPoolName string, myid PodId, db DbInfo, opt *Options) (DrsmI
 		mode:           ResourceClient,
 	}
 
-	d.ConstuctDrsm(opt)
+	if err := d.ConstuctDrsm(opt); err != nil {
+		return nil, err
+	}
 
 	return d, nil
 }
