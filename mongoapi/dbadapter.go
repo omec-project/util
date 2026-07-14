@@ -8,9 +8,8 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type DBInterface interface {
@@ -20,7 +19,7 @@ type DBInterface interface {
 	RestfulAPIPutOne(collName string, filter bson.M, putData map[string]any) (bool, error)
 	RestfulAPIPutOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) (bool, error)
 	RestfulAPIPutOneNotUpdate(collName string, filter bson.M, putData map[string]any) (bool, error)
-	RestfulAPIPutMany(collName string, filterArray []primitive.M, putDataArray []map[string]any) error
+	RestfulAPIPutMany(collName string, filterArray []bson.M, putDataArray []map[string]any) error
 	RestfulAPIDeleteOne(collName string, filter bson.M) error
 	RestfulAPIDeleteOneWithContext(context context.Context, collName string, filter bson.M) error
 	RestfulAPIDeleteMany(collName string, filter bson.M) error
@@ -34,7 +33,7 @@ type DBInterface interface {
 	RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []any) error
 	GetUniqueIdentity(idName string) int32
 	CreateIndex(collName string, keyField string) (bool, error)
-	StartSession() (mongo.Session, error)
+	StartSession() (*mongo.Session, error)
 	SupportsTransactions() (bool, error)
 }
 
@@ -43,7 +42,7 @@ var CommonDBClient DBInterface
 // Set CommonDBClient
 func setCommonDBClient(url string, dbname string) error {
 	mClient, errConnect := NewMongoClient(url, dbname)
-	if mClient.Client != nil {
+	if mClient != nil && mClient.Client != nil {
 		CommonDBClient = mClient
 		CommonDBClient.(*MongoClient).Client.Database(dbname)
 	}

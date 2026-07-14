@@ -9,7 +9,7 @@ import (
 
 	"github.com/omec-project/util/logger"
 	MongoDBLibrary "github.com/omec-project/util/mongoapi"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type chunkState int
