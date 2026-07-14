@@ -29,7 +29,7 @@ type MongoClient struct {
 }
 
 func NewMongoClient(url string, dbName string) (*MongoClient, error) {
-	c := MongoClient{url: url, dbName: dbName}
+	c := MongoClient{url: url, dbName: dbName, pools: make(map[string]map[string]int32)}
 	opts := options.Client().
 		ApplyURI(c.url).
 		SetBSONOptions(&options.BSONOptions{
@@ -38,6 +38,12 @@ func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	client, err := mongo.Connect(opts)
 	if err != nil {
 		return nil, fmt.Errorf("MongoClient Creation err: %+v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err = client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, fmt.Errorf("MongoClient Ping err: %+v", err)
 	}
 	c.Client = client
 	return &c, nil
@@ -614,22 +620,41 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 	result := bson.M{}
-	poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result)
+	if err := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result); err != nil {
+		return -1, fmt.Errorf("GetIDFromPool decode err: %+v", err)
+	}
+
+	idsRaw, ok := result["ids"]
+	if !ok || idsRaw == nil {
+		return -1, errors.New("there are no available ids")
+	}
+	ids, ok := idsRaw.(bson.A)
+	if !ok {
+		return -1, fmt.Errorf("GetIDFromPool: unexpected type for ids: %T", idsRaw)
+	}
 
 	var array []int32
-	interfaces := []any(result["ids"].(bson.A))
-	for _, s := range interfaces {
-		id := s.(int32)
-		array = append(array, id)
+	for _, s := range ids {
+		switch v := s.(type) {
+		case int32:
+			array = append(array, v)
+		case int64:
+			const maxInt32 = int64(^uint32(0) >> 1)
+			const minInt32 = -maxInt32 - 1
+			if v > maxInt32 || v < minInt32 {
+				return -1, fmt.Errorf("GetIDFromPool: id out of int32 range: %d", v)
+			}
+			array = append(array, int32(v))
+		default:
+			return -1, fmt.Errorf("GetIDFromPool: unexpected element type %T", s)
+		}
 	}
 
 	// logger.MongoDBLog.Println("Array of ids: ", array)
 	if len(array) > 0 {
-		res := array[len(array)-1]
-		return res, nil
+		return array[len(array)-1], nil
 	}
-	err := errors.New("there are no available ids")
-	return -1, err
+	return -1, errors.New("there are no available ids")
 }
 
 /* Release the provided id to the provided pool. */
@@ -658,7 +683,9 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	var checkItem map[string]any
-	collection.FindOne(context.TODO(), filter).Decode(&checkItem)
+	if err := collection.FindOne(context.TODO(), filter).Decode(&checkItem); err != nil && err != mongo.ErrNoDocuments {
+		return false, fmt.Errorf("PutOneCustomDataStructure FindOne err: %+v", err)
+	}
 
 	if checkItem == nil {
 		_, err := collection.InsertOne(context.TODO(), putData)
@@ -667,7 +694,9 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 		}
 		return true, nil
 	}
-	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -717,7 +746,13 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	err := collection.Indexes().DropOne(context.Background(), timeField)
 	if err != nil {
-		// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
+		// Ignore "index not found" (code 27): the index may not exist yet,
+		// but we should still proceed to create the new TTL index.
+		var cmdErr mongo.CommandError
+		if !errors.As(err, &cmdErr) || cmdErr.Code != 27 {
+			// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
+			return false
+		}
 	}
 
 	// create new index with new timeout
@@ -727,11 +762,7 @@ func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, ti
 	}
 
 	_, err = collection.Indexes().CreateOne(context.Background(), index)
-	if err != nil {
-		// logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
-	}
-
-	return true
+	return err == nil
 }
 
 // This API adds document to collection with name : "collName"
@@ -754,6 +785,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 	// convert to map
 	if err = cursor.All(context.TODO(), &result); err != nil {
 		// logger.MongoDBLog.Println("RestfulAPIPatchOneTimeout : Cursor decode failed for collection (", collName, ") : ", err)
+		return false
 	}
 
 	// loop through the map and check for entry with key as name
@@ -769,8 +801,10 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 				err = collection.Indexes().DropOne(context.Background(), valStr)
 				if err != nil {
 					// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
-					break
+					return false
 				}
+				drop = true
+				break
 			}
 		}
 		if drop {
@@ -789,13 +823,19 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 		// logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
 	}
 
-	collection.FindOne(context.TODO(), filter).Decode(&checkItem)
-
-	if checkItem == nil {
-		collection.InsertOne(context.TODO(), putData)
+	if err := collection.FindOne(context.TODO(), filter).Decode(&checkItem); err != nil && err != mongo.ErrNoDocuments {
 		return false
 	}
-	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+
+	if checkItem == nil {
+		if _, err := collection.InsertOne(context.TODO(), putData); err != nil {
+			return false
+		}
+		return true
+	}
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+		return false
+	}
 	return true
 }
 
@@ -811,13 +851,19 @@ func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, pu
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	var checkItem map[string]any
 
-	collection.FindOne(context.TODO(), filter).Decode(&checkItem)
-
-	if checkItem == nil {
-		collection.InsertOne(context.TODO(), putData)
+	if err := collection.FindOne(context.TODO(), filter).Decode(&checkItem); err != nil && err != mongo.ErrNoDocuments {
 		return false
 	}
-	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+
+	if checkItem == nil {
+		if _, err := collection.InsertOne(context.TODO(), putData); err != nil {
+			return false
+		}
+		return true
+	}
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+		return false
+	}
 	return true
 }
 

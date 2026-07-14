@@ -42,7 +42,7 @@ var CommonDBClient DBInterface
 // Set CommonDBClient
 func setCommonDBClient(url string, dbname string) error {
 	mClient, errConnect := NewMongoClient(url, dbname)
-	if mClient.Client != nil {
+	if mClient != nil && mClient.Client != nil {
 		CommonDBClient = mClient
 		CommonDBClient.(*MongoClient).Client.Database(dbname)
 	}
