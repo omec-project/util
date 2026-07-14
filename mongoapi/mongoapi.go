@@ -1,3 +1,4 @@
+// Copyright (C) 2026 Intel Corporation
 // Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -15,10 +16,9 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type MongoClient struct {
@@ -30,9 +30,12 @@ type MongoClient struct {
 
 func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	c := MongoClient{url: url, dbName: dbName}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(c.url))
+	opts := options.Client().
+		ApplyURI(c.url).
+		SetBSONOptions(&options.BSONOptions{
+			DefaultDocumentMap: true,
+		})
+	client, err := mongo.Connect(opts)
 	if err != nil {
 		return nil, fmt.Errorf("MongoClient Creation err: %+v", err)
 	}
@@ -461,16 +464,12 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 		// Create an instance of an options and set the desired options
-		upsert := true
-		opt := options.FindOneAndUpdateOptions{
-			Upsert: &upsert,
-		}
 		data := bson.M{}
 		data["_id"] = random
 		data["lower"] = lower
 		data["upper"] = upper
 		data["owner"] = os.Getenv("HOSTNAME")
-		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$setOnInsert": data}, &opt)
+		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$setOnInsert": data}, options.FindOneAndUpdate().SetUpsert(true))
 
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
@@ -537,11 +536,7 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 		// Create an instance of an options and set the desired options
-		upsert := true
-		opt := options.FindOneAndUpdateOptions{
-			Upsert: &upsert,
-		}
-		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$set": bson.M{"_id": random}}, &opt)
+		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$set": bson.M{"_id": random}}, options.FindOneAndUpdate().SetUpsert(true))
 
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
@@ -622,7 +617,7 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result)
 
 	var array []int32
-	interfaces := []any(result["ids"].(primitive.A))
+	interfaces := []any(result["ids"].(bson.A))
 	for _, s := range interfaces {
 		id := s.(int32)
 		array = append(array, id)
@@ -632,11 +627,9 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	if len(array) > 0 {
 		res := array[len(array)-1]
 		return res, nil
-	} else {
-		err := errors.New("there are no available ids")
-		// logger.MongoDBLog.Println(err)
-		return -1, err
 	}
+	err := errors.New("there are no available ids")
+	return -1, err
 }
 
 /* Release the provided id to the provided pool. */
@@ -653,7 +646,6 @@ func (c *MongoClient) GetOneCustomDataStructure(collName string, filter bson.M) 
 	val := collection.FindOne(context.TODO(), filter)
 
 	if val.Err() != nil {
-		// logger.MongoDBLog.Println("Error getting student from db: " + val.Err().Error())
 		return bson.M{}, val.Err()
 	}
 
@@ -671,14 +663,12 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 	if checkItem == nil {
 		_, err := collection.InsertOne(context.TODO(), putData)
 		if err != nil {
-			// logger.MongoDBLog.Println("insert failed : ", err)
 			return false, err
 		}
 		return true, nil
-	} else {
-		collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-		return true, nil
 	}
+	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	return true, nil
 }
 
 func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error) {
@@ -718,14 +708,14 @@ func (c *MongoClient) RestfulAPICreateTTLIndex(collName string, timeout int32, t
 // Use this API to drop TTL Index.
 func (c *MongoClient) RestfulAPIDropTTLIndex(collName string, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	_, err := collection.Indexes().DropOne(context.Background(), timeField)
+	err := collection.Indexes().DropOne(context.Background(), timeField)
 	return err == nil
 }
 
 // Use this API to update timeout value for TTL Index.
 func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, timeField string) bool {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	_, err := collection.Indexes().DropOne(context.Background(), timeField)
+	err := collection.Indexes().DropOne(context.Background(), timeField)
 	if err != nil {
 		// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
 	}
@@ -776,7 +766,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 		for k1, v1 := range v {
 			valStr := fmt.Sprint(v1)
 			if (k1 == "name") && strings.Contains(valStr, timeField) {
-				_, err = collection.Indexes().DropOne(context.Background(), valStr)
+				err = collection.Indexes().DropOne(context.Background(), valStr)
 				if err != nil {
 					// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
 					break
@@ -804,10 +794,9 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 	if checkItem == nil {
 		collection.InsertOne(context.TODO(), putData)
 		return false
-	} else {
-		collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-		return true
 	}
+	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	return true
 }
 
 // This API adds document to collection with name : "collName"
@@ -827,10 +816,9 @@ func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, pu
 	if checkItem == nil {
 		collection.InsertOne(context.TODO(), putData)
 		return false
-	} else {
-		collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-		return true
 	}
+	collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
+	return true
 }
 
 func (c *MongoClient) RestfulAPIPostOnly(collName string, filter bson.M, postData map[string]any) bool {
@@ -852,7 +840,7 @@ func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData 
 	return err
 }
 
-func (c *MongoClient) StartSession() (mongo.Session, error) {
+func (c *MongoClient) StartSession() (*mongo.Session, error) {
 	return c.Client.StartSession()
 }
 

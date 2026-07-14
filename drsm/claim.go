@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/omec-project/util/logger"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func (d *Drsm) podDownDetected() {
