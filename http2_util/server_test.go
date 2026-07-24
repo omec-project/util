@@ -33,7 +33,7 @@ func TestNewServerEnablesSupportedProtocols(t *testing.T) {
 		t.Fatal("NewServer must keep h2c enabled")
 	}
 
-	if server.IdleTimeout != time.Millisecond {
-		t.Fatalf("NewServer idle timeout = %s, want %s", server.IdleTimeout, time.Millisecond)
+	if server.IdleTimeout != 60*time.Second {
+		t.Fatalf("NewServer idle timeout = %s, want %s", server.IdleTimeout, 60*time.Second)
 	}
 }
