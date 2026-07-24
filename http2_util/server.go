@@ -36,7 +36,7 @@ func NewServer(bindAddr string, preMasterSecretLogPath string, handler http.Hand
 		Addr:        bindAddr,
 		Handler:     handler,
 		Protocols:   protocols,
-		IdleTimeout: 1 * time.Millisecond,
+		IdleTimeout: 60 * time.Second,
 	}
 
 	if preMasterSecretLogPath != "" {
