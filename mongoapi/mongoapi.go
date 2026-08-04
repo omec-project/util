@@ -138,24 +138,14 @@ func (c *MongoClient) RestfulAPIPutOne(collName string, filter bson.M, putData m
 }
 
 // if no error happened, return true means data existed and false means data not existed
-func (c *MongoClient) RestfulAPIPutOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) (bool, error) {
+func (c *MongoClient) RestfulAPIPutOneWithContext(ctx context.Context, collName string, filter bson.M, putData map[string]any) (bool, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	existed, err := checkDataExisted(collection, filter)
+	opts := options.UpdateOne().SetUpsert(true)
+	result, err := collection.UpdateOne(ctx, filter, bson.M{"$set": putData}, opts)
 	if err != nil {
 		return false, fmt.Errorf("RestfulAPIPutOne err: %+v", err)
 	}
-
-	if existed {
-		if _, err := collection.UpdateOne(context, filter, bson.M{"$set": putData}); err != nil {
-			return false, fmt.Errorf("RestfulAPIPutOne UpdateOne err: %+v", err)
-		}
-		return true, nil
-	}
-
-	if _, err := collection.InsertOne(context, putData); err != nil {
-		return false, fmt.Errorf("RestfulAPIPutOne InsertOne err: %+v", err)
-	}
-	return false, nil
+	return result.MatchedCount > 0, nil
 }
 
 func (c *MongoClient) RestfulAPIPullOne(collName string, filter bson.M, putData map[string]any) error {
