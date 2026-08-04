@@ -143,7 +143,7 @@ func (c *MongoClient) RestfulAPIPutOneWithContext(ctx context.Context, collName 
 	opts := options.UpdateOne().SetUpsert(true)
 	result, err := collection.UpdateOne(ctx, filter, bson.M{"$set": putData}, opts)
 	if err != nil {
-		return false, fmt.Errorf("RestfulAPIPutOne err: %+v", err)
+		return false, fmt.Errorf("RestfulAPIPutOneWithContext UpdateOne err: %+v", err)
 	}
 	return result.MatchedCount > 0, nil
 }
@@ -152,10 +152,10 @@ func (c *MongoClient) RestfulAPIPullOne(collName string, filter bson.M, putData 
 	return c.RestfulAPIPullOneWithContext(context.TODO(), collName, filter, putData)
 }
 
-func (c *MongoClient) RestfulAPIPullOneWithContext(context context.Context, collName string, filter bson.M, putData map[string]any) error {
+func (c *MongoClient) RestfulAPIPullOneWithContext(ctx context.Context, collName string, filter bson.M, putData map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	if _, err := collection.UpdateOne(context, filter, bson.M{"$pull": putData}); err != nil {
-		return fmt.Errorf("RestfulAPIPullOne err: %+v", err)
+	if _, err := collection.UpdateOne(ctx, filter, bson.M{"$pull": putData}); err != nil {
+		return fmt.Errorf("RestfulAPIPullOneWithContext UpdateOne err: %+v", err)
 	}
 	return nil
 }
@@ -205,11 +205,11 @@ func (c *MongoClient) RestfulAPIDeleteOne(collName string, filter bson.M) error 
 	return c.RestfulAPIDeleteOneWithContext(context.TODO(), collName, filter)
 }
 
-func (c *MongoClient) RestfulAPIDeleteOneWithContext(context context.Context, collName string, filter bson.M) error {
+func (c *MongoClient) RestfulAPIDeleteOneWithContext(ctx context.Context, collName string, filter bson.M) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
-	if _, err := collection.DeleteOne(context, filter); err != nil {
-		return fmt.Errorf("RestfulAPIDeleteOne err: %+v", err)
+	if _, err := collection.DeleteOne(ctx, filter); err != nil {
+		return fmt.Errorf("RestfulAPIDeleteOneWithContext DeleteOne err: %+v", err)
 	}
 	return nil
 }
@@ -260,7 +260,7 @@ func (c *MongoClient) RestfulAPIJSONPatch(collName string, filter bson.M, patchJ
 	return c.RestfulAPIJSONPatchWithContext(context.TODO(), collName, filter, patchJSON)
 }
 
-func (c *MongoClient) RestfulAPIJSONPatchWithContext(context context.Context, collName string, filter bson.M, patchJSON []byte) error {
+func (c *MongoClient) RestfulAPIJSONPatchWithContext(ctx context.Context, collName string, filter bson.M, patchJSON []byte) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	originalData, err := getOrigData(collection, filter)
@@ -287,7 +287,7 @@ func (c *MongoClient) RestfulAPIJSONPatchWithContext(context context.Context, co
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch Unmarshal err: %+v", err)
 	}
-	if _, err := collection.UpdateOne(context, filter, bson.M{"$set": modifiedData}); err != nil {
+	if _, err := collection.UpdateOne(ctx, filter, bson.M{"$set": modifiedData}); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch UpdateOne err: %+v", err)
 	}
 	return nil
@@ -331,19 +331,19 @@ func (c *MongoClient) RestfulAPIPost(collName string, filter bson.M, postData ma
 	return c.RestfulAPIPutOne(collName, filter, postData)
 }
 
-func (c *MongoClient) RestfulAPIPostWithContext(context context.Context, collName string, filter bson.M, postData map[string]any) (bool, error) {
-	return c.RestfulAPIPutOneWithContext(context, collName, filter, postData)
+func (c *MongoClient) RestfulAPIPostWithContext(ctx context.Context, collName string, filter bson.M, postData map[string]any) (bool, error) {
+	return c.RestfulAPIPutOneWithContext(ctx, collName, filter, postData)
 }
 
 func (c *MongoClient) RestfulAPIPostMany(collName string, filter bson.M, postDataArray []any) error {
 	return c.RestfulAPIPostManyWithContext(context.TODO(), collName, filter, postDataArray)
 }
 
-func (c *MongoClient) RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []any) error {
+func (c *MongoClient) RestfulAPIPostManyWithContext(ctx context.Context, collName string, filter bson.M, postDataArray []any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
-	if _, err := collection.InsertMany(context, postDataArray); err != nil {
-		return fmt.Errorf("RestfulAPIPostMany err: %+v", err)
+	if _, err := collection.InsertMany(ctx, postDataArray); err != nil {
+		return fmt.Errorf("RestfulAPIPostManyWithContext InsertMany err: %+v", err)
 	}
 	return nil
 }
