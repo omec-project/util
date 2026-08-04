@@ -40,7 +40,7 @@ func GetKDFValue(key []byte, FC string, param ...[]byte) ([]byte, error) {
 
 	var S []byte
 	if STmp, err := hex.DecodeString(FC); err != nil {
-		return nil, fmt.Errorf("GetKDFValue FC decode failed: %+v", err)
+		return nil, fmt.Errorf("GetKDFValue FC decode failed: %w", err)
 	} else {
 		S = STmp
 	}
@@ -50,7 +50,7 @@ func GetKDFValue(key []byte, FC string, param ...[]byte) ([]byte, error) {
 	}
 
 	if _, err := kdf.Write(S); err != nil {
-		return nil, fmt.Errorf("GetKDFValue KDF write failed: %+v", err)
+		return nil, fmt.Errorf("GetKDFValue KDF write failed: %w", err)
 	}
 	sum := kdf.Sum(nil)
 	return sum, nil

@@ -37,13 +37,13 @@ func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 		})
 	client, err := mongo.Connect(opts)
 	if err != nil {
-		return nil, fmt.Errorf("MongoClient Creation err: %+v", err)
+		return nil, fmt.Errorf("MongoClient Creation err: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err = client.Ping(ctx, nil); err != nil {
 		_ = client.Disconnect(context.Background())
-		return nil, fmt.Errorf("MongoClient Ping err: %+v", err)
+		return nil, fmt.Errorf("MongoClient Ping err: %w", err)
 	}
 	c.Client = client
 	return &c, nil
@@ -94,7 +94,7 @@ func (c *MongoClient) RestfulAPIGetOne(collName string, filter bson.M) (map[stri
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	result, err := getOrigData(collection, filter)
 	if err != nil {
-		return nil, fmt.Errorf("RestfulAPIGetOne err: %+v", err)
+		return nil, fmt.Errorf("RestfulAPIGetOne err: %w", err)
 	}
 	return result, nil
 }
@@ -106,7 +106,7 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 	defer cancel()
 	cur, err := collection.Find(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("RestfulAPIGetMany err: %+v", err)
+		return nil, fmt.Errorf("RestfulAPIGetMany err: %w", err)
 	}
 	defer func(ctx context.Context) {
 		if err := cur.Close(ctx); err != nil {
@@ -118,7 +118,7 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 	for cur.Next(ctx) {
 		var result map[string]any
 		if err := cur.Decode(&result); err != nil {
-			return nil, fmt.Errorf("RestfulAPIGetMany err: %+v", err)
+			return nil, fmt.Errorf("RestfulAPIGetMany err: %w", err)
 		}
 
 		// Delete "_id" entry which is auto-inserted by MongoDB
@@ -126,7 +126,7 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 		resultArray = append(resultArray, result)
 	}
 	if err := cur.Err(); err != nil {
-		return nil, fmt.Errorf("RestfulAPIGetMany err: %+v", err)
+		return nil, fmt.Errorf("RestfulAPIGetMany err: %w", err)
 	}
 
 	return resultArray, nil
@@ -143,7 +143,7 @@ func (c *MongoClient) RestfulAPIPutOneWithContext(ctx context.Context, collName 
 	opts := options.UpdateOne().SetUpsert(true)
 	result, err := collection.UpdateOne(ctx, filter, bson.M{"$set": putData}, opts)
 	if err != nil {
-		return false, fmt.Errorf("RestfulAPIPutOneWithContext UpdateOne err: %+v", err)
+		return false, fmt.Errorf("RestfulAPIPutOneWithContext UpdateOne err: %w", err)
 	}
 	return result.MatchedCount > 0, nil
 }
@@ -155,7 +155,7 @@ func (c *MongoClient) RestfulAPIPullOne(collName string, filter bson.M, putData 
 func (c *MongoClient) RestfulAPIPullOneWithContext(ctx context.Context, collName string, filter bson.M, putData map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	if _, err := collection.UpdateOne(ctx, filter, bson.M{"$pull": putData}); err != nil {
-		return fmt.Errorf("RestfulAPIPullOneWithContext UpdateOne err: %+v", err)
+		return fmt.Errorf("RestfulAPIPullOneWithContext UpdateOne err: %w", err)
 	}
 	return nil
 }
@@ -165,7 +165,7 @@ func (c *MongoClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, 
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	existed, err := checkDataExisted(collection, filter)
 	if err != nil {
-		return false, fmt.Errorf("RestfulAPIPutOneNotUpdate err: %+v", err)
+		return false, fmt.Errorf("RestfulAPIPutOneNotUpdate err: %w", err)
 	}
 
 	if existed {
@@ -173,7 +173,7 @@ func (c *MongoClient) RestfulAPIPutOneNotUpdate(collName string, filter bson.M, 
 	}
 
 	if _, err := collection.InsertOne(context.TODO(), putData); err != nil {
-		return false, fmt.Errorf("RestfulAPIPutOneNotUpdate InsertOne err: %+v", err)
+		return false, fmt.Errorf("RestfulAPIPutOneNotUpdate InsertOne err: %w", err)
 	}
 	return false, nil
 }
@@ -185,16 +185,16 @@ func (c *MongoClient) RestfulAPIPutMany(collName string, filterArray []bson.M, p
 		filter := filterArray[i]
 		existed, err := checkDataExisted(collection, filter)
 		if err != nil {
-			return fmt.Errorf("RestfulAPIPutMany err: %+v", err)
+			return fmt.Errorf("RestfulAPIPutMany err: %w", err)
 		}
 
 		if existed {
 			if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
-				return fmt.Errorf("RestfulAPIPutMany UpdateOne err: %+v", err)
+				return fmt.Errorf("RestfulAPIPutMany UpdateOne err: %w", err)
 			}
 		} else {
 			if _, err := collection.InsertOne(context.TODO(), putData); err != nil {
-				return fmt.Errorf("RestfulAPIPutMany InsertOne err: %+v", err)
+				return fmt.Errorf("RestfulAPIPutMany InsertOne err: %w", err)
 			}
 		}
 	}
@@ -209,7 +209,7 @@ func (c *MongoClient) RestfulAPIDeleteOneWithContext(ctx context.Context, collNa
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	if _, err := collection.DeleteOne(ctx, filter); err != nil {
-		return fmt.Errorf("RestfulAPIDeleteOneWithContext DeleteOne err: %+v", err)
+		return fmt.Errorf("RestfulAPIDeleteOneWithContext DeleteOne err: %w", err)
 	}
 	return nil
 }
@@ -218,7 +218,7 @@ func (c *MongoClient) RestfulAPIDeleteMany(collName string, filter bson.M) error
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	if _, err := collection.DeleteMany(context.TODO(), filter); err != nil {
-		return fmt.Errorf("RestfulAPIDeleteMany err: %+v", err)
+		return fmt.Errorf("RestfulAPIDeleteMany err: %w", err)
 	}
 	return nil
 }
@@ -228,30 +228,30 @@ func (c *MongoClient) RestfulAPIMergePatch(collName string, filter bson.M, patch
 
 	originalData, err := getOrigData(collection, filter)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIMergePatch getOrigData err: %+v", err)
+		return fmt.Errorf("RestfulAPIMergePatch getOrigData err: %w", err)
 	}
 
 	original, err := json.Marshal(originalData)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIMergePatch Marshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIMergePatch Marshal err: %w", err)
 	}
 
 	patchDataByte, err := json.Marshal(patchData)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIMergePatch Marshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIMergePatch Marshal err: %w", err)
 	}
 
 	modifiedAlternative, err := jsonpatch.MergePatch(original, patchDataByte)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIMergePatch MergePatch err: %+v", err)
+		return fmt.Errorf("RestfulAPIMergePatch MergePatch err: %w", err)
 	}
 
 	var modifiedData map[string]any
 	if err := json.Unmarshal(modifiedAlternative, &modifiedData); err != nil {
-		return fmt.Errorf("RestfulAPIMergePatch Unmarshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIMergePatch Unmarshal err: %w", err)
 	}
 	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": modifiedData}); err != nil {
-		return fmt.Errorf("RestfulAPIMergePatch UpdateOne err: %+v", err)
+		return fmt.Errorf("RestfulAPIMergePatch UpdateOne err: %w", err)
 	}
 	return nil
 }
@@ -265,30 +265,30 @@ func (c *MongoClient) RestfulAPIJSONPatchWithContext(ctx context.Context, collNa
 
 	originalData, err := getOrigData(collection, filter)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatch getOrigData err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatch getOrigData err: %w", err)
 	}
 
 	original, err := json.Marshal(originalData)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatch Marshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatch Marshal err: %w", err)
 	}
 
 	patch, err := jsonpatch.DecodePatch(patchJSON)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatch DecodePatch err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatch DecodePatch err: %w", err)
 	}
 
 	modified, err := patch.Apply(original)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatch Apply err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatch Apply err: %w", err)
 	}
 
 	var modifiedData map[string]any
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatch Unmarshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatch Unmarshal err: %w", err)
 	}
 	if _, err := collection.UpdateOne(ctx, filter, bson.M{"$set": modifiedData}); err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatch UpdateOne err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatch UpdateOne err: %w", err)
 	}
 	return nil
 }
@@ -298,31 +298,31 @@ func (c *MongoClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, 
 
 	originalDataCover, err := getOrigData(collection, filter)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatchExtend getOrigData err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatchExtend getOrigData err: %w", err)
 	}
 
 	originalData := originalDataCover[dataName]
 	original, err := json.Marshal(originalData)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatchExtend Marshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatchExtend Marshal err: %w", err)
 	}
 
 	patch, err := jsonpatch.DecodePatch(patchJSON)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatchExtend DecodePatch err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatchExtend DecodePatch err: %w", err)
 	}
 
 	modified, err := patch.Apply(original)
 	if err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatchExtend Apply err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatchExtend Apply err: %w", err)
 	}
 
 	var modifiedData map[string]any
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatchExtend Unmarshal err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatchExtend Unmarshal err: %w", err)
 	}
 	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": bson.M{dataName: modifiedData}}); err != nil {
-		return fmt.Errorf("RestfulAPIJSONPatchExtend UpdateOne err: %+v", err)
+		return fmt.Errorf("RestfulAPIJSONPatchExtend UpdateOne err: %w", err)
 	}
 	return nil
 }
@@ -343,7 +343,7 @@ func (c *MongoClient) RestfulAPIPostManyWithContext(ctx context.Context, collNam
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	if _, err := collection.InsertMany(ctx, postDataArray); err != nil {
-		return fmt.Errorf("RestfulAPIPostManyWithContext InsertMany err: %+v", err)
+		return fmt.Errorf("RestfulAPIPostManyWithContext InsertMany err: %w", err)
 	}
 	return nil
 }
@@ -352,7 +352,7 @@ func (c *MongoClient) RestfulAPICount(collName string, filter bson.M) (int64, er
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	result, err := collection.CountDocuments(context.TODO(), filter)
 	if err != nil {
-		return 0, fmt.Errorf("RestfulAPICount err: %+v", err)
+		return 0, fmt.Errorf("RestfulAPICount err: %w", err)
 	}
 	return result, nil
 }
@@ -611,7 +611,7 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 
 	result := bson.M{}
 	if err := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result); err != nil {
-		return -1, fmt.Errorf("GetIDFromPool decode err: %+v", err)
+		return -1, fmt.Errorf("GetIDFromPool decode err: %w", err)
 	}
 
 	idsRaw, ok := result["ids"]
@@ -674,7 +674,7 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 
 	var checkItem map[string]any
 	if err := collection.FindOne(context.TODO(), filter).Decode(&checkItem); err != nil && err != mongo.ErrNoDocuments {
-		return false, fmt.Errorf("PutOneCustomDataStructure FindOne err: %+v", err)
+		return false, fmt.Errorf("PutOneCustomDataStructure FindOne err: %w", err)
 	}
 
 	if checkItem == nil {
