@@ -111,6 +111,8 @@ func (d *Drsm) handleDbUpdates() {
 	}
 }
 
+// ensurePodChunksInitialized allocates podD.podChunks on first use. Callers must hold
+// podMapMutex.
 func (d *Drsm) ensurePodChunksInitialized(podD *podData) {
 	if podD.podChunks == nil {
 		podD.podChunks = make(map[int32]*chunk)
@@ -148,12 +150,7 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 			switch full.Type {
 			case "keepalive":
 				// logger.DrsmLog.Debugf("insert keepalive document")
-				pod, found := d.podMap[full.PodId]
-				if !found {
-					d.addPod(full)
-				} else {
-					logger.DrsmLog.Debugln("keepalive insert document: found existing podId", pod)
-				}
+				d.ensurePod(full)
 			case "chunk":
 				// logger.DrsmLog.Debugln("insert chunk document")
 				d.addChunk(full)
@@ -183,25 +180,18 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 				cp.Owner.PodName = owner
 				cp.Owner.PodIp = s.Update.UpdFields.PodIp
 				cp.Owner.PodInstance = s.Update.UpdFields.PodInstance
-				podD, found := d.podMap[owner]
-				if !found {
+				if !d.recordChunkOwner(owner, c, cp) {
 					logger.DrsmLog.Warnf("stream(Update): pod %s not in local map for chunk %d update - will be corrected when keepalive arrives or during periodic resync", owner, c)
 					// Wait for proper pod initialization via keepalive. Eventual consistency will be maintained by periodic resync and proper keepalive events.
 					continue
 				}
-				// Defensive: should never happen if addPod() was called, but prevents panic
-				d.ensurePodChunksInitialized(podD)
-				podD.podChunks[c] = cp // add chunk to pod
-				logger.DrsmLog.Infof("stream(Update): pod to chunk map %v", podD.podChunks)
 			}
 		case "delete":
 			logger.DrsmLog.Debugln("delete operations")
 			if !isChunkDoc(s.DId.Id) {
 				// not chunk type doc. So its POD doc.
 				// delete only gets document id
-				pod, found := d.podMap[s.DId.Id]
-				if pod != nil {
-					logger.DrsmLog.Infof("Stream(Delete): Pod %v and found %v. Chunks owned by crashed pod = %v", pod, found, pod.podChunks)
+				if d.podDownCandidate(s.DId.Id) {
 					d.podDown <- s.DId.Id
 				}
 			}
@@ -272,10 +262,6 @@ func (d *Drsm) checkAllChunks() {
 }
 
 func (d *Drsm) addChunk(full *FullStream) {
-	pod, found := d.podMap[full.PodId]
-	if !found {
-		pod = d.addPod(full)
-	}
 	did := full.Id
 	if did == "" {
 		did = full.ChunkId
@@ -286,16 +272,79 @@ func (d *Drsm) addChunk(full *FullStream) {
 	c := &chunk{Id: cid, Owner: o}
 	c.resourceValidCb = d.resourceValidCb
 
+	d.podMapMutex.Lock()
+	pod, found := d.podMap[full.PodId]
+	if !found {
+		pod = d.addPodLocked(full)
+	}
 	pod.podChunks[cid] = c
+	logger.DrsmLog.Debugf("chunk id %v, podChunks %v", cid, pod.podChunks)
+	// Released before globalChunkTblMutex is taken: no path holds both locks at once.
+	d.podMapMutex.Unlock()
 
 	d.globalChunkTblMutex.Lock()
 	d.globalChunkTbl[cid] = c
 	d.globalChunkTblMutex.Unlock()
-
-	logger.DrsmLog.Debugf("chunk id %v, podChunks %v", cid, pod.podChunks)
 }
 
-func (d *Drsm) addPod(full *FullStream) *podData {
+// ensurePod adds the pod described by full to podMap unless it is already known.
+func (d *Drsm) ensurePod(full *FullStream) {
+	d.podMapMutex.Lock()
+	defer d.podMapMutex.Unlock()
+	if pod, found := d.podMap[full.PodId]; found {
+		logger.DrsmLog.Debugln("keepalive insert document: found existing podId", pod)
+		return
+	}
+	d.addPodLocked(full)
+}
+
+// recordChunkOwner records cp against the pod that now owns it. It reports whether that pod
+// is known locally.
+func (d *Drsm) recordChunkOwner(owner string, chunkId int32, cp *chunk) bool {
+	d.podMapMutex.Lock()
+	defer d.podMapMutex.Unlock()
+	podD, found := d.podMap[owner]
+	if !found {
+		return false
+	}
+	// Defensive: should never happen if the pod went through addPodLocked, but prevents panic
+	d.ensurePodChunksInitialized(podD)
+	podD.podChunks[chunkId] = cp // add chunk to pod
+	logger.DrsmLog.Infof("stream(Update): pod to chunk map %v", podD.podChunks)
+	return true
+}
+
+// podDownCandidate reports whether podName is still known locally, logging the chunks it
+// owned. The caller signals podDown outside the lock: podDownDetected takes podMapMutex,
+// so signalling while holding it would deadlock once the channel buffer is full.
+func (d *Drsm) podDownCandidate(podName string) bool {
+	d.podMapMutex.Lock()
+	defer d.podMapMutex.Unlock()
+	pod, found := d.podMap[podName]
+	if found {
+		logger.DrsmLog.Infof("Stream(Delete): Pod %v and found %v. Chunks owned by crashed pod = %v", pod, found, pod.podChunks)
+	}
+	return found
+}
+
+// podChunkIds returns the ids of the chunks currently recorded against podName, together
+// with the owner name recorded for that pod, which claimChunk needs to build its filter.
+func (d *Drsm) podChunkIds(podName string) ([]int32, string) {
+	d.podMapMutex.Lock()
+	defer d.podMapMutex.Unlock()
+	pd, found := d.podMap[podName]
+	if !found {
+		return nil, ""
+	}
+	ids := make([]int32, 0, len(pd.podChunks))
+	for k := range pd.podChunks {
+		ids = append(ids, k)
+	}
+	return ids, pd.PodId.PodName
+}
+
+// addPodLocked adds the pod described by full to podMap. Callers must hold podMapMutex.
+func (d *Drsm) addPodLocked(full *FullStream) *podData {
 	podI := PodId{PodName: full.PodId, PodInstance: full.PodInstance, PodIp: full.PodIp}
 	pod := &podData{PodId: podI}
 	d.ensurePodChunksInitialized(pod)

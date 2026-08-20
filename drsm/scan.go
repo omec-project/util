@@ -19,8 +19,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 		logger.DrsmLog.Infoln("do not perform scan task if Chunk is not owned by us")
 		return
 	}
-	c.State = Scanning
-	d.scanChunks[c.Id] = c
+	d.startScan(c)
 	var i int32
 	for i = 0; i < 1000; i++ {
 		c.ScanIds = append(c.ScanIds, i)
@@ -47,9 +46,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 					}
 				} else {
 					// mark as owned. and remove from scan list and add to local table
-					c.State = Owned
-					d.localChunkTbl[c.Id] = c
-					delete(d.scanChunks, c.Id)
+					d.completeScan(c)
 					logger.DrsmLog.Debugf("scan complete for Chunk %v", c.Id)
 					return
 				}
@@ -60,4 +57,24 @@ func (c *chunk) scanChunk(d *Drsm) {
 			return
 		}
 	}
+}
+
+// startScan publishes c as being scanned. scanChunks and localChunkTbl are shared with
+// AllocateInt32ID and ReleaseInt32ID, which hold mutex, so the scan goroutines started by
+// claimChunk have to hold it as well.
+func (d *Drsm) startScan(c *chunk) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	c.State = Scanning
+	d.scanChunks[c.Id] = c
+}
+
+// completeScan moves c out of the scan table and into the local table once every id in the
+// chunk has been scanned.
+func (d *Drsm) completeScan(c *chunk) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	c.State = Owned
+	d.localChunkTbl[c.Id] = c
+	delete(d.scanChunks, c.Id)
 }

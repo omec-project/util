@@ -56,6 +56,8 @@ type Drsm struct {
 	resourceValidCb     func(int32) bool
 	mongo               *MongoDBLibrary.MongoClient
 	globalChunkTblMutex sync.Mutex
+	// podMapMutex guards podMap and every podData.podChunks reachable through it.
+	podMapMutex sync.Mutex
 }
 
 func (d *Drsm) DeletePod(podInstance string) {
