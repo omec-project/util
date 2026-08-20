@@ -14,8 +14,37 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+// GetOwner returns a copy of the pod recorded as owning c. Returning &c.Owner would let the
+// caller read the fields after FindOwnerInt32ID has dropped its lock, while claimChunk and
+// the change-stream handler are still writing them.
 func (c *chunk) GetOwner() *PodId {
-	return &c.Owner
+	c.ownerMutex.Lock()
+	defer c.ownerMutex.Unlock()
+	owner := c.Owner
+	return &owner
+}
+
+// setOwner replaces the recorded owner of c.
+func (c *chunk) setOwner(owner PodId) {
+	c.ownerMutex.Lock()
+	defer c.ownerMutex.Unlock()
+	c.Owner = owner
+}
+
+// setOwnerAddress records this pod as the owner. PodInstance is left as it was, which is what
+// claimChunk has always done - the change-stream update that the claim triggers supplies it.
+func (c *chunk) setOwnerAddress(podName, podIp string) {
+	c.ownerMutex.Lock()
+	defer c.ownerMutex.Unlock()
+	c.Owner.PodName = podName
+	c.Owner.PodIp = podIp
+}
+
+// ownerPodName returns the name of the pod recorded as owning c.
+func (c *chunk) ownerPodName() string {
+	c.ownerMutex.Lock()
+	defer c.ownerMutex.Unlock()
+	return c.Owner.PodName
 }
 
 func (d *Drsm) GetNewChunk() (*chunk, error) {

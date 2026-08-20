@@ -43,8 +43,7 @@ func (c *chunk) claimChunk(d *Drsm, curOwner string) {
 	if updated == nil {
 		// TODO : don't add to local pool yet. We can add it only if scan is done.
 		logger.DrsmLog.Infof("claimChunk %v success", c.Id)
-		c.Owner.PodName = d.clientId.PodName
-		c.Owner.PodIp = d.clientId.PodIp
+		c.setOwnerAddress(d.clientId.PodName, d.clientId.PodIp)
 		go c.scanChunk(d)
 	} else {
 		// no problem, some other POD successfully claimed this chunk

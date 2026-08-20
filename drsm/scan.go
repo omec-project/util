@@ -15,7 +15,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 		return
 	}
 
-	if c.Owner.PodName != d.clientId.PodName {
+	if c.ownerPodName() != d.clientId.PodName {
 		logger.DrsmLog.Infoln("do not perform scan task if Chunk is not owned by us")
 		return
 	}
