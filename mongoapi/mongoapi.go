@@ -772,7 +772,7 @@ func (c *MongoClient) RestfulAPIDropTTLIndexWithContext(ctx context.Context, col
 		if IsIndexNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("drop index on field %s of collection %s failed: %w", timeField, collName, err)
+		return fmt.Errorf("drop index %q of collection %s failed: %w", timeField, collName, err)
 	}
 	return nil
 }
