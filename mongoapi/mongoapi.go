@@ -21,6 +21,15 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+const (
+	// indexNotFoundErrorCode is returned when an index that is being dropped
+	// does not exist.
+	indexNotFoundErrorCode = 27
+	// indexOptionsConflictErrorCode is returned when an index of the requested
+	// name already exists with different options.
+	indexOptionsConflictErrorCode = 85
+)
+
 type MongoClient struct {
 	Client *mongo.Client
 	dbName string
@@ -713,46 +722,111 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 // To create Index with custom timeout per document, set timeout to 0.
 // To create Index with common timeout use timefield name like : updatedAt
 // To create Index with custom timeout use timefield name like : expireAt
+//
+// Deprecated: use RestfulAPICreateTTLIndexWithContext. A false return value
+// hides why the index could not be created, so a caller that depends on the
+// index to expire documents cannot tell a failure apart from an index that is
+// already there.
 func (c *MongoClient) RestfulAPICreateTTLIndex(collName string, timeout int32, timeField string) bool {
+	return c.RestfulAPICreateTTLIndexWithContext(context.Background(), collName, timeout, timeField) == nil
+}
+
+// RestfulAPICreateTTLIndexWithContext creates a TTL index named timeField on
+// the timeField of a collection and reports why it could not be created.
+//
+// To create Index with common timeout for all documents, set timeout to desired value
+// To create Index with custom timeout per document, set timeout to 0.
+// To create Index with common timeout use timefield name like : updatedAt
+// To create Index with custom timeout use timefield name like : expireAt
+//
+// Creating an index that already exists with the same options is a no-op. If an
+// index of the same name exists with different options, MongoDB rejects the
+// command with IndexOptionsConflict.
+func (c *MongoClient) RestfulAPICreateTTLIndexWithContext(ctx context.Context, collName string, timeout int32, timeField string) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	index := mongo.IndexModel{
 		Keys:    bson.D{{Key: timeField, Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
 	}
 
-	_, err := collection.Indexes().CreateOne(context.Background(), index)
-	return err == nil
+	if _, err := collection.Indexes().CreateOne(ctx, index); err != nil {
+		return fmt.Errorf("create TTL index on field %s of collection %s failed: %w", timeField, collName, err)
+	}
+	return nil
 }
 
 // Use this API to drop TTL Index.
+//
+// Deprecated: use RestfulAPIDropTTLIndexWithContext, which reports why the
+// index could not be dropped.
 func (c *MongoClient) RestfulAPIDropTTLIndex(collName string, timeField string) bool {
+	return c.RestfulAPIDropTTLIndexWithContext(context.Background(), collName, timeField) == nil
+}
+
+// RestfulAPIDropTTLIndexWithContext drops the index named timeField and reports
+// why it could not be dropped. Dropping an index that does not exist is not an
+// error, so the call is safe to repeat and safe to race with another process.
+func (c *MongoClient) RestfulAPIDropTTLIndexWithContext(ctx context.Context, collName string, timeField string) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
-	err := collection.Indexes().DropOne(context.Background(), timeField)
-	return err == nil
+	if err := collection.Indexes().DropOne(ctx, timeField); err != nil {
+		if IsIndexNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("drop index on field %s of collection %s failed: %w", timeField, collName, err)
+	}
+	return nil
 }
 
 // Use this API to update timeout value for TTL Index.
+//
+// Deprecated: use RestfulAPIPatchTTLIndexWithContext, which reports why the
+// index could not be updated.
 func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, timeField string) bool {
-	collection := c.Client.Database(c.dbName).Collection(collName)
-	err := collection.Indexes().DropOne(context.Background(), timeField)
-	if err != nil {
-		// Ignore "index not found" (code 27): the index may not exist yet,
-		// but we should still proceed to create the new TTL index.
-		var cmdErr mongo.CommandError
-		if !errors.As(err, &cmdErr) || cmdErr.Code != 27 {
-			// logger.MongoDBLog.Println("Drop Index on field (", timeField, ") for collection (", collName, ") failed : ", err)
-			return false
-		}
-	}
+	return c.RestfulAPIPatchTTLIndexWithContext(context.Background(), collName, timeout, timeField) == nil
+}
 
+// RestfulAPIPatchTTLIndexWithContext recreates the index named timeField with a
+// new timeout and reports why it could not be updated.
+func (c *MongoClient) RestfulAPIPatchTTLIndexWithContext(ctx context.Context, collName string, timeout int32, timeField string) error {
+	if err := c.RestfulAPIDropTTLIndexWithContext(ctx, collName, timeField); err != nil {
+		return err
+	}
 	// create new index with new timeout
-	index := mongo.IndexModel{
-		Keys:    bson.D{{Key: timeField, Value: 1}},
-		Options: options.Index().SetExpireAfterSeconds(timeout).SetName(timeField),
+	return c.RestfulAPICreateTTLIndexWithContext(ctx, collName, timeout, timeField)
+}
+
+// RestfulAPIListIndexes returns the index specifications of a collection, as
+// reported by the listIndexes command. It lets a caller confirm that an index
+// it created is really there instead of trusting the result of the create call.
+// listIndexes is always served by the primary, so a specification returned here
+// is one the collection actually has.
+func (c *MongoClient) RestfulAPIListIndexes(ctx context.Context, collName string) ([]bson.M, error) {
+	collection := c.Client.Database(c.dbName).Collection(collName)
+	cursor, err := collection.Indexes().List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list indexes of collection %s failed: %w", collName, err)
 	}
 
-	_, err = collection.Indexes().CreateOne(context.Background(), index)
-	return err == nil
+	var specs []bson.M
+	if err = cursor.All(ctx, &specs); err != nil {
+		return nil, fmt.Errorf("decode index specifications of collection %s failed: %w", collName, err)
+	}
+	return specs, nil
+}
+
+// IsIndexNotFound reports whether err is the server saying that an index does
+// not exist (code 27).
+func IsIndexNotFound(err error) bool {
+	var cmdErr mongo.CommandError
+	return errors.As(err, &cmdErr) && cmdErr.Code == indexNotFoundErrorCode
+}
+
+// IsIndexOptionsConflict reports whether err is the server refusing to create
+// an index because one of the same name exists with different options
+// (code 85).
+func IsIndexOptionsConflict(err error) bool {
+	var serverErr mongo.ServerError
+	return errors.As(err, &serverErr) && serverErr.HasErrorCode(indexOptionsConflictErrorCode)
 }
 
 // This API adds document to collection with name : "collName"

@@ -208,11 +208,12 @@ func (d *Drsm) punchLiveness() {
 	defer ticker.Stop()
 
 	logger.DrsmLog.Debugln("document expiry enabled")
-	ret := d.mongo.RestfulAPICreateTTLIndex(d.sharedPoolName, 0, "expireAt")
-	if ret {
-		logger.DrsmLog.Debugln("ttl index created for Field: expireAt in Collection")
+	if err := d.mongo.RestfulAPICreateTTLIndexWithContext(context.Background(), d.sharedPoolName, 0, "expireAt"); err != nil {
+		// Without the index nothing expires the liveness documents, so report the
+		// failure instead of claiming that the index is already there.
+		logger.DrsmLog.Errorf("ttl index for field expireAt in collection %s is not available: %v", d.sharedPoolName, err)
 	} else {
-		logger.DrsmLog.Debugln("ttl index exists for Field: expireAt in Collection")
+		logger.DrsmLog.Debugf("ttl index available for field expireAt in collection %s", d.sharedPoolName)
 	}
 
 	for range ticker.C {
