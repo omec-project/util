@@ -82,8 +82,7 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	logger.DrsmLog.Infof("Adding chunk %v success", cn)
 	c := &chunk{Id: cn}
 	c.AllocIds = make(map[int32]bool)
-	var i int32
-	for i = 0; i < 1000; i++ {
+	for i := range int32(1000) {
 		c.FreeIds = append(c.FreeIds, i)
 	}
 	c.State = Owned

@@ -56,9 +56,9 @@ func (l *Logger) Validate() (bool, error) {
 	}
 
 	logger := reflect.ValueOf(l).Elem()
-	loggerType := reflect.TypeOf(l).Elem()
+	loggerType := reflect.TypeFor[Logger]()
 
-	for i := 0; i < logger.NumField(); i++ {
+	for i := range logger.NumField() {
 		field := logger.Field(i)
 		fieldType := loggerType.Field(i)
 
@@ -67,7 +67,7 @@ func (l *Logger) Validate() (bool, error) {
 			continue
 		}
 
-		if field.Kind() == reflect.Ptr && !field.IsNil() {
+		if field.Kind() == reflect.Pointer && !field.IsNil() {
 			if logSetting, ok := field.Interface().(*LogSetting); ok && logSetting != nil {
 				if valid, err := logSetting.validate(); !valid {
 					return false, fmt.Errorf("validation failed for field %s: %w", fieldType.Name, err)
@@ -116,10 +116,10 @@ func GetLogSettingName(logger *Logger, target *LogSetting) (string, error) {
 	}
 
 	loggerValue := reflect.ValueOf(logger).Elem()
-	loggerType := reflect.TypeOf(logger).Elem()
-	logSettingType := reflect.TypeOf((*LogSetting)(nil))
+	loggerType := reflect.TypeFor[Logger]()
+	logSettingType := reflect.TypeFor[*LogSetting]()
 
-	for i := 0; i < loggerValue.NumField(); i++ {
+	for i := range loggerValue.NumField() {
 		field := loggerValue.Field(i)
 		fieldType := loggerType.Field(i)
 

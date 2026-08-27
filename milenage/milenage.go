@@ -26,7 +26,7 @@ func milenageF1(opc, k, _rand, sqn, amf, mac_a, mac_s []uint8) error {
 	rijndaelInput := make([]uint8, 16)
 
 	/* tmp1 = TEMP = E_K(RAND XOR OP_C) */
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		rijndaelInput[i] = _rand[i] ^ opc[i]
 	}
 	// RijndaelEncrypt( OP, op_c );
@@ -54,14 +54,14 @@ func milenageF1(opc, k, _rand, sqn, amf, mac_a, mac_s []uint8) error {
 	/* OUT1 = E_K(TEMP XOR rot(IN1 XOR OP_C, r1) XOR c1) XOR OP_C */
 
 	/* rotate (tmp2 XOR OP_C) by r1 (= 0x40 = 8 bytes) */
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		tmp3[(i+8)%16] = tmp2[i] ^ opc[i]
 	}
 
 	// fmt.Printf("tmp3: %x\n", tmp3)
 
 	/* XOR with TEMP = E_K(RAND XOR OP_C) */
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		tmp3[i] ^= tmp1[i]
 	}
 	// fmt.Printf("tmp3 XOR with TEMP: %x\n", tmp3)
@@ -74,7 +74,7 @@ func milenageF1(opc, k, _rand, sqn, amf, mac_a, mac_s []uint8) error {
 
 	// fmt.Printf("XOR with c1 (: %x\n", tmp1)
 
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		tmp1[i] ^= opc[i]
 	}
 	// fmt.Printf("tmp1[i] ^= opc[i] %x\n", tmp1)
@@ -105,7 +105,7 @@ func milenageF2345(opc, k, _rand, res, ck, ik, ak, akstar []uint8) error {
 	tmp1 := make([]uint8, 16)
 
 	/* tmp2 = TEMP = E_K(RAND XOR OP_C) */
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		tmp1[i] = _rand[i] ^ opc[i]
 	}
 
@@ -124,7 +124,7 @@ func milenageF2345(opc, k, _rand, res, ck, ik, ak, akstar []uint8) error {
 
 	/* f2 and f5 */
 	/* rotate by r2 (= 0, i.e., NOP) */
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		tmp1[i] = tmp2[i] ^ opc[i]
 	}
 	tmp1[15] ^= 1 // XOR c2 (= ..01)
@@ -138,7 +138,7 @@ func milenageF2345(opc, k, _rand, res, ck, ik, ak, akstar []uint8) error {
 	tmp3 := make([]byte, block.BlockSize())
 	block.Encrypt(tmp3, tmp1)
 
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		tmp3[i] ^= opc[i]
 	}
 
@@ -163,14 +163,14 @@ func milenageF2345(opc, k, _rand, res, ck, ik, ak, akstar []uint8) error {
 	/* f3 */
 	if ck != nil {
 		// rotate by r3 = 0x20 = 4 bytes
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			tmp1[(i+12)%16] = tmp2[i] ^ opc[i]
 		}
 		tmp1[15] ^= 2 // XOR c3 (= ..02)
 
 		block.Encrypt(ck, tmp1)
 
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			ck[i] ^= opc[i]
 		}
 	}
@@ -190,14 +190,14 @@ func milenageF2345(opc, k, _rand, res, ck, ik, ak, akstar []uint8) error {
 	/* f4 */
 	if ik != nil {
 		// rotate by r4 = 0x40 = 8 bytes
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			tmp1[(i+8)%16] = tmp2[i] ^ opc[i]
 		}
 		tmp1[15] ^= 4 // XOR c4 (= ..04)
 
 		block.Encrypt(ik, tmp1)
 
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			ik[i] ^= opc[i]
 		}
 	}
@@ -217,14 +217,14 @@ func milenageF2345(opc, k, _rand, res, ck, ik, ak, akstar []uint8) error {
 	/* f5* */
 	if akstar != nil {
 		// rotate by r5 = 0x60 = 12 bytes
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			tmp1[(i+4)%16] = tmp2[i] ^ opc[i]
 		}
 		tmp1[15] ^= 8 // XOR c5 (= ..08)
 
 		block.Encrypt(tmp1, tmp1)
 
-		for i := 0; i < 6; i++ {
+		for i := range 6 {
 			akstar[i] = tmp1[i] ^ opc[i]
 		}
 	}
@@ -262,7 +262,7 @@ func GenerateOPC(k, op []uint8) ([]uint8, error) {
 
 	block.Encrypt(opc, op)
 
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		opc[i] ^= op[i]
 	}
 

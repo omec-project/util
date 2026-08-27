@@ -502,7 +502,7 @@ func TestRAND(t *testing.T) {
 	}
 	// fmt.Printf("AMF=%x, MAC_A=%x\n", AMF, MAC_A)
 	SQNxorAK := make([]byte, 6)
-	for i := 0; i < len(SQN); i++ {
+	for i := range SQN {
 		SQNxorAK[i] = SQN[i] ^ AK[i]
 	}
 

@@ -52,7 +52,7 @@ func TestConcurrency(t *testing.T) {
 	for routineID := 1; routineID <= 10; routineID++ {
 		wg.Add(1)
 		go func(routineID int) {
-			for i := 0; i < 1000; i++ {
+			for range 1000 {
 				id, err := idGenerator.Allocate()
 				if err != nil {
 					t.Errorf("idGenerator.Allocate fail: %+v", err)
@@ -91,7 +91,7 @@ func TestUnique(t *testing.T) {
 			testRange := int(valueRange * 3)
 			idGenerator := NewGenerator(testCase.minValue, testCase.maxValue)
 
-			for i := 0; i < testRange; i++ {
+			for i := range testRange {
 				id, err := idGenerator.Allocate()
 				if err != nil {
 					t.Error(err)
@@ -136,7 +136,7 @@ func TestTriggerNoSpaceToAllocateError(t *testing.T) {
 			valueRange := int(testCase.maxValue - testCase.minValue + 1)
 			idGenerator := NewGenerator(testCase.minValue, testCase.maxValue)
 
-			for i := 0; i < valueRange; i++ {
+			for range valueRange {
 				_, err := idGenerator.Allocate()
 				if err != nil {
 					t.Error(err)

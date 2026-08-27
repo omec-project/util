@@ -32,7 +32,7 @@ func newTestDrsm() *Drsm {
 
 func newTestChunk(id int32, freeIds int32) *chunk {
 	c := &chunk{Id: id, Owner: PodId{PodName: testPod}, AllocIds: make(map[int32]bool)}
-	for i := int32(0); i < freeIds; i++ {
+	for i := range freeIds {
 		c.FreeIds = append(c.FreeIds, i)
 	}
 	return c

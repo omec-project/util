@@ -140,7 +140,7 @@ func unwrapPointersToStruct(v reflect.Value) (reflect.Value, int) {
 // rewrapWithPointers wraps a struct value back through the specified number of pointer levels.
 func rewrapWithPointers(v reflect.Value, ptrDepth int) reflect.Value {
 	result := v
-	for i := 0; i < ptrDepth; i++ {
+	for range ptrDepth {
 		// Create a new pointer to the current value
 		ptr := reflect.New(result.Type())
 		ptr.Elem().Set(result)
@@ -155,7 +155,7 @@ func restoreNilAndEmptyValuesInStruct(original, copied reflect.Value) {
 		return
 	}
 
-	for i := 0; i < original.NumField(); i++ {
+	for i := range original.NumField() {
 		originalField := original.Field(i)
 		copiedField := copied.Field(i)
 
