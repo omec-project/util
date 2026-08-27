@@ -177,9 +177,11 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 					continue
 				}
 				// TODO update IP address as well.
-				cp.Owner.PodName = owner
-				cp.Owner.PodIp = s.Update.UpdFields.PodIp
-				cp.Owner.PodInstance = s.Update.UpdFields.PodInstance
+				cp.setOwner(PodId{
+					PodName:     owner,
+					PodIp:       s.Update.UpdFields.PodIp,
+					PodInstance: s.Update.UpdFields.PodInstance,
+				})
 				if !d.recordChunkOwner(owner, c, cp) {
 					logger.DrsmLog.Warnf("stream(Update): pod %s not in local map for chunk %d update - will be corrected when keepalive arrives or during periodic resync", owner, c)
 					// Wait for proper pod initialization via keepalive. Eventual consistency will be maintained by periodic resync and proper keepalive events.

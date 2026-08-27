@@ -32,6 +32,8 @@ type chunk struct {
 	ScanIds         []int32
 	stopScan        chan bool
 	resourceValidCb func(int32) bool
+	// ownerMutex guards Owner, which claimChunk and the change-stream handler both write.
+	ownerMutex sync.Mutex
 }
 
 type podData struct {
