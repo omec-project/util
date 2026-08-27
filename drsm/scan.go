@@ -20,10 +20,7 @@ func (c *chunk) scanChunk(d *Drsm) {
 		return
 	}
 	d.startScan(c)
-	var i int32
-	for i = 0; i < 1000; i++ {
-		c.ScanIds = append(c.ScanIds, i)
-	}
+	c.appendScanIds(1000)
 
 	ticker := time.NewTicker(5000 * time.Millisecond)
 	defer ticker.Stop()
@@ -34,16 +31,10 @@ func (c *chunk) scanChunk(d *Drsm) {
 			// TODO : find candidate and then scan that Id.
 			// once all Ids are scanned then we can start using this block
 			if c.resourceValidCb != nil {
-				if len(c.ScanIds) != 0 {
-					id := c.ScanIds[len(c.ScanIds)-1]
-					c.ScanIds = c.ScanIds[:len(c.ScanIds)-1]
+				if id, ok := c.nextScanId(); ok {
 					rid := c.Id<<10 | id
 					res := c.resourceValidCb(rid)
-					if res {
-						c.FreeIds = append(c.FreeIds, id)
-					} else {
-						c.AllocIds[id] = true // Id is in use
-					}
+					c.recordScanResult(id, res)
 				} else {
 					// mark as owned. and remove from scan list and add to local table
 					d.completeScan(c)

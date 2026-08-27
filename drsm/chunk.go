@@ -95,6 +95,44 @@ func (d *Drsm) GetNewChunk() (*chunk, error) {
 	return c, nil
 }
 
+// appendScanIds seeds the ids still to be scanned. FreeIds, ScanIds and AllocIds are shared
+// with AllocateInt32ID and ReleaseInt32ID, which hold mutex, so the scan goroutine started by
+// claimChunk has to hold it too. The slice is built first so the lock covers only the append.
+func (c *chunk) appendScanIds(n int32) {
+	ids := make([]int32, 0, n)
+	for i := range n {
+		ids = append(ids, i)
+	}
+	mutex.Lock()
+	defer mutex.Unlock()
+	c.ScanIds = append(c.ScanIds, ids...)
+}
+
+// nextScanId takes the next id to scan, reporting false once every id has been scanned.
+func (c *chunk) nextScanId() (int32, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if len(c.ScanIds) == 0 {
+		return 0, false
+	}
+	id := c.ScanIds[len(c.ScanIds)-1]
+	c.ScanIds = c.ScanIds[:len(c.ScanIds)-1]
+	return id, true
+}
+
+// recordScanResult files a scanned id as free or as already in use. The caller invokes
+// resourceValidCb outside the lock on purpose: it is supplied by the NF and may re-enter
+// drsm, which would deadlock on a non-reentrant mutex.
+func (c *chunk) recordScanResult(id int32, free bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if free {
+		c.FreeIds = append(c.FreeIds, id)
+	} else {
+		c.AllocIds[id] = true // Id is in use
+	}
+}
+
 func (c *chunk) AllocateIntID() (int32, error) {
 	if len(c.FreeIds) == 0 {
 		err := fmt.Errorf("freeIds in chunk 0")
