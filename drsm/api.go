@@ -32,10 +32,10 @@ const (
 )
 
 type Options struct {
-	ResIdSize       int32 // size in bits e.g. 32 bit, 24 bit.
-	Mode            DrsmMode
-	ResourceValidCb func(int32) bool // return if ID is in use or not used
+	ResourceValidCb func(int32) bool
 	IpPool          map[string]string
+	Mode            DrsmMode
+	ResIdSize       int32
 }
 
 type DrsmInterface interface {

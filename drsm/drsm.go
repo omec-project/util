@@ -23,48 +23,60 @@ const (
 	Scanning
 )
 
+// bson field names and document type values shared by the chunk/keepalive documents.
+const (
+	fieldID          = "_id"
+	fieldType        = "type"
+	fieldPodID       = "podId"
+	fieldPodIP       = "podIp"
+	fieldPodInstance = "podInstance"
+	docTypeChunk     = "chunk"
+	docTypeKeepalive = "keepalive"
+)
+
 type chunk struct {
-	Id              int32
-	Owner           PodId
-	State           chunkState
-	FreeIds         []int32
 	AllocIds        map[int32]bool
-	ScanIds         []int32
 	stopScan        chan bool
 	resourceValidCb func(int32) bool
-	// ownerMutex guards Owner, which claimChunk and the change-stream handler both write.
-	ownerMutex sync.Mutex
+	Owner           PodId
+	FreeIds         []int32
+	ScanIds         []int32
+	State           chunkState
+	ownerMutex      sync.Mutex
+	Id              int32
 }
 
 type podData struct {
-	PodId         PodId            `bson:"podId,omitempty" json:"podId,omitempty"`
 	Timestamp     time.Time        `bson:"time,omitempty" json:"time,omitempty"`
 	PrevTimestamp time.Time        `bson:"-" json:"-"`
-	podChunks     map[int32]*chunk `bson:"-" json:"-"` // chunkId to Chunk
+	podChunks     map[int32]*chunk `bson:"-" json:"-"`
+	PodId         PodId            `bson:"podId,omitempty" json:"podId,omitempty"`
 }
 
 type Drsm struct {
-	sharedPoolName      string
-	clientId            PodId
-	db                  DbInfo
-	mode                DrsmMode
-	resIdSize           int32
-	localChunkTbl       map[int32]*chunk    // chunkid to chunk
-	globalChunkTbl      map[int32]*chunk    // chunkid to chunk
-	podMap              map[string]*podData // podId to podData
-	podDown             chan string
 	scanChunks          map[int32]*chunk
-	chunkIdRange        int32
+	podDown             chan string
+	localChunkTbl       map[int32]*chunk
+	globalChunkTbl      map[int32]*chunk
+	podMap              map[string]*podData
 	resourceValidCb     func(int32) bool
 	mongo               *MongoDBLibrary.MongoClient
+	clientId            PodId
+	db                  DbInfo
+	sharedPoolName      string
+	mode                DrsmMode
 	globalChunkTblMutex sync.Mutex
-	// podMapMutex guards podMap and every podData.podChunks reachable through it.
-	podMapMutex sync.Mutex
+	podMapMutex         sync.Mutex
+	resIdSize           int32
+	chunkIdRange        int32
 }
 
 func (d *Drsm) DeletePod(podInstance string) {
-	filter := bson.M{"type": "keepalive", "podInstance": podInstance}
-	d.mongo.RestfulAPIDeleteMany(d.sharedPoolName, filter)
+	filter := bson.M{fieldType: docTypeKeepalive, fieldPodInstance: podInstance}
+	if err := d.mongo.RestfulAPIDeleteMany(d.sharedPoolName, filter); err != nil {
+		logger.DrsmLog.Errorf("failed to delete PodId from DB: %v, err: %v", podInstance, err)
+		return
+	}
 	logger.DrsmLog.Infoln("deleted PodId from DB:", podInstance)
 }
 

@@ -28,9 +28,9 @@ func NewRequest(req *http.Request, body any) *Request {
 }
 
 type Response struct {
+	Body   any
 	Header http.Header
 	Status int
-	Body   any
 }
 
 func NewResponse(code int, h http.Header, body any) *Response {

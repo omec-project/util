@@ -8,13 +8,22 @@ import (
 	"testing"
 )
 
+// Values reused across multiple test cases below.
+const (
+	testNameAlice    = "Alice"
+	testNameBob      = "Bob"
+	testCityNYC      = "NYC"
+	testHobbyReading = "reading"
+	testScoreKey     = "test"
+)
+
 // Test structures for complex scenarios
 type Person struct {
-	Name    string
-	Age     int
 	Address *Address
-	Hobbies []string
 	Scores  map[string]int
+	Name    string
+	Hobbies []string
+	Age     int
 }
 
 type Address struct {
@@ -24,10 +33,10 @@ type Address struct {
 }
 
 type Company struct {
-	Name      string
-	Employees []Person
 	Addresses map[string]*Address
 	Metadata  map[string]string
+	Name      string
+	Employees []Person
 }
 
 func TestDeepCopyEmptySlice(t *testing.T) {
@@ -170,8 +179,8 @@ func TestDeepCopySliceTypes(t *testing.T) {
 
 func TestDeepCopyMapTypes(t *testing.T) {
 	tests := []struct {
-		name  string
 		input map[string]int
+		name  string
 		isNil bool
 	}{
 		{
@@ -270,15 +279,15 @@ func TestDeepCopyNestedStructs(t *testing.T) {
 		Name: "TechCorp",
 		Employees: []Person{
 			{
-				Name:    "Alice",
+				Name:    testNameAlice,
 				Age:     30,
-				Address: &Address{Street: "123 Main St", City: "NYC", Zip: 10001},
-				Hobbies: []string{"reading"},
+				Address: &Address{Street: "123 Main St", City: testCityNYC, Zip: 10001},
+				Hobbies: []string{testHobbyReading},
 				Scores:  map[string]int{"math": 95},
 			},
 		},
 		Addresses: map[string]*Address{
-			"office": {Street: "456 Office Blvd", City: "NYC", Zip: 10002},
+			"office": {Street: "456 Office Blvd", City: testCityNYC, Zip: 10002},
 		},
 		Metadata: make(map[string]string), // empty but non-nil map
 	}
@@ -294,8 +303,8 @@ func TestDeepCopyNestedStructs(t *testing.T) {
 	}
 
 	// Verify it's a true deep copy by modifying original
-	input.Employees[0].Name = "Bob"
-	if result.Employees[0].Name == "Bob" {
+	input.Employees[0].Name = testNameBob
+	if result.Employees[0].Name == testNameBob {
 		t.Errorf("DeepCopy() did not create independent copy")
 	}
 
@@ -352,8 +361,8 @@ func TestDeepCopyNilPointer(t *testing.T) {
 
 func TestDeepCopyPointerToStructWithNilAndEmptyFields(t *testing.T) {
 	tests := []struct {
-		name       string
 		input      *Person
+		name       string
 		checkHobby bool
 		hobbyIsNil bool
 		checkScore bool
@@ -362,10 +371,10 @@ func TestDeepCopyPointerToStructWithNilAndEmptyFields(t *testing.T) {
 		{
 			name: "pointer to struct with nil slice",
 			input: &Person{
-				Name:    "Alice",
+				Name:    testNameAlice,
 				Age:     30,
 				Hobbies: nil,
-				Scores:  map[string]int{"test": 100},
+				Scores:  map[string]int{testScoreKey: 100},
 			},
 			checkHobby: true,
 			hobbyIsNil: true,
@@ -375,10 +384,10 @@ func TestDeepCopyPointerToStructWithNilAndEmptyFields(t *testing.T) {
 		{
 			name: "pointer to struct with empty slice",
 			input: &Person{
-				Name:    "Bob",
+				Name:    testNameBob,
 				Age:     25,
 				Hobbies: []string{},
-				Scores:  map[string]int{"test": 95},
+				Scores:  map[string]int{testScoreKey: 95},
 			},
 			checkHobby: true,
 			hobbyIsNil: false,
@@ -390,7 +399,7 @@ func TestDeepCopyPointerToStructWithNilAndEmptyFields(t *testing.T) {
 			input: &Person{
 				Name:    "Charlie",
 				Age:     35,
-				Hobbies: []string{"reading"},
+				Hobbies: []string{testHobbyReading},
 				Scores:  nil,
 			},
 			checkHobby: true,
@@ -555,13 +564,13 @@ func TestDeepCopyInvalidGobData(t *testing.T) {
 
 	// Create a type with a field that might cause gob issues
 	type Problematic struct {
+		Data any
 		Name string
-		Data any // any can cause decode issues with certain values
 	}
 
 	// Use a problematic value
 	input := Problematic{
-		Name: "test",
+		Name: testScoreKey,
 		Data: make(chan int), // channels can't be encoded/decoded
 	}
 
@@ -577,9 +586,9 @@ func TestDeepCopyMutationIndependence(t *testing.T) {
 	original := Person{
 		Name:    "Original",
 		Age:     30,
-		Address: &Address{Street: "Original St", City: "NYC", Zip: 10001},
-		Hobbies: []string{"reading", "coding"},
-		Scores:  map[string]int{"test": 100},
+		Address: &Address{Street: "Original St", City: testCityNYC, Zip: 10001},
+		Hobbies: []string{testHobbyReading, "coding"},
+		Scores:  map[string]int{testScoreKey: 100},
 	}
 
 	copied, err := DeepCopy(original)
@@ -592,23 +601,29 @@ func TestDeepCopyMutationIndependence(t *testing.T) {
 	copied.Age = 40
 	copied.Address.Street = "Modified St"
 	copied.Hobbies[0] = "swimming"
-	copied.Scores["test"] = 50
+	copied.Scores[testScoreKey] = 50
 
 	// Verify original is unchanged
 	if original.Name != "Original" {
 		t.Errorf("Original Name was modified: %s", original.Name)
 	}
+	if copied.Name != "Modified" {
+		t.Errorf("Copied Name = %s, want Modified", copied.Name)
+	}
 	if original.Age != 30 {
 		t.Errorf("Original Age was modified: %d", original.Age)
+	}
+	if copied.Age != 40 {
+		t.Errorf("Copied Age = %d, want 40", copied.Age)
 	}
 	if original.Address.Street != "Original St" {
 		t.Errorf("Original Address was modified: %s", original.Address.Street)
 	}
-	if original.Hobbies[0] != "reading" {
+	if original.Hobbies[0] != testHobbyReading {
 		t.Errorf("Original Hobbies was modified: %s", original.Hobbies[0])
 	}
-	if original.Scores["test"] != 100 {
-		t.Errorf("Original Scores was modified: %d", original.Scores["test"])
+	if original.Scores[testScoreKey] != 100 {
+		t.Errorf("Original Scores was modified: %d", original.Scores[testScoreKey])
 	}
 }
 
@@ -624,6 +639,7 @@ func TestDeepCopyPointerToBasicType(t *testing.T) {
 
 	if result == nil {
 		t.Fatal("DeepCopy() returned nil")
+		return
 	}
 
 	if *result != 42 {
@@ -640,17 +656,17 @@ func TestDeepCopyPointerToBasicType(t *testing.T) {
 // TestDeepCopyStructWithUnexportedFields tests structs with unexported fields
 func TestDeepCopyStructWithUnexportedFields(t *testing.T) {
 	type StructWithUnexported struct {
+		privateMap map[string]int
 		Name       string
-		age        int // unexported
 		Hobbies    []string
-		privateMap map[string]int // unexported
+		age        int
 	}
 
 	input := StructWithUnexported{
-		Name:       "Alice",
+		Name:       testNameAlice,
 		age:        30,
-		Hobbies:    []string{"reading"},
-		privateMap: map[string]int{"test": 1},
+		Hobbies:    []string{testHobbyReading},
+		privateMap: map[string]int{testScoreKey: 1},
 	}
 
 	result, err := DeepCopy(input)
@@ -659,7 +675,7 @@ func TestDeepCopyStructWithUnexportedFields(t *testing.T) {
 	}
 
 	// Exported fields should be copied
-	if result.Name != "Alice" {
+	if result.Name != testNameAlice {
 		t.Errorf("DeepCopy() Name = %s, want Alice", result.Name)
 	}
 	if !reflect.DeepEqual(result.Hobbies, input.Hobbies) {
@@ -670,13 +686,13 @@ func TestDeepCopyStructWithUnexportedFields(t *testing.T) {
 // TestDeepCopyNestedStructFields tests struct fields that are structs (not pointers)
 func TestDeepCopyNestedStructFields(t *testing.T) {
 	type Inner struct {
-		Values []int
 		Data   map[string]string
+		Values []int
 	}
 
 	type Outer struct {
 		Name  string
-		Inner Inner // struct field, not pointer
+		Inner Inner
 	}
 
 	input := Outer{
@@ -713,14 +729,14 @@ func TestDeepCopyNestedStructFields(t *testing.T) {
 // TestDeepCopyComplexNestedStructs tests complex nesting scenarios
 func TestDeepCopyComplexNestedStructs(t *testing.T) {
 	type Level2 struct {
-		Items []string
 		Meta  map[string]int
+		Items []string
 	}
 
 	type Level1 struct {
+		Nested *Level2
 		Name   string
 		Level2 Level2
-		Nested *Level2
 	}
 
 	type Level0 struct {
@@ -799,7 +815,7 @@ func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 			name: "double pointer to struct with nil/empty fields",
 			setupInput: func() any {
 				person := &Person{
-					Name:    "Alice",
+					Name:    testNameAlice,
 					Age:     30,
 					Hobbies: nil,
 					Scores:  map[string]int{},
@@ -830,7 +846,7 @@ func TestDeepCopyMultipleLevelsOfPointers(t *testing.T) {
 			name: "pointer to pointer to pointer",
 			setupInput: func() any {
 				person := &Person{
-					Name:    "Bob",
+					Name:    testNameBob,
 					Age:     25,
 					Hobbies: []string{},
 					Scores:  nil,

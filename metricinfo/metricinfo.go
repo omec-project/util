@@ -5,28 +5,28 @@
 package metricinfo
 
 type CoreSubscriber struct {
-	Version     int    `json:"version,omitempty"`
-	Imsi        string `json:"imsi,omitempty"` // key
+	UpfName     string `json:"upfid,omitempty"`
+	UpfAddr     string `json:"upfAddr,omitempty"`
 	SmfId       string `json:"smfId,omitempty"`
 	SmfIp       string `json:"smfIp,omitempty"`
-	SmfSubState string `json:"smfSubState,omitempty"` // Connected, Idle, DisConnected
+	SmfSubState string `json:"smfSubState,omitempty"`
 	IPAddress   string `json:"ipaddress,omitempty"`
 	Dnn         string `json:"dnn,omitempty"`
 	Slice       string `json:"slice,omitempty"`
-	LSEID       int    `json:"lseid,omitempty"`
-	RSEID       int    `json:"rseid,omitempty"`
-	UpfName     string `json:"upfid,omitempty"`
-	UpfAddr     string `json:"upfAddr,omitempty"`
-	AmfId       string `json:"amfId,omitempty"`
-	Guti        string `json:"guti,omitempty"`
-	Tmsi        int32  `json:"tmsi,omitempty"`
-	AmfNgapId   int64  `json:"amfngapId,omitempty"`
-	RanNgapId   int64  `json:"ranngapId,omitempty"`
-	AmfSubState string `json:"amfSubState,omitempty"` // RegisteredC, RegisteredI, DeRegistered, Deleted
-	GnbId       string `json:"gnbid,omitempty"`
-	TacId       string `json:"tacid,omitempty"`
-	AmfIp       string `json:"amfIp,omitempty"`
 	UeState     string `json:"ueState,omitempty"`
+	AmfId       string `json:"amfId,omitempty"`
+	Imsi        string `json:"imsi,omitempty"`
+	AmfIp       string `json:"amfIp,omitempty"`
+	TacId       string `json:"tacid,omitempty"`
+	Guti        string `json:"guti,omitempty"`
+	GnbId       string `json:"gnbid,omitempty"`
+	AmfSubState string `json:"amfSubState,omitempty"`
+	RanNgapId   int64  `json:"ranngapId,omitempty"`
+	AmfNgapId   int64  `json:"amfngapId,omitempty"`
+	RSEID       int    `json:"rseid,omitempty"`
+	Version     int    `json:"version,omitempty"`
+	LSEID       int    `json:"lseid,omitempty"`
+	Tmsi        int32  `json:"tmsi,omitempty"`
 }
 
 type CoreMsgType struct {
@@ -92,10 +92,10 @@ type CoreSubscriberData struct {
 
 // Sent by NFs(Producers) and received by Metric Function
 type MetricEvent struct {
-	EventType      CoreEventType      `json:"eventType,omitempty"`
-	SubscriberData CoreSubscriberData `json:"subscriberData,omitempty"`
-	MsgType        CoreMsgType        `json:"coreMsgType,omitempty"`
 	NfStatusData   CNfStatus          `json:"nfStatusData"`
+	MsgType        CoreMsgType        `json:"coreMsgType,omitempty"`
+	SubscriberData CoreSubscriberData `json:"subscriberData,omitempty"`
+	EventType      CoreEventType      `json:"eventType,omitempty"`
 }
 
 type SmfMsgType uint64

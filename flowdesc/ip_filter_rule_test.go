@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+const (
+	testIP100 = "60.60.0.100"
+	testIP1   = "60.60.0.1"
+)
+
 func TestIPFilterRuleEncode(t *testing.T) {
 	testStr1 := "permit out ip from any to assigned 655"
 
@@ -28,11 +33,11 @@ func TestIPFilterRuleEncode(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if err := rule.SetSourceIP("any"); err != nil {
+	if err := rule.SetSourceIP(ipAny); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if err := rule.SetDestinationIP("assigned"); err != nil {
+	if err := rule.SetDestinationIP(ipAssigned); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -54,20 +59,20 @@ func TestIPFilterRuleDecode(t *testing.T) {
 		filterRule string
 		action     Action
 		dir        Direction
-		proto      uint8
 		src        string
 		srcPorts   string
 		dst        string
 		dstPorts   string
+		proto      uint8
 	}{
 		"fully": {
 			filterRule: "permit out ip from 60.60.0.100 8080 to 60.60.0.1 80",
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.100",
+			src:        testIP100,
 			srcPorts:   "8080",
-			dst:        "60.60.0.1",
+			dst:        testIP1,
 			dstPorts:   "80",
 		},
 		"withoutPorts": {
@@ -75,9 +80,9 @@ func TestIPFilterRuleDecode(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.100",
+			src:        testIP100,
 			srcPorts:   "",
-			dst:        "60.60.0.1",
+			dst:        testIP1,
 			dstPorts:   "",
 		},
 		"withoutOnePorts": {
@@ -85,9 +90,9 @@ func TestIPFilterRuleDecode(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.100",
+			src:        testIP100,
 			srcPorts:   "8080",
-			dst:        "60.60.0.1",
+			dst:        testIP1,
 			dstPorts:   "",
 		},
 		"withSrcAny": {
@@ -95,9 +100,9 @@ func TestIPFilterRuleDecode(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "any",
+			src:        ipAny,
 			srcPorts:   "",
-			dst:        "60.60.0.1",
+			dst:        testIP1,
 			dstPorts:   "8080",
 		},
 		"withDstAny": {
@@ -105,9 +110,9 @@ func TestIPFilterRuleDecode(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.1",
+			src:        testIP1,
 			srcPorts:   "8080",
-			dst:        "any",
+			dst:        ipAny,
 			dstPorts:   "",
 		},
 		"withAssigned": {
@@ -115,9 +120,9 @@ func TestIPFilterRuleDecode(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "assigned",
+			src:        ipAssigned,
 			srcPorts:   "",
-			dst:        "60.60.0.1",
+			dst:        testIP1,
 			dstPorts:   "8080",
 		},
 	}
@@ -158,20 +163,20 @@ func TestIPFilterRuleSwapSourceAndDestination(t *testing.T) {
 		filterRule string
 		action     Action
 		dir        Direction
-		proto      uint8
 		src        string
 		srcPorts   string
 		dst        string
 		dstPorts   string
+		proto      uint8
 	}{
 		"fully": {
 			filterRule: "permit out ip from 60.60.0.100 8080 to 60.60.0.1 80",
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.1",
+			src:        testIP1,
 			srcPorts:   "80",
-			dst:        "60.60.0.100",
+			dst:        testIP100,
 			dstPorts:   "8080",
 		},
 		"withoutPorts": {
@@ -179,9 +184,9 @@ func TestIPFilterRuleSwapSourceAndDestination(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.1",
+			src:        testIP1,
 			srcPorts:   "",
-			dst:        "60.60.0.100",
+			dst:        testIP100,
 			dstPorts:   "",
 		},
 		"withoutOnePorts": {
@@ -189,9 +194,9 @@ func TestIPFilterRuleSwapSourceAndDestination(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.1",
+			src:        testIP1,
 			srcPorts:   "",
-			dst:        "60.60.0.100",
+			dst:        testIP100,
 			dstPorts:   "8080",
 		},
 		"withSrcAny": {
@@ -199,9 +204,9 @@ func TestIPFilterRuleSwapSourceAndDestination(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.1",
+			src:        testIP1,
 			srcPorts:   "8080",
-			dst:        "any",
+			dst:        ipAny,
 			dstPorts:   "",
 		},
 		"withDstAny": {
@@ -209,9 +214,9 @@ func TestIPFilterRuleSwapSourceAndDestination(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "any",
+			src:        ipAny,
 			srcPorts:   "",
-			dst:        "60.60.0.1",
+			dst:        testIP1,
 			dstPorts:   "8080",
 		},
 		"withAssigned": {
@@ -219,9 +224,9 @@ func TestIPFilterRuleSwapSourceAndDestination(t *testing.T) {
 			action:     Permit,
 			dir:        Out,
 			proto:      ProtocolNumberAny,
-			src:        "60.60.0.1",
+			src:        testIP1,
 			srcPorts:   "8080",
-			dst:        "assigned",
+			dst:        ipAssigned,
 			dstPorts:   "",
 		},
 	}
