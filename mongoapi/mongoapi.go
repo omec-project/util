@@ -884,12 +884,14 @@ func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData 
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
 	result, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: putData})
-	if result.MatchedCount != 0 {
-		// logger.MongoDBLog.Println("matched and replaced an existing document")
-		return nil
+	if err != nil {
+		return fmt.Errorf("failed to update document: %w", err)
 	}
-	err = fmt.Errorf("failed to update document: %s", err)
-	return err
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to update document: no matching document found")
+	}
+	// logger.MongoDBLog.Println("matched and replaced an existing document")
+	return nil
 }
 
 func (c *MongoClient) StartSession() (*mongo.Session, error) {

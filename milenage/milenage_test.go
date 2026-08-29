@@ -415,16 +415,16 @@ func TestGenerateOPC(t *testing.T) {
 	if err != nil {
 		t.Errorf("err: %+v\n", err)
 	}
-	fmt.Println("K:", string(K))
+	fmt.Println("K:", hex.EncodeToString(K))
 
-	fmt.Println("OP:", string(OP))
+	fmt.Println("OP:", hex.EncodeToString(OP))
 
 	OPCbyGo, err := GenerateOPC(K, OP)
 	if err != nil {
 		t.Errorf("err: %+v\n", err)
 	}
 
-	fmt.Println("OPCbyGo:", string(OPCbyGo))
+	fmt.Println("OPCbyGo:", hex.EncodeToString(OPCbyGo))
 }
 
 func TestRAND(t *testing.T) {
