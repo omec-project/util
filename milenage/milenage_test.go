@@ -42,55 +42,83 @@ type f4f5StarTest struct {
 	ExpectedAKStar string
 }
 
+// Shared 3GPP TS 35.207 test vectors reused across the F1, F2F5F3 and F4F5Star test tables.
+const (
+	testVector1K    = "465b5ce8b199b49faa5f0a2ee238a6bc"
+	testVector1RAND = "23553cbe9637a89d218ae64dae47bf35"
+	testVector1OP   = "cdc202d5123e20f62b6d676ac72cb318"
+	testVector1OPc  = "cd63cb71954a9f4e48a5994e37a02baf"
+
+	testVector2K    = "0396eb317b6d1c36f19c1c84cd6ffd16"
+	testVector2RAND = "c00d603103dcee52c4478119494202e8"
+	testVector2OP   = "ff53bade17df5d4e793073ce9d7579fa"
+	testVector2OPc  = "53c15671c60a4b731c55b4a441c0bde2"
+
+	testVector3K    = "fec86ba6eb707ed08905757b1bb44b8f"
+	testVector3RAND = "9f7c8d021accf4db213ccff0c7f71a6a"
+	testVector3OP   = "dbc59adcb6f9a0ef735477b7fadf8374"
+	testVector3OPc  = "1006020f0a478bf6b699f15c062e42b3"
+
+	testVector4K    = "9e5944aea94b81165c82fbf9f32db751"
+	testVector4RAND = "ce83dbc54ac0274a157c17f80d017bd6"
+	testVector4OP   = "223014c5806694c007ca1eeef57f004f"
+	testVector4OPc  = "a64a507ae1a2a98bb88eb4210135dc87"
+
+	testVector5K    = "4ab1deb05ca6ceb051fc98e77d026a84"
+	testVector5RAND = "74b0cd6031a1c8339b2b6ce2b8c4a186"
+	testVector5OP   = "2d16c5cd1fdf6b22383584e3bef2a8d8"
+	testVector5OPc  = "dcf07cbd51855290b92a07a9891e523e"
+)
+
 func TestF1Test35207(t *testing.T) {
 	Testf1TestTable := []f1Test{
 		{
-			K:           "465b5ce8b199b49faa5f0a2ee238a6bc",
-			RAND:        "23553cbe9637a89d218ae64dae47bf35",
+			K:           testVector1K,
+			RAND:        testVector1RAND,
 			SQN:         "ff9bb4d0b607",
 			AMF:         "b9b9",
-			OP:          "cdc202d5123e20f62b6d676ac72cb318",
-			ExpectedOPc: "cd63cb71954a9f4e48a5994e37a02baf",
+			OP:          testVector1OP,
+			ExpectedOPc: testVector1OPc,
 			f1:          "4a9ffac354dfafb3",
 			f1Start:     "01cfaf9ec4e871e9",
 		},
 		{
-			K:           "0396eb317b6d1c36f19c1c84cd6ffd16",
-			RAND:        "c00d603103dcee52c4478119494202e8",
+			K:           testVector2K,
+			RAND:        testVector2RAND,
 			SQN:         "fd8eef40df7d",
 			AMF:         "af17",
-			OP:          "ff53bade17df5d4e793073ce9d7579fa",
-			ExpectedOPc: "53c15671c60a4b731c55b4a441c0bde2",
+			OP:          testVector2OP,
+			ExpectedOPc: testVector2OPc,
 			f1:          "5df5b31807e258b0",
 			f1Start:     "a8c016e51ef4a343",
 		},
 		{
-			K:           "fec86ba6eb707ed08905757b1bb44b8f",
-			RAND:        "9f7c8d021accf4db213ccff0c7f71a6a",
+			K:           testVector3K,
+			RAND:        testVector3RAND,
 			SQN:         "9d0277595ffc",
 			AMF:         "725c",
-			OP:          "dbc59adcb6f9a0ef735477b7fadf8374",
-			ExpectedOPc: "1006020f0a478bf6b699f15c062e42b3",
+			OP:          testVector3OP,
+			ExpectedOPc: testVector3OPc,
 			f1:          "9cabc3e99baf7281",
 			f1Start:     "95814ba2b3044324",
 		},
 		{
-			K:           "9e5944aea94b81165c82fbf9f32db751",
-			RAND:        "ce83dbc54ac0274a157c17f80d017bd6",
+			K:           testVector4K,
+			RAND:        testVector4RAND,
 			SQN:         "0b604a81eca8",
 			AMF:         "9e09",
-			OP:          "223014c5806694c007ca1eeef57f004f",
-			ExpectedOPc: "a64a507ae1a2a98bb88eb4210135dc87",
+			OP:          testVector4OP,
+			ExpectedOPc: testVector4OPc,
 			f1:          "74a58220cba84c49",
 			f1Start:     "ac2cc74a96871837",
 		},
 		{
-			K:           "4ab1deb05ca6ceb051fc98e77d026a84",
-			RAND:        "74b0cd6031a1c8339b2b6ce2b8c4a186",
+			K:           testVector5K,
+			RAND:        testVector5RAND,
 			SQN:         "e880a1b580b6",
 			AMF:         "9f07",
-			OP:          "2d16c5cd1fdf6b22383584e3bef2a8d8",
-			ExpectedOPc: "dcf07cbd51855290b92a07a9891e523e",
+			OP:          testVector5OP,
+			ExpectedOPc: testVector5OPc,
 			f1:          "49e785dd12626ef2",
 			f1Start:     "9e85790336bb3fa2",
 		},
@@ -167,46 +195,46 @@ func TestF1Test35207(t *testing.T) {
 func TestF2F5F3Test35207(t *testing.T) {
 	Testf2f5f3TestTable := []f2f5f3Test{
 		{
-			K:           "465b5ce8b199b49faa5f0a2ee238a6bc",
-			RAND:        "23553cbe9637a89d218ae64dae47bf35",
-			OP:          "cdc202d5123e20f62b6d676ac72cb318",
-			ExpectedOPc: "cd63cb71954a9f4e48a5994e37a02baf",
+			K:           testVector1K,
+			RAND:        testVector1RAND,
+			OP:          testVector1OP,
+			ExpectedOPc: testVector1OPc,
 			ExpectedRES: "a54211d5e3ba50bf",
 			ExpectedAK:  "aa689c648370",
 			ExpectedCK:  "b40ba9a3c58b2a05bbf0d987b21bf8cb",
 		},
 		{
-			K:           "0396eb317b6d1c36f19c1c84cd6ffd16",
-			RAND:        "c00d603103dcee52c4478119494202e8",
-			OP:          "ff53bade17df5d4e793073ce9d7579fa",
-			ExpectedOPc: "53c15671c60a4b731c55b4a441c0bde2",
+			K:           testVector2K,
+			RAND:        testVector2RAND,
+			OP:          testVector2OP,
+			ExpectedOPc: testVector2OPc,
 			ExpectedRES: "d3a628ed988620f0",
 			ExpectedAK:  "c47783995f72",
 			ExpectedCK:  "58c433ff7a7082acd424220f2b67c556",
 		},
 		{
-			K:           "fec86ba6eb707ed08905757b1bb44b8f",
-			RAND:        "9f7c8d021accf4db213ccff0c7f71a6a",
-			OP:          "dbc59adcb6f9a0ef735477b7fadf8374",
-			ExpectedOPc: "1006020f0a478bf6b699f15c062e42b3",
+			K:           testVector3K,
+			RAND:        testVector3RAND,
+			OP:          testVector3OP,
+			ExpectedOPc: testVector3OPc,
 			ExpectedRES: "8011c48c0c214ed2",
 			ExpectedAK:  "33484dc2136b",
 			ExpectedCK:  "5dbdbb2954e8f3cde665b046179a5098",
 		},
 		{
-			K:           "9e5944aea94b81165c82fbf9f32db751",
-			RAND:        "ce83dbc54ac0274a157c17f80d017bd6",
-			OP:          "223014c5806694c007ca1eeef57f004f",
-			ExpectedOPc: "a64a507ae1a2a98bb88eb4210135dc87",
+			K:           testVector4K,
+			RAND:        testVector4RAND,
+			OP:          testVector4OP,
+			ExpectedOPc: testVector4OPc,
 			ExpectedRES: "f365cd683cd92e96",
 			ExpectedAK:  "f0b9c08ad02e",
 			ExpectedCK:  "e203edb3971574f5a94b0d61b816345d",
 		},
 		{
-			K:           "4ab1deb05ca6ceb051fc98e77d026a84",
-			RAND:        "74b0cd6031a1c8339b2b6ce2b8c4a186",
-			OP:          "2d16c5cd1fdf6b22383584e3bef2a8d8",
-			ExpectedOPc: "dcf07cbd51855290b92a07a9891e523e",
+			K:           testVector5K,
+			RAND:        testVector5RAND,
+			OP:          testVector5OP,
+			ExpectedOPc: testVector5OPc,
 			ExpectedRES: "5860fc1bce351e7e",
 			ExpectedAK:  "31e11a609118",
 			ExpectedCK:  "7657766b373d1c2138f307e3de9242f9",
@@ -273,42 +301,42 @@ func TestF2F5F3Test35207(t *testing.T) {
 func TestF4F5StarTest35207(t *testing.T) {
 	Testf4f5StarTestTable := []f4f5StarTest{
 		{
-			K:              "465b5ce8b199b49faa5f0a2ee238a6bc",
-			RAND:           "23553cbe9637a89d218ae64dae47bf35",
-			OP:             "cdc202d5123e20f62b6d676ac72cb318",
-			ExpectedOPc:    "cd63cb71954a9f4e48a5994e37a02baf",
+			K:              testVector1K,
+			RAND:           testVector1RAND,
+			OP:             testVector1OP,
+			ExpectedOPc:    testVector1OPc,
 			ExpectedIK:     "f769bcd751044604127672711c6d3441",
 			ExpectedAKStar: "451e8beca43b",
 		},
 		{
-			K:              "0396eb317b6d1c36f19c1c84cd6ffd16",
-			RAND:           "c00d603103dcee52c4478119494202e8",
-			OP:             "ff53bade17df5d4e793073ce9d7579fa",
-			ExpectedOPc:    "53c15671c60a4b731c55b4a441c0bde2",
+			K:              testVector2K,
+			RAND:           testVector2RAND,
+			OP:             testVector2OP,
+			ExpectedOPc:    testVector2OPc,
 			ExpectedIK:     "21a8c1f929702adb3e738488b9f5c5da",
 			ExpectedAKStar: "30f1197061c1",
 		},
 		{
-			K:              "fec86ba6eb707ed08905757b1bb44b8f",
-			RAND:           "9f7c8d021accf4db213ccff0c7f71a6a",
-			OP:             "dbc59adcb6f9a0ef735477b7fadf8374",
-			ExpectedOPc:    "1006020f0a478bf6b699f15c062e42b3",
+			K:              testVector3K,
+			RAND:           testVector3RAND,
+			OP:             testVector3OP,
+			ExpectedOPc:    testVector3OPc,
 			ExpectedIK:     "59a92d3b476a0443487055cf88b2307b",
 			ExpectedAKStar: "deacdd848cc6",
 		},
 		{
-			K:              "9e5944aea94b81165c82fbf9f32db751",
-			RAND:           "ce83dbc54ac0274a157c17f80d017bd6",
-			OP:             "223014c5806694c007ca1eeef57f004f",
-			ExpectedOPc:    "a64a507ae1a2a98bb88eb4210135dc87",
+			K:              testVector4K,
+			RAND:           testVector4RAND,
+			OP:             testVector4OP,
+			ExpectedOPc:    testVector4OPc,
 			ExpectedIK:     "0c4524adeac041c4dd830d20854fc46b",
 			ExpectedAKStar: "6085a86c6f63",
 		},
 		{
-			K:              "4ab1deb05ca6ceb051fc98e77d026a84",
-			RAND:           "74b0cd6031a1c8339b2b6ce2b8c4a186",
-			OP:             "2d16c5cd1fdf6b22383584e3bef2a8d8",
-			ExpectedOPc:    "dcf07cbd51855290b92a07a9891e523e",
+			K:              testVector5K,
+			RAND:           testVector5RAND,
+			OP:             testVector5OP,
+			ExpectedOPc:    testVector5OPc,
 			ExpectedIK:     "1c42e960d89b8fa99f2744e0708ccb53",
 			ExpectedAKStar: "fe2555e54aa9",
 		},
@@ -387,16 +415,16 @@ func TestGenerateOPC(t *testing.T) {
 	if err != nil {
 		t.Errorf("err: %+v\n", err)
 	}
-	fmt.Println("K:", K)
+	fmt.Println("K:", hex.EncodeToString(K))
 
-	fmt.Println("OP:", OP)
+	fmt.Println("OP:", hex.EncodeToString(OP))
 
 	OPCbyGo, err := GenerateOPC(K, OP)
 	if err != nil {
 		t.Errorf("err: %+v\n", err)
 	}
 
-	fmt.Println("OPCbyGo:", OPCbyGo)
+	fmt.Println("OPCbyGo:", hex.EncodeToString(OPCbyGo))
 }
 
 func TestRAND(t *testing.T) {

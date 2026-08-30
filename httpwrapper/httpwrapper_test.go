@@ -10,17 +10,19 @@ import (
 	"testing"
 )
 
+const testLocation = "https://aetherproject.org/"
+
 func TestNewRequest(t *testing.T) {
 	req, err := http.NewRequestWithContext(context.Background(),
 		"GET", "http://localhost:8080?name=Aether&location=USA", nil)
 	if err != nil {
 		t.Errorf("TestNewRequest error: %+v", err)
 	}
-	req.Header.Set("Location", "https://aetherproject.org/")
+	req.Header.Set("Location", testLocation)
 	request := NewRequest(req, 1000)
 
-	if got := request.Header.Get("Location"); got != "https://aetherproject.org/" {
-		t.Errorf("Header.Get(\"Location\") = %q, want %q", got, "https://aetherproject.org/")
+	if got := request.Header.Get("Location"); got != testLocation {
+		t.Errorf("Header.Get(\"Location\") = %q, want %q", got, testLocation)
 	}
 
 	if got := request.Query.Get("name"); got != "Aether" {

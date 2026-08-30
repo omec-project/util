@@ -137,7 +137,11 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 			continue
 		}
 		var s streamDoc
-		bsonBytes, _ := bson.Marshal(data)
+		bsonBytes, err := bson.Marshal(data)
+		if err != nil {
+			logger.DrsmLog.Errorf("failed to marshal stream data: %v", err)
+			continue
+		}
 		if err := bson.Unmarshal(bsonBytes, &s); err != nil {
 			logger.DrsmLog.Errorf("failed to unmarshal stream data: %v", err)
 			continue
@@ -148,10 +152,10 @@ func iterateChangeStream(d *Drsm, routineCtx context.Context, stream *mongo.Chan
 		case "insert":
 			full := &s.Full
 			switch full.Type {
-			case "keepalive":
+			case docTypeKeepalive:
 				// logger.DrsmLog.Debugf("insert keepalive document")
 				d.ensurePod(full)
-			case "chunk":
+			case docTypeChunk:
 				// logger.DrsmLog.Debugln("insert chunk document")
 				d.addChunk(full)
 			}
@@ -217,16 +221,16 @@ func (d *Drsm) punchLiveness() {
 
 	for range ticker.C {
 		// logger.DrsmLog.Debugln("update keepalive time")
-		filter := bson.M{"_id": d.clientId.PodName}
+		filter := bson.M{fieldID: d.clientId.PodName}
 
 		timein := time.Now().Local().Add(20 * time.Second)
 
 		update := bson.D{
-			{Key: "_id", Value: d.clientId.PodName},
-			{Key: "type", Value: "keepalive"},
-			{Key: "podIp", Value: d.clientId.PodIp},
-			{Key: "podId", Value: d.clientId.PodName},
-			{Key: "podInstance", Value: d.clientId.PodInstance},
+			{Key: fieldID, Value: d.clientId.PodName},
+			{Key: fieldType, Value: docTypeKeepalive},
+			{Key: fieldPodIP, Value: d.clientId.PodIp},
+			{Key: fieldPodID, Value: d.clientId.PodName},
+			{Key: fieldPodInstance, Value: d.clientId.PodInstance},
 			{Key: "expireAt", Value: timein},
 		}
 
@@ -248,14 +252,21 @@ func (d *Drsm) checkAllChunks() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		filter := bson.M{"type": "chunk"}
+		filter := bson.M{fieldType: docTypeChunk}
 		result, err := d.mongo.RestfulAPIGetMany(d.sharedPoolName, filter)
 		logger.DrsmLog.Debugf("chunk entry: %v", result)
 		if err == nil && result != nil {
 			for _, v := range result {
 				var s FullStream
-				bsonBytes, _ := bson.Marshal(v)
-				bson.Unmarshal(bsonBytes, &s)
+				bsonBytes, err := bson.Marshal(v)
+				if err != nil {
+					logger.DrsmLog.Errorf("failed to marshal chunk entry: %v", err)
+					continue
+				}
+				if err := bson.Unmarshal(bsonBytes, &s); err != nil {
+					logger.DrsmLog.Errorf("failed to unmarshal chunk entry: %v", err)
+					continue
+				}
 				logger.DrsmLog.Debugf("individual Chunk bson Element %v", s)
 				d.addChunk(&s)
 			}

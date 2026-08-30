@@ -37,8 +37,8 @@ func (c *chunk) claimChunk(d *Drsm, curOwner string) {
 	// try to claim. If success then notification will update owner.
 	logger.DrsmLog.Debugln("claimChunk started")
 	docId := fmt.Sprintf("chunkid-%d", c.Id)
-	update := bson.M{"_id": docId, "type": "chunk", "podId": d.clientId.PodName, "podInstance": d.clientId.PodInstance, "podIp": d.clientId.PodIp}
-	filter := bson.M{"_id": docId, "podId": curOwner}
+	update := bson.M{fieldID: docId, fieldType: docTypeChunk, fieldPodID: d.clientId.PodName, fieldPodInstance: d.clientId.PodInstance, fieldPodIP: d.clientId.PodIp}
+	filter := bson.M{fieldID: docId, fieldPodID: curOwner}
 	updated := d.mongo.RestfulAPIPutOnly(d.sharedPoolName, filter, update)
 	if updated == nil {
 		// TODO : don't add to local pool yet. We can add it only if scan is done.

@@ -74,7 +74,11 @@ func TestScanFieldsConcurrentAccess(t *testing.T) {
 		defer wg.Done()
 		for range scanRounds {
 			mutex.Lock()
-			_, _ = c.AllocateIntID()
+			if _, err := c.AllocateIntID(); err != nil {
+				// Expected once FreeIds is drained; the point of this goroutine is contention, not allocation.
+				mutex.Unlock()
+				continue
+			}
 			mutex.Unlock()
 		}
 	}()

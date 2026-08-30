@@ -15,6 +15,12 @@ import (
 
 const ProtocolNumberAny = 0xfc
 
+// ipAny and ipAssigned are the special source/destination IP keywords defined by TS 29.212.
+const (
+	ipAny      = "any"
+	ipAssigned = "assigned"
+)
+
 // Action - Action of IPFilterRule
 type Action string
 
@@ -42,11 +48,11 @@ func flowDescErrorf(format string, a ...any) error {
 type IPFilterRule struct {
 	action   Action
 	dir      Direction
-	proto    uint8  // protocol number
-	srcIP    string // <address/mask>
-	srcPorts string // [ports]
-	dstIP    string // <address/mask>
-	dstPorts string // [ports]
+	srcIP    string
+	srcPorts string
+	dstIP    string
+	dstPorts string
+	proto    uint8
 }
 
 // NewIPFilterRule returns a new IPFilterRule instance
@@ -116,7 +122,7 @@ func (r *IPFilterRule) SetSourceIP(networkStr string) error {
 	if networkStr == "" {
 		return flowDescErrorf("Empty string")
 	}
-	if networkStr == "any" || networkStr == "assigned" {
+	if networkStr == ipAny || networkStr == ipAssigned {
 		r.srcIP = networkStr
 		return nil
 	}
@@ -180,7 +186,7 @@ func (r *IPFilterRule) GetSourcePorts() string {
 
 // SetDestinationIP sets destination IP of the IPFilterRule
 func (r *IPFilterRule) SetDestinationIP(networkStr string) error {
-	if networkStr == "any" || networkStr == "assigned" {
+	if networkStr == ipAny || networkStr == ipAssigned {
 		r.dstIP = networkStr
 		return nil
 	}
@@ -287,7 +293,7 @@ func Encode(r *IPFilterRule) (string, error) {
 	if r.srcIP != "" {
 		ipFilterRuleStr = append(ipFilterRuleStr, r.srcIP)
 	} else {
-		ipFilterRuleStr = append(ipFilterRuleStr, "any")
+		ipFilterRuleStr = append(ipFilterRuleStr, ipAny)
 	}
 	if r.srcPorts != "" {
 		ipFilterRuleStr = append(ipFilterRuleStr, r.srcPorts)
@@ -300,7 +306,7 @@ func Encode(r *IPFilterRule) (string, error) {
 	if r.dstIP != "" {
 		ipFilterRuleStr = append(ipFilterRuleStr, r.dstIP)
 	} else {
-		ipFilterRuleStr = append(ipFilterRuleStr, "any")
+		ipFilterRuleStr = append(ipFilterRuleStr, ipAny)
 	}
 	if r.dstPorts != "" {
 		ipFilterRuleStr = append(ipFilterRuleStr, r.dstPorts)
@@ -387,7 +393,7 @@ func Decode(s string) (*IPFilterRule, error) {
 	ptr++
 
 	// if end of parts
-	if !(len(parts) > ptr) {
+	if len(parts) <= ptr {
 		return r, nil
 	}
 
