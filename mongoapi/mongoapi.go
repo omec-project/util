@@ -718,19 +718,6 @@ func (c *MongoClient) CreateIndex(collName string, keyField string) (bool, error
 	return true, nil
 }
 
-// To create Index with common timeout for all documents, set timeout to desired value
-// To create Index with custom timeout per document, set timeout to 0.
-// To create Index with common timeout use timefield name like : updatedAt
-// To create Index with custom timeout use timefield name like : expireAt
-//
-// Deprecated: use RestfulAPICreateTTLIndexWithContext. A false return value
-// hides why the index could not be created, so a caller that depends on the
-// index to expire documents cannot tell a failure apart from an index that is
-// already there.
-func (c *MongoClient) RestfulAPICreateTTLIndex(collName string, timeout int32, timeField string) bool {
-	return c.RestfulAPICreateTTLIndexWithContext(context.Background(), collName, timeout, timeField) == nil
-}
-
 // RestfulAPICreateTTLIndexWithContext creates a TTL index named timeField on
 // the timeField of a collection and reports why it could not be created.
 //
@@ -755,14 +742,6 @@ func (c *MongoClient) RestfulAPICreateTTLIndexWithContext(ctx context.Context, c
 	return nil
 }
 
-// Use this API to drop TTL Index.
-//
-// Deprecated: use RestfulAPIDropTTLIndexWithContext, which reports why the
-// index could not be dropped.
-func (c *MongoClient) RestfulAPIDropTTLIndex(collName string, timeField string) bool {
-	return c.RestfulAPIDropTTLIndexWithContext(context.Background(), collName, timeField) == nil
-}
-
 // RestfulAPIDropTTLIndexWithContext drops the index named timeField and reports
 // why it could not be dropped. Dropping an index that does not exist is not an
 // error, so the call is safe to repeat and safe to race with another process.
@@ -775,14 +754,6 @@ func (c *MongoClient) RestfulAPIDropTTLIndexWithContext(ctx context.Context, col
 		return fmt.Errorf("drop index %q of collection %s failed: %w", timeField, collName, err)
 	}
 	return nil
-}
-
-// Use this API to update timeout value for TTL Index.
-//
-// Deprecated: use RestfulAPIPatchTTLIndexWithContext, which reports why the
-// index could not be updated.
-func (c *MongoClient) RestfulAPIPatchTTLIndex(collName string, timeout int32, timeField string) bool {
-	return c.RestfulAPIPatchTTLIndexWithContext(context.Background(), collName, timeout, timeField) == nil
 }
 
 // RestfulAPIPatchTTLIndexWithContext recreates the index named timeField with a
