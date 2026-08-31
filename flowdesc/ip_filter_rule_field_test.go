@@ -8,13 +8,18 @@ import (
 	"testing"
 )
 
+const (
+	testSrcCIDR = "192.168.0.0/24"
+	testDstCIDR = "10.60.0.0/16"
+)
+
 func TestBuildIPFilterRuleFromField(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		name         string
-		configList   IPFilterRuleFieldList
 		ipFilterRule string
+		configList   IPFilterRuleFieldList
 	}{
 		{
 			name:         "default",
@@ -28,7 +33,7 @@ func TestBuildIPFilterRuleFromField(t *testing.T) {
 					Proto: 17,
 				},
 				&IPFilterSourceIP{
-					Src: "192.168.0.0/24",
+					Src: testSrcCIDR,
 				},
 			},
 			ipFilterRule: "permit out 17 from 192.168.0.0/24 to any",
@@ -40,10 +45,10 @@ func TestBuildIPFilterRuleFromField(t *testing.T) {
 					Proto: 17,
 				},
 				&IPFilterSourceIP{
-					Src: "192.168.0.0/24",
+					Src: testSrcCIDR,
 				},
 				&IPFilterDestinationIP{
-					Src: "10.60.0.0/16",
+					Src: testDstCIDR,
 				},
 			},
 			ipFilterRule: "permit out 17 from 192.168.0.0/24 to 10.60.0.0/16",
@@ -55,13 +60,13 @@ func TestBuildIPFilterRuleFromField(t *testing.T) {
 					Proto: 17,
 				},
 				&IPFilterSourceIP{
-					Src: "192.168.0.0/24",
+					Src: testSrcCIDR,
 				},
 				&IPFilterSourcePorts{
 					Ports: "3000",
 				},
 				&IPFilterDestinationIP{
-					Src: "10.60.0.0/16",
+					Src: testDstCIDR,
 				},
 			},
 			ipFilterRule: "permit out 17 from 192.168.0.0/24 3000 to 10.60.0.0/16",
@@ -73,13 +78,13 @@ func TestBuildIPFilterRuleFromField(t *testing.T) {
 					Proto: ProtocolNumberAny,
 				},
 				&IPFilterSourceIP{
-					Src: "192.168.0.0/24",
+					Src: testSrcCIDR,
 				},
 				&IPFilterSourcePorts{
 					Ports: "3000",
 				},
 				&IPFilterDestinationIP{
-					Src: "10.60.0.0/16",
+					Src: testDstCIDR,
 				},
 				&IPFilterDestinationPorts{
 					Ports: "10000,65535",

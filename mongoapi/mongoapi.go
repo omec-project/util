@@ -16,6 +16,7 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/omec-project/util/logger"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -32,10 +33,16 @@ const (
 
 type MongoClient struct {
 	Client *mongo.Client
+	pools  map[string]map[string]int32
 	dbName string
 	url    string
-	pools  map[string]map[string]int32
 }
+
+// bson field name and update operator reused across the API implementations below.
+const (
+	fieldID = "_id"
+	opSet   = "$set"
+)
 
 func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	c := MongoClient{url: url, dbName: dbName, pools: make(map[string]map[string]int32)}
@@ -51,7 +58,9 @@ func NewMongoClient(url string, dbName string) (*MongoClient, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err = client.Ping(ctx, nil); err != nil {
-		_ = client.Disconnect(context.Background())
+		if derr := client.Disconnect(context.Background()); derr != nil {
+			return nil, fmt.Errorf("MongoClient Ping err: %w (disconnect err: %v)", err, derr)
+		}
 		return nil, fmt.Errorf("MongoClient Ping err: %w", err)
 	}
 	c.Client = client
@@ -78,7 +87,7 @@ func getOrigData(collection *mongo.Collection, filter bson.M) (map[string]any, e
 	}
 	if result != nil {
 		// Delete "_id" entry which is auto-inserted by MongoDB
-		delete(result, "_id")
+		delete(result, fieldID)
 	}
 	return result, nil
 }
@@ -131,7 +140,7 @@ func (c *MongoClient) RestfulAPIGetMany(collName string, filter bson.M) ([]map[s
 		}
 
 		// Delete "_id" entry which is auto-inserted by MongoDB
-		delete(result, "_id")
+		delete(result, fieldID)
 		resultArray = append(resultArray, result)
 	}
 	if err := cur.Err(); err != nil {
@@ -150,7 +159,7 @@ func (c *MongoClient) RestfulAPIPutOne(collName string, filter bson.M, putData m
 func (c *MongoClient) RestfulAPIPutOneWithContext(ctx context.Context, collName string, filter bson.M, putData map[string]any) (bool, error) {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 	opts := options.UpdateOne().SetUpsert(true)
-	result, err := collection.UpdateOne(ctx, filter, bson.M{"$set": putData}, opts)
+	result, err := collection.UpdateOne(ctx, filter, bson.M{opSet: putData}, opts)
 	if err != nil {
 		return false, fmt.Errorf("RestfulAPIPutOneWithContext UpdateOne err: %w", err)
 	}
@@ -198,7 +207,7 @@ func (c *MongoClient) RestfulAPIPutMany(collName string, filterArray []bson.M, p
 		}
 
 		if existed {
-			if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+			if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: putData}); err != nil {
 				return fmt.Errorf("RestfulAPIPutMany UpdateOne err: %w", err)
 			}
 		} else {
@@ -259,7 +268,7 @@ func (c *MongoClient) RestfulAPIMergePatch(collName string, filter bson.M, patch
 	if err := json.Unmarshal(modifiedAlternative, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIMergePatch Unmarshal err: %w", err)
 	}
-	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": modifiedData}); err != nil {
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: modifiedData}); err != nil {
 		return fmt.Errorf("RestfulAPIMergePatch UpdateOne err: %w", err)
 	}
 	return nil
@@ -296,7 +305,7 @@ func (c *MongoClient) RestfulAPIJSONPatchWithContext(ctx context.Context, collNa
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch Unmarshal err: %w", err)
 	}
-	if _, err := collection.UpdateOne(ctx, filter, bson.M{"$set": modifiedData}); err != nil {
+	if _, err := collection.UpdateOne(ctx, filter, bson.M{opSet: modifiedData}); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatch UpdateOne err: %w", err)
 	}
 	return nil
@@ -330,7 +339,7 @@ func (c *MongoClient) RestfulAPIJSONPatchExtend(collName string, filter bson.M, 
 	if err := json.Unmarshal(modified, &modifiedData); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatchExtend Unmarshal err: %w", err)
 	}
-	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": bson.M{dataName: modifiedData}}); err != nil {
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: bson.M{dataName: modifiedData}}); err != nil {
 		return fmt.Errorf("RestfulAPIJSONPatchExtend UpdateOne err: %w", err)
 	}
 	return nil
@@ -376,23 +385,26 @@ func (c *MongoClient) GetUniqueIdentity(idName string) int32 {
 	counterCollection := c.Client.Database(c.dbName).Collection("counter")
 
 	counterFilter := bson.M{}
-	counterFilter["_id"] = idName
+	counterFilter[fieldID] = idName
 
 	for {
 		count := counterCollection.FindOneAndUpdate(context.TODO(), counterFilter, bson.M{"$inc": bson.M{"count": 1}})
 
 		if count.Err() != nil {
-			// logger.MongoDBLog.Println("FindOneAndUpdate error. Create entry for field  ")
 			counterData := bson.M{}
 			counterData["count"] = 1
-			counterData["_id"] = idName
-			counterCollection.InsertOne(context.TODO(), counterData)
+			counterData[fieldID] = idName
+			if _, err := counterCollection.InsertOne(context.TODO(), counterData); err != nil {
+				logger.MongoapiLog.Errorf("GetUniqueIdentity: failed to insert counter %v: %v", idName, err)
+			}
 
 			continue
 		} else {
-			// logger.MongoDBLog.Println("found entry. inc and return")
 			data := bson.M{}
-			count.Decode(&data)
+			if err := count.Decode(&data); err != nil {
+				logger.MongoapiLog.Errorf("GetUniqueIdentity: failed to decode counter %v: %v", idName, err)
+				continue
+			}
 			decodedCount := data["count"].(int32)
 			return decodedCount
 		}
@@ -404,7 +416,7 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, minimum int32, m
 	rangeCollection := c.Client.Database(c.dbName).Collection("range")
 
 	rangeFilter := bson.M{}
-	rangeFilter["_id"] = pool
+	rangeFilter[fieldID] = pool
 
 	for {
 		count := rangeCollection.FindOneAndUpdate(context.TODO(), rangeFilter, bson.M{"$inc": bson.M{"count": 1}})
@@ -412,18 +424,21 @@ func (c *MongoClient) GetUniqueIdentityWithinRange(pool string, minimum int32, m
 		if count.Err() != nil {
 			counterData := bson.M{}
 			counterData["count"] = minimum
-			counterData["_id"] = pool
-			rangeCollection.InsertOne(context.TODO(), counterData)
+			counterData[fieldID] = pool
+			if _, err := rangeCollection.InsertOne(context.TODO(), counterData); err != nil {
+				logger.MongoapiLog.Errorf("GetUniqueIdentityWithinRange: failed to insert range %v: %v", pool, err)
+			}
 
 			continue
 		} else {
 			data := bson.M{}
-			count.Decode(&data)
+			if err := count.Decode(&data); err != nil {
+				logger.MongoapiLog.Errorf("GetUniqueIdentityWithinRange: failed to decode range %v: %v", pool, err)
+				continue
+			}
 			decodedCount := data["count"].(int32)
 
 			if decodedCount >= maximum || decodedCount <= minimum {
-				// err := errors.New("Unique identity is out of range.")
-				// logger.MongoDBLog.Println(err)
 				return -1
 			}
 			return decodedCount
@@ -470,11 +485,11 @@ func (c *MongoClient) GetChunkFromPool(poolName string) (int32, int32, int32, er
 
 		// Create an instance of an options and set the desired options
 		data := bson.M{}
-		data["_id"] = random
+		data[fieldID] = random
 		data["lower"] = lower
 		data["upper"] = upper
 		data["owner"] = os.Getenv("HOSTNAME")
-		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$setOnInsert": data}, options.FindOneAndUpdate().SetUpsert(true))
+		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{fieldID: random}, bson.M{"$setOnInsert": data}, options.FindOneAndUpdate().SetUpsert(true))
 
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
@@ -501,11 +516,9 @@ func (c *MongoClient) ReleaseChunkToPool(poolName string, id int32) {
 
 	// only want to delete if the currentApp is the owner of this id.
 	currentApp := os.Getenv("HOSTNAME")
-	// logger.MongoDBLog.Println(currentApp)
 
-	_, err := poolCollection.DeleteOne(context.TODO(), bson.M{"_id": id, "owner": currentApp})
-	if err != nil {
-		// logger.MongoDBLog.Println("Release Chunk(", id, ") to Pool(", poolName, ") failed : ", err)
+	if _, err := poolCollection.DeleteOne(context.TODO(), bson.M{fieldID: id, "owner": currentApp}); err != nil {
+		logger.MongoapiLog.Errorf("ReleaseChunkToPool: failed to release id %v: %v", id, err)
 	}
 }
 
@@ -541,7 +554,7 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 		poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 		// Create an instance of an options and set the desired options
-		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": random}, bson.M{"$set": bson.M{"_id": random}}, options.FindOneAndUpdate().SetUpsert(true))
+		result := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{fieldID: random}, bson.M{opSet: bson.M{fieldID: random}}, options.FindOneAndUpdate().SetUpsert(true))
 
 		if result.Err() != nil {
 			// means that there was no document with that id, so the upsert should have been successful
@@ -553,10 +566,10 @@ func (c *MongoClient) GetIDFromInsertPool(poolName string) (int32, error) {
 			return -1, result.Err()
 		}
 		// means there was a document before the update and result contains that document.
-		// logger.MongoDBLog.Println("This id has already been assigned. ")
 		doc := bson.M{}
-		result.Decode(&doc)
-		// logger.MongoDBLog.Println(doc)
+		if err := result.Decode(&doc); err != nil {
+			return -1, fmt.Errorf("GetIDFromInsertPool decode err: %w", err)
+		}
 
 		i++
 	}
@@ -570,9 +583,8 @@ func (c *MongoClient) ReleaseIDToInsertPool(poolName string, id int32) {
 	// logger.MongoDBLog.Println("ENTERING ReleaseIDToInsertPool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
-	_, err := poolCollection.DeleteOne(context.TODO(), bson.M{"_id": id})
-	if err != nil {
-		// logger.MongoDBLog.Println("Release Id(", id, ") to Pool(", poolName, ") failed : ", err)
+	if _, err := poolCollection.DeleteOne(context.TODO(), bson.M{fieldID: id}); err != nil {
+		logger.MongoapiLog.Errorf("ReleaseIDToInsertPool: failed to release id %v: %v", id, err)
 	}
 }
 
@@ -605,11 +617,13 @@ func (c *MongoClient) InitializePool(poolName string, minimum int32, maximum int
 		}
 		poolData := bson.M{}
 		poolData["ids"] = array
-		poolData["_id"] = poolName
+		poolData[fieldID] = poolName
 
 		// collection is created when inserting document.
 		// "If a collection does not exist, MongoDB creates the collection when you first store data for that collection."
-		poolCollection.InsertOne(context.TODO(), poolData)
+		if _, err := poolCollection.InsertOne(context.TODO(), poolData); err != nil {
+			logger.MongoapiLog.Errorf("InitializePool: failed to insert pool %v: %v", poolName, err)
+		}
 	}
 }
 
@@ -619,7 +633,7 @@ func (c *MongoClient) GetIDFromPool(poolName string) (int32, error) {
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
 	result := bson.M{}
-	if err := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result); err != nil {
+	if err := poolCollection.FindOneAndUpdate(context.TODO(), bson.M{fieldID: poolName}, bson.M{"$pop": bson.M{"ids": 1}}).Decode(&result); err != nil {
 		return -1, fmt.Errorf("GetIDFromPool decode err: %w", err)
 	}
 
@@ -661,7 +675,9 @@ func (c *MongoClient) ReleaseIDToPool(poolName string, id int32) {
 	// logger.MongoDBLog.Println("ENTERING ReleaseIDToPool")
 	poolCollection := c.Client.Database(c.dbName).Collection(poolName)
 
-	poolCollection.UpdateOne(context.TODO(), bson.M{"_id": poolName}, bson.M{"$push": bson.M{"ids": id}})
+	if _, err := poolCollection.UpdateOne(context.TODO(), bson.M{fieldID: poolName}, bson.M{"$push": bson.M{"ids": id}}); err != nil {
+		logger.MongoapiLog.Errorf("ReleaseIDToPool: failed to release id %v to pool %v: %v", id, poolName, err)
+	}
 }
 
 func (c *MongoClient) GetOneCustomDataStructure(collName string, filter bson.M) (bson.M, error) {
@@ -693,7 +709,7 @@ func (c *MongoClient) PutOneCustomDataStructure(collName string, filter bson.M, 
 		}
 		return true, nil
 	}
-	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: putData}); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -853,9 +869,9 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 		Options: options.Index().SetExpireAfterSeconds(timeout),
 	}
 
-	_, err = collection.Indexes().CreateOne(context.Background(), index)
-	if err != nil {
-		// logger.MongoDBLog.Println("Index on field (", timeField, ") for collection (", collName, ") already exists : ", err)
+	if _, err := collection.Indexes().CreateOne(context.Background(), index); err != nil {
+		// index may already exist with the desired timeout
+		logger.MongoapiLog.Debugf("RestfulAPIPatchOneTimeout: create index on %v failed (may already exist): %v", timeField, err)
 	}
 
 	if err := collection.FindOne(context.TODO(), filter).Decode(&checkItem); err != nil && err != mongo.ErrNoDocuments {
@@ -868,7 +884,7 @@ func (c *MongoClient) RestfulAPIPatchOneTimeout(collName string, filter bson.M, 
 		}
 		return true
 	}
-	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: putData}); err != nil {
 		return false
 	}
 	return true
@@ -896,7 +912,7 @@ func (c *MongoClient) RestfulAPIPutOneTimeout(collName string, filter bson.M, pu
 		}
 		return true
 	}
-	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData}); err != nil {
+	if _, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: putData}); err != nil {
 		return false
 	}
 	return true
@@ -912,13 +928,15 @@ func (c *MongoClient) RestfulAPIPostOnly(collName string, filter bson.M, postDat
 func (c *MongoClient) RestfulAPIPutOnly(collName string, filter bson.M, putData map[string]any) error {
 	collection := c.Client.Database(c.dbName).Collection(collName)
 
-	result, err := collection.UpdateOne(context.TODO(), filter, bson.M{"$set": putData})
-	if result.MatchedCount != 0 {
-		// logger.MongoDBLog.Println("matched and replaced an existing document")
-		return nil
+	result, err := collection.UpdateOne(context.TODO(), filter, bson.M{opSet: putData})
+	if err != nil {
+		return fmt.Errorf("failed to update document: %w", err)
 	}
-	err = fmt.Errorf("failed to update document: %s", err)
-	return err
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("failed to update document: no matching document found")
+	}
+	// logger.MongoDBLog.Println("matched and replaced an existing document")
+	return nil
 }
 
 func (c *MongoClient) StartSession() (*mongo.Session, error) {

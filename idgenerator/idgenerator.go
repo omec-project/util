@@ -13,12 +13,12 @@ import (
 )
 
 type IDGenerator struct {
-	lock       sync.Mutex
+	usedMap    map[int64]bool
 	minValue   int64
 	maxValue   int64
 	valueRange int64
 	offset     int64
-	usedMap    map[int64]bool
+	lock       sync.Mutex
 }
 
 // Initialize an IDGenerator with minValue and maxValue.
