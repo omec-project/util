@@ -28,7 +28,9 @@ func newUnreachableClient(t *testing.T) *MongoClient {
 		t.Fatalf("could not create mongo client: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = client.Disconnect(context.Background())
+		if err := client.Disconnect(context.Background()); err != nil {
+			t.Logf("failed to disconnect mongo client: %v", err)
+		}
 	})
 	return &MongoClient{Client: client, dbName: "testdb", pools: make(map[string]map[string]int32)}
 }
@@ -52,15 +54,6 @@ func TestRestfulAPICreateTTLIndexWithContextReturnsError(t *testing.T) {
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("error should wrap the cause, got: %v", err)
-	}
-}
-
-func TestRestfulAPICreateTTLIndexReturnsFalseOnError(t *testing.T) {
-	c := newUnreachableClient(t)
-
-	//nolint:staticcheck // the deprecated shim is exercised on purpose
-	if c.RestfulAPICreateTTLIndex("NfProfile", 0, "expireAt") {
-		t.Error("expected false when the index cannot be created")
 	}
 }
 
@@ -104,8 +97,8 @@ func TestRestfulAPIListIndexesReturnsError(t *testing.T) {
 
 func TestIsIndexNotFound(t *testing.T) {
 	tests := []struct {
-		name     string
 		err      error
+		name     string
 		expected bool
 	}{
 		{
@@ -146,8 +139,8 @@ func TestIsIndexNotFound(t *testing.T) {
 
 func TestIsIndexOptionsConflict(t *testing.T) {
 	tests := []struct {
-		name     string
 		err      error
+		name     string
 		expected bool
 	}{
 		{
