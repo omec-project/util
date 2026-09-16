@@ -33,6 +33,7 @@ type DBInterface interface {
 	RestfulAPIPostManyWithContext(context context.Context, collName string, filter bson.M, postDataArray []any) error
 	GetUniqueIdentity(idName string) int32
 	CreateIndex(collName string, keyField string) (bool, error)
+	EnsureIndex(ctx context.Context, collName string, spec IndexSpec) error
 	StartSession() (*mongo.Session, error)
 	SupportsTransactions() (bool, error)
 }
