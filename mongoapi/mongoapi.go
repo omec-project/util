@@ -29,6 +29,9 @@ const (
 	// indexOptionsConflictErrorCode is returned when an index of the requested
 	// name already exists with different options.
 	indexOptionsConflictErrorCode = 85
+	// indexKeySpecsConflictErrorCode is returned when an index of the requested
+	// name already exists and differs from the requested one.
+	indexKeySpecsConflictErrorCode = 86
 )
 
 type MongoClient struct {
