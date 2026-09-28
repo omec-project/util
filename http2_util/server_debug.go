@@ -37,7 +37,8 @@ func NewServer(bindAddr string, tlskeylog string, handler http.Handler) (server 
 			KeyLogWriter: keylogFile,
 			Rand:         ZeroSource{},
 		},
-		Handler: handler,
+		Handler:  handler,
+		ErrorLog: newServerErrorLog(),
 	}
 	return
 }

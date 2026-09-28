@@ -17,7 +17,8 @@ import (
 
 // NewServer centralizes the default HTTP server setup used by the control-plane services.
 // In non-debug builds it enables HTTP/1 and unencrypted HTTP/2 on the same listener,
-// keeps the shared idle-timeout behavior, and optionally configures TLS key logging.
+// keeps the shared idle-timeout behavior, routes the server's error log to the util
+// logger (see newServerErrorLog), and optionally configures TLS key logging.
 //
 // If preMasterSecretLogPath cannot be opened, NewServer still returns a usable server
 // without KeyLogWriter configured, along with the corresponding error so the caller can
@@ -37,6 +38,7 @@ func NewServer(bindAddr string, preMasterSecretLogPath string, handler http.Hand
 		Handler:     handler,
 		Protocols:   protocols,
 		IdleTimeout: 60 * time.Second,
+		ErrorLog:    newServerErrorLog(),
 	}
 
 	if preMasterSecretLogPath != "" {
