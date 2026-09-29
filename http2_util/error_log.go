@@ -6,6 +6,7 @@ package http2_util
 import (
 	"log"
 	"strings"
+	"sync/atomic"
 
 	"github.com/omec-project/util/logger"
 	"go.uber.org/zap"
@@ -25,12 +26,24 @@ type serverErrorLogWriter struct {
 	log *zap.SugaredLogger
 }
 
+var droppedHandshakeProbes atomic.Uint64
+
+// DroppedHandshakeProbes reports how many connections were closed before the
+// TLS handshake and were therefore dropped from the error log rather than
+// logged. Callers that want this in their own metrics should poll it
+// periodically; it is not, and must not become, labeled by remote address,
+// since that would let a probing peer drive unbounded label cardinality.
+func DroppedHandshakeProbes() uint64 {
+	return droppedHandshakeProbes.Load()
+}
+
 // Write drops the line of a connection closed before the TLS handshake and
 // passes every other server error, a failed handshake with a real peer among
 // them, to the zap logger.
 func (w serverErrorLogWriter) Write(p []byte) (int, error) {
 	msg := strings.TrimSuffix(string(p), "\n")
 	if closedBeforeHandshake(msg) {
+		droppedHandshakeProbes.Add(1)
 		return len(p), nil
 	}
 	w.log.Error(msg)

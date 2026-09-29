@@ -63,6 +63,7 @@ func TestServerErrorLogOnTLSServer(t *testing.T) {
 	defer ts.Close()
 	addr := ts.Listener.Addr().String()
 	var dialer net.Dialer
+	droppedBefore := DroppedHandshakeProbes()
 
 	// A TCP probe: connect and close without a handshake.
 	conn, err := dialer.DialContext(t.Context(), "tcp", addr)
@@ -97,5 +98,8 @@ func TestServerErrorLogOnTLSServer(t *testing.T) {
 	}
 	if entries[0].Level != zapcore.ErrorLevel {
 		t.Fatalf("logged at %s, want %s", entries[0].Level, zapcore.ErrorLevel)
+	}
+	if got := DroppedHandshakeProbes() - droppedBefore; got != 1 {
+		t.Fatalf("DroppedHandshakeProbes increased by %d, want 1", got)
 	}
 }
