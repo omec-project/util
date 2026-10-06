@@ -7,7 +7,6 @@ package logger
 
 import (
 	"fmt"
-	"reflect"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -50,35 +49,6 @@ type Logger struct {
 	NudrDataRepository           *LogSetting `yaml:"NudrDataRepository"`
 }
 
-func (l *Logger) Validate() (bool, error) {
-	if l == nil {
-		return false, fmt.Errorf("logger is nil")
-	}
-
-	logger := reflect.ValueOf(l).Elem()
-	loggerType := reflect.TypeFor[Logger]()
-
-	for i := range logger.NumField() {
-		field := logger.Field(i)
-		fieldType := loggerType.Field(i)
-
-		// Skip unexported fields
-		if !field.CanInterface() {
-			continue
-		}
-
-		if field.Kind() == reflect.Pointer && !field.IsNil() {
-			if logSetting, ok := field.Interface().(*LogSetting); ok && logSetting != nil {
-				if valid, err := logSetting.validate(); !valid {
-					return false, fmt.Errorf("validation failed for field %s: %w", fieldType.Name, err)
-				}
-			}
-		}
-	}
-
-	return true, nil
-}
-
 type LogSetting struct {
 	DebugLevel string `yaml:"debugLevel"`
 }
@@ -103,35 +73,6 @@ func (l *LogSetting) validate() (bool, error) {
 func isValidDebugLevel(level string) bool {
 	_, err := zapcore.ParseLevel(level)
 	return err == nil
-}
-
-// GetLogSettingName returns the field name for a given LogSetting pointer
-func GetLogSettingName(logger *Logger, target *LogSetting) (string, error) {
-	if logger == nil {
-		return "", fmt.Errorf("logger is nil")
-	}
-
-	if target == nil {
-		return "", fmt.Errorf("target LogSetting is nil")
-	}
-
-	loggerValue := reflect.ValueOf(logger).Elem()
-	loggerType := reflect.TypeFor[Logger]()
-	logSettingType := reflect.TypeFor[*LogSetting]()
-
-	for i := range loggerValue.NumField() {
-		field := loggerValue.Field(i)
-		fieldType := loggerType.Field(i)
-
-		// Check if the field is of type *LogSetting and matches target
-		if fieldType.Type == logSettingType && !field.IsNil() {
-			if field.Interface().(*LogSetting) == target {
-				return fieldType.Name, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("LogSetting not found in logger")
 }
 
 // ApplyLogSetting sets a module logger level from config, defaulting to info.

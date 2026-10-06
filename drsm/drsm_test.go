@@ -117,12 +117,12 @@ func TestScanTablesConcurrentAccess(t *testing.T) {
 // the pod-down handler (podChunkIds).
 func TestPodMapConcurrentAccess(t *testing.T) {
 	d := newTestDrsm()
-	d.ensurePod(&FullStream{PodId: testPod})
+	d.ensurePod(&fullStream{PodId: testPod})
 
 	addChunks := func(first int32) {
 		for i := range int32(iterations) {
 			id := first + i
-			d.addChunk(&FullStream{Id: fmt.Sprintf("chunkid-%d", id), PodId: testPod})
+			d.addChunk(&fullStream{Id: fmt.Sprintf("chunkid-%d", id), PodId: testPod})
 		}
 	}
 
@@ -162,7 +162,7 @@ func TestPodMapConcurrentAccess(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range iterations {
-			d.ensurePod(&FullStream{PodId: otherPod})
+			d.ensurePod(&fullStream{PodId: otherPod})
 		}
 	}()
 

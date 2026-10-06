@@ -16,10 +16,7 @@ import (
 type chunkState int
 
 const (
-	Invalid chunkState = iota + 1
-	Owned
-	PeerOwned
-	Orphan
+	Owned chunkState = iota + 1
 	Scanning
 )
 

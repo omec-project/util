@@ -12,18 +12,18 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-type UpdatedFields struct {
+type updatedFields struct {
 	ExpireAt    time.Time `bson:"expireAt,omitempty"`
 	PodId       string    `bson:"podId,omitempty"`
 	PodIp       string    `bson:"podIp,omitempty"`
 	PodInstance string    `bson:"podInstance,omitempty"`
 }
 
-type UpdatedDesc struct {
-	UpdFields UpdatedFields `bson:"updatedFields,omitempty"`
+type updatedDesc struct {
+	UpdFields updatedFields `bson:"updatedFields,omitempty"`
 }
 
-type FullStream struct {
+type fullStream struct {
 	Id          string    `bson:"_id"`
 	ChunkId     string    `bson:"chunkId"`
 	PodId       string    `bson:"podId,omitempty"`
@@ -33,15 +33,15 @@ type FullStream struct {
 	Type        string    `bson:"type,omitempty"`
 }
 
-type DocKey struct {
+type docKey struct {
 	Id string `bson:"_id,omitempty"`
 }
 
 type streamDoc struct {
-	DId    DocKey      `bson:"documentKey,omitempty"`
+	DId    docKey      `bson:"documentKey,omitempty"`
 	OpType string      `bson:"operationType,omitempty"`
-	Full   FullStream  `bson:"fullDocument,omitempty"`
-	Update UpdatedDesc `bson:"updateDescription,omitempty"`
+	Full   fullStream  `bson:"fullDocument,omitempty"`
+	Update updatedDesc `bson:"updateDescription,omitempty"`
 }
 
 /*
@@ -258,7 +258,7 @@ func (d *Drsm) checkAllChunks() {
 		logger.DrsmLog.Debugf("chunk entry: %v", result)
 		if err == nil && result != nil {
 			for _, v := range result {
-				var s FullStream
+				var s fullStream
 				bsonBytes, err := bson.Marshal(v)
 				if err != nil {
 					logger.DrsmLog.Errorf("failed to marshal chunk entry: %v", err)
@@ -275,7 +275,7 @@ func (d *Drsm) checkAllChunks() {
 	}
 }
 
-func (d *Drsm) addChunk(full *FullStream) {
+func (d *Drsm) addChunk(full *fullStream) {
 	did := full.Id
 	if did == "" {
 		did = full.ChunkId
@@ -302,7 +302,7 @@ func (d *Drsm) addChunk(full *FullStream) {
 }
 
 // ensurePod adds the pod described by full to podMap unless it is already known.
-func (d *Drsm) ensurePod(full *FullStream) {
+func (d *Drsm) ensurePod(full *fullStream) {
 	d.podMapMutex.Lock()
 	defer d.podMapMutex.Unlock()
 	if pod, found := d.podMap[full.PodId]; found {
@@ -358,7 +358,7 @@ func (d *Drsm) podChunkIds(podName string) ([]int32, string) {
 }
 
 // addPodLocked adds the pod described by full to podMap. Callers must hold podMapMutex.
-func (d *Drsm) addPodLocked(full *FullStream) *podData {
+func (d *Drsm) addPodLocked(full *fullStream) *podData {
 	podI := PodId{PodName: full.PodId, PodInstance: full.PodInstance, PodIp: full.PodIp}
 	pod := &podData{PodId: podI}
 	d.ensurePodChunksInitialized(pod)
