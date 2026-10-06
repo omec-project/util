@@ -5,7 +5,6 @@
 package flowdesc
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -82,11 +81,6 @@ func (r *IPFilterRule) SetAction(action Action) error {
 	return nil
 }
 
-// GetAction returns action of the IPFilterRule
-func (r *IPFilterRule) GetAction() Action {
-	return r.action
-}
-
 // SetDirection sets direction of the IPFilterRule
 func (r *IPFilterRule) SetDirection(dir Direction) error {
 	switch dir {
@@ -98,23 +92,6 @@ func (r *IPFilterRule) SetDirection(dir Direction) error {
 		return flowDescErrorf("'%s' is not allow, dir only accept 'out'", dir)
 	}
 	return nil
-}
-
-// GetDirection returns direction of the IPFilterRule
-func (r *IPFilterRule) GetDirection() Direction {
-	return r.dir
-}
-
-// SetProtocol sets IP protocol number of the IPFilterRule
-// 0xfc stand for ip (any)
-func (r *IPFilterRule) SetProtocol(proto uint8) error {
-	r.proto = proto
-	return nil
-}
-
-// GetProtocol returns the ip protocol number of the IPFilterRule
-func (r *IPFilterRule) GetProtocol() uint8 {
-	return r.proto
 }
 
 // SetSourceIP sets source IP of the IPFilterRule
@@ -147,43 +124,6 @@ func (r *IPFilterRule) SetSourceIP(networkStr string) error {
 	return nil
 }
 
-// GetSourceIP returns src of the IPFilterRule
-func (r *IPFilterRule) GetSourceIP() string {
-	return r.srcIP
-}
-
-// SetSourcePorts sets source ports of the IPFilterRule
-func (r *IPFilterRule) SetSourcePorts(ports string) error {
-	if ports == "" {
-		r.srcPorts = ""
-		return nil
-	}
-
-	if match, err := regexp.MatchString("^[0-9]+(-[0-9]+)?(,[0-9]+)*$", ports); err != nil || !match {
-		return flowDescErrorf("not valid format of port number")
-	}
-
-	// Check port range
-	portSlice := regexp.MustCompile(`[\\,\\-]+`).Split(ports, -1)
-	for _, portStr := range portSlice {
-		port, err := strconv.Atoi(portStr)
-		if err != nil {
-			return err
-		}
-		if port < 0 || port > 65535 {
-			return errors.New("invalid port number")
-		}
-	}
-
-	r.srcPorts = ports
-	return nil
-}
-
-// GetSourcePorts returns src ports of the IPFilterRule
-func (r *IPFilterRule) GetSourcePorts() string {
-	return r.srcPorts
-}
-
 // SetDestinationIP sets destination IP of the IPFilterRule
 func (r *IPFilterRule) SetDestinationIP(networkStr string) error {
 	if networkStr == ipAny || networkStr == ipAssigned {
@@ -209,11 +149,6 @@ func (r *IPFilterRule) SetDestinationIP(networkStr string) error {
 
 	r.dstIP = ipDst
 	return nil
-}
-
-// GetDestinationIP returns dst of the IPFilterRule
-func (r *IPFilterRule) GetDestinationIP() string {
-	return r.dstIP
 }
 
 // SetDestinationPorts sets destination ports of the IPFilterRule
@@ -245,17 +180,6 @@ func (r *IPFilterRule) SetDestinationPorts(ports string) error {
 
 	r.dstPorts = ports
 	return nil
-}
-
-// GetDestinationPorts returns src ports of the IPFilterRule
-func (r *IPFilterRule) GetDestinationPorts() string {
-	return r.dstPorts
-}
-
-// SwapSourceAndDestination swap the src and dst of the IPFilterRule
-func (r *IPFilterRule) SwapSourceAndDestination() {
-	r.srcIP, r.dstIP = r.dstIP, r.srcIP
-	r.srcPorts, r.dstPorts = r.dstPorts, r.srcPorts
 }
 
 // Encode function out put the IPFilterRule from the struct
@@ -315,93 +239,4 @@ func Encode(r *IPFilterRule) (string, error) {
 	// according TS 29.212 IPFilterRule cannot use [options]
 
 	return strings.Join(ipFilterRuleStr, " "), nil
-}
-
-func removeIntermediateSpace(s []string) []string {
-	parts := make([]string, 0)
-	for _, val := range s {
-		if val != "" {
-			parts = append(parts, val)
-		}
-	}
-	return parts
-}
-
-// Decode parsing the string to IPFilterRule
-func Decode(s string) (*IPFilterRule, error) {
-	s = strings.TrimSpace(s)
-	parts := strings.Split(s, " ")
-	parts = removeIntermediateSpace(parts)
-
-	var ptr int
-	r := NewIPFilterRule()
-	// action
-	if err := r.SetAction(Action(parts[ptr])); err != nil {
-		return nil, err
-	}
-	ptr++
-
-	// dir
-	if err := r.SetDirection(Direction(parts[ptr])); err != nil {
-		return nil, err
-	}
-	ptr++
-
-	// proto
-	var protoNumber uint8
-	if parts[ptr] == "ip" {
-		r.proto = ProtocolNumberAny
-	} else {
-		if proto, err := strconv.Atoi(parts[ptr]); err != nil {
-			return nil, flowDescErrorf("parse proto failed: %s", err)
-		} else {
-			protoNumber = uint8(proto)
-		}
-		if err := r.SetProtocol(protoNumber); err != nil {
-			return nil, flowDescErrorf("parse proto failed: %s", err)
-		}
-	}
-	ptr++
-
-	// from
-	if from := parts[ptr]; from != "from" {
-		return nil, flowDescErrorf("parse faild: must have 'from'")
-	}
-	ptr++
-
-	// src
-	if err := r.SetSourceIP(parts[ptr]); err != nil {
-		return nil, err
-	}
-	ptr++
-
-	if err := r.SetSourcePorts(parts[ptr]); err != nil {
-	} else {
-		ptr++
-	}
-
-	// to
-	if to := parts[ptr]; to != "to" {
-		return nil, flowDescErrorf("parse faild: must have 'to'")
-	}
-	ptr++
-
-	// dst
-	if err := r.SetDestinationIP(parts[ptr]); err != nil {
-		return nil, err
-	}
-	ptr++
-
-	// if end of parts
-	if len(parts) <= ptr {
-		return r, nil
-	}
-
-	if err := r.SetDestinationPorts(parts[ptr]); err != nil {
-		return nil, err
-	} // else {
-	//ptr++
-	//}
-
-	return r, nil
 }

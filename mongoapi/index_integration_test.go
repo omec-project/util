@@ -48,7 +48,7 @@ func integrationClient(t *testing.T) *MongoClient {
 			t.Logf("could not disconnect: %v", err)
 		}
 	})
-	return &MongoClient{Client: client, dbName: testDatabaseName, pools: make(map[string]map[string]int32)}
+	return &MongoClient{Client: client, dbName: testDatabaseName}
 }
 
 // freshCollection gives a test a collection of its own, dropped before and
@@ -286,7 +286,7 @@ func TestEnsureIndexIsIdempotentOnACollatedCollection(t *testing.T) {
 			t.Logf("could not disconnect: %v", disconnectErr)
 		}
 	})
-	client := &MongoClient{Client: rawClient, dbName: testDatabaseName, pools: make(map[string]map[string]int32)}
+	client := &MongoClient{Client: rawClient, dbName: testDatabaseName}
 	ctx := context.Background()
 	database := client.Client.Database(client.dbName)
 	collName := "coll_" + t.Name()
@@ -489,7 +489,7 @@ func TestEnsureIndexRestoresWhenTheDropLoopIsInterrupted(t *testing.T) {
 			t.Logf("could not disconnect: %v", disconnectErr)
 		}
 	})
-	mongoClient := &MongoClient{Client: client, dbName: testDatabaseName, pools: make(map[string]map[string]int32)}
+	mongoClient := &MongoClient{Client: client, dbName: testDatabaseName}
 
 	collName := "coll_" + t.Name()
 	collection := client.Database(mongoClient.dbName).Collection(collName)
@@ -770,7 +770,7 @@ func TestEnsureIndexRestoresShadowsWhenTheMatchVanishes(t *testing.T) {
 			t.Logf("could not disconnect: %v", disconnectErr)
 		}
 	})
-	watchedClient := &MongoClient{Client: watched, dbName: client.dbName, pools: make(map[string]map[string]int32)}
+	watchedClient := &MongoClient{Client: watched, dbName: client.dbName}
 
 	if err = watchedClient.EnsureIndex(ctx, collName, spec); err == nil {
 		t.Fatal("expected the vanished index to fail the verification")
@@ -833,7 +833,7 @@ func TestEnsureIndexRestoresWhenTheIndexItCreatedVanishes(t *testing.T) {
 			t.Logf("could not disconnect: %v", disconnectErr)
 		}
 	})
-	watchedClient := &MongoClient{Client: watched, dbName: client.dbName, pools: make(map[string]map[string]int32)}
+	watchedClient := &MongoClient{Client: watched, dbName: client.dbName}
 
 	spec := IndexSpec{Name: indexUeId, Keys: AscendingKeys(fieldUeId)}
 	if err = watchedClient.EnsureIndex(ctx, collName, spec); err == nil {

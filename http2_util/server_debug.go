@@ -14,9 +14,9 @@ import (
 	"os"
 )
 
-type ZeroSource struct{}
+type zeroSource struct{}
 
-func (ZeroSource) Read(b []byte) (n int, err error) {
+func (zeroSource) Read(b []byte) (n int, err error) {
 	for i := range b {
 		b[i] = 0
 	}
@@ -35,7 +35,7 @@ func NewServer(bindAddr string, tlskeylog string, handler http.Handler) (server 
 		Addr: bindAddr,
 		TLSConfig: &tls.Config{
 			KeyLogWriter: keylogFile,
-			Rand:         ZeroSource{},
+			Rand:         zeroSource{},
 		},
 		Handler:  handler,
 		ErrorLog: newServerErrorLog(),

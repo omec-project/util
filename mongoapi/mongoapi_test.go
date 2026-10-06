@@ -32,7 +32,7 @@ func newUnreachableClient(t *testing.T) *MongoClient {
 			t.Logf("failed to disconnect mongo client: %v", err)
 		}
 	})
-	return &MongoClient{Client: client, dbName: "testdb", pools: make(map[string]map[string]int32)}
+	return &MongoClient{Client: client, dbName: "testdb"}
 }
 
 func canceledContext(t *testing.T) context.Context {
@@ -66,14 +66,6 @@ func TestRestfulAPIDropTTLIndexWithContextReturnsError(t *testing.T) {
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("error should wrap the cause, got: %v", err)
-	}
-}
-
-func TestRestfulAPIPatchTTLIndexWithContextReturnsError(t *testing.T) {
-	c := newUnreachableClient(t)
-
-	if err := c.RestfulAPIPatchTTLIndexWithContext(canceledContext(t), "NfProfile", 3600, "expireAt"); err == nil {
-		t.Fatal("expected an error when the index cannot be updated, got nil")
 	}
 }
 
