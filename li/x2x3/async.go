@@ -28,6 +28,11 @@ type Reachability interface {
 	Unreachable() bool
 }
 
+// attemptReporter is a sender that can say whether a delivery has been attempted through it.
+type attemptReporter interface {
+	attempted() bool
+}
+
 // AsyncSender decouples X2/X3 delivery from the caller's goroutine. Send enqueues
 // the PDU onto a bounded buffer drained by a single background worker and returns
 // immediately, so a slow or unreachable MDF never blocks a signalling or
@@ -41,9 +46,10 @@ type Reachability interface {
 // is full Send drops the PDU rather than block — LI product may be lost under sustained MDF outage, but
 // the target's service is never delayed — and invokes onDrop so the fault can be
 // surfaced to the ADMF over X1. Worker delivery errors invoke onError for the
-// same purpose, each carrying the number of units it cost (LostUnits). Both
-// callbacks run on the worker goroutine, and onDrop on whichever goroutine called
-// Send as well, so they must be safe for concurrent use and must not block.
+// same purpose, each carrying the number of units it cost (LostUnits). onError
+// runs on the worker goroutine. onDrop runs on the worker, on whichever goroutine
+// called Send, and, for what a close that gave up leaves queued, on the goroutine
+// closing the pool. Both must be safe for concurrent use and must not block.
 type AsyncSender struct {
 	inner   Sender
 	queue   chan *PDU
@@ -163,8 +169,8 @@ func (a *AsyncSender) dropped() {
 	}
 }
 
-// abandon tells the worker to deliver nothing more: every PDU it has not yet started on is
-// reported to onDrop instead. A batch already being written finishes, and its outcome is
+// abandon tells the worker to deliver nothing more, and reports every PDU still queued to
+// onDrop before it returns. A batch already being written finishes, and its outcome is
 // reported as usual.
 //
 // It exists for a close that will not wait for the queue to drain (see Pool.Close). A worker
@@ -172,7 +178,37 @@ func (a *AsyncSender) dropped() {
 // accounted for by nothing: not delivered before the process exits, and not reported as lost
 // either. Abandoning it turns that into a count — one drop per unit — which is what the
 // mediation function will see missing.
-func (a *AsyncSender) abandon() { a.abandoned.Store(true) }
+//
+// The count is taken here rather than left to the worker, because the worker is the party
+// that is stuck: it is blocked in the delivery the closer gave up waiting for, and may not
+// return before the process does. Each PDU is received from the queue by exactly one of the
+// two, so none is counted twice or both counted and delivered; the flag stops the worker
+// delivering a batch it collects after this, and reports that batch as dropped instead.
+func (a *AsyncSender) abandon() {
+	a.abandoned.Store(true)
+	for {
+		select {
+		case _, ok := <-a.queue:
+			if !ok {
+				return
+			}
+			a.dropped()
+		default:
+			return
+		}
+	}
+}
+
+// attempted reports whether a delivery has been attempted to the destination behind the
+// queue. A sender that cannot say is taken to have been tried, as one that cannot answer
+// Unreachable is taken to be reachable: neither is grounds for leaving it out of a count.
+func (a *AsyncSender) attempted() bool {
+	if inner, ok := a.inner.(attemptReporter); ok {
+		return inner.attempted()
+	}
+
+	return true
+}
 
 // Send enqueues pdu for asynchronous delivery and returns immediately. It never
 // blocks; a full buffer drops the PDU and invokes onDrop. The caller must not

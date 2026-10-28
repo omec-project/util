@@ -27,6 +27,16 @@ type halfOpenMDF struct {
 	mu       sync.Mutex
 	streams  [][]byte
 	accepted int
+	// handshakes counts connections whose TLS handshake completed, so a test about a stalled
+	// write can show it got past the handshake rather than stalling in it.
+	handshakes int
+}
+
+func (m *halfOpenMDF) handshaken() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.handshakes
 }
 
 // newHalfOpenMDF is a mediation function that accepts a connection and then stops reading
@@ -70,6 +80,23 @@ func newHalfOpenMDF(t *testing.T, cert tls.Certificate, stallAfter int, stallEve
 
 			go func() {
 				defer conn.Close() //nolint:errcheck // test
+
+				// Accept does not perform the handshake; the first Read would. A peer that
+				// stalls before reading anything would otherwise leave the client stuck in
+				// the handshake instead of in the application-data write it is about.
+				tc, ok := conn.(*tls.Conn)
+				if !ok {
+					return
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				err := tc.HandshakeContext(ctx)
+				cancel()
+				if err != nil {
+					return
+				}
+				m.mu.Lock()
+				m.handshakes++
+				m.mu.Unlock()
 
 				buf := make([]byte, 4096)
 				read := 0
