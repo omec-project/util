@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="urn:3GPP:ns:li:3GPPX1Extensions:r18:v6" xmlns:common="http://uri.etsi.org/03280/common/2017/07" xmlns:x1="http://uri.etsi.org/03221/X1/2017/10" targetNamespace="urn:3GPP:ns:li:3GPPX1Extensions:r18:v6" elementFormDefault="qualified">
+
+  <xs:import namespace="http://uri.etsi.org/03280/common/2017/07"/>
+  <xs:import namespace="http://uri.etsi.org/03221/X1/2017/10"/>
+
+  <xs:element name="X1Extensions" type="X1Extension"/>
+
+  <xs:element name="PTCLIX1TargetIdentifierExtensions" type="PTCLIX1TargetIdentifierExtensions"/>
+  <xs:complexType name="PTCLIX1TargetIdentifierExtensions">
+    <xs:sequence>
+      <xs:element name="PTCLIX1TargetIdentifier" type="PTCLIX1TargetIdentifier" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PTCLIX1TargetIdentifier">
+    <xs:choice>
+      <xs:element name="MCPTTID" type="MCPTTID"/>
+      <xs:element name="InstanceIdentifierURN" type="InstanceIdentifierURN"/>
+      <xs:element name="PTCChatGroupID" type="PTCChatGroupID"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:simpleType name="MCPTTID">
+    <xs:restriction base="xs:anyURI"/>
+  </xs:simpleType>
+
+  <xs:simpleType name="InstanceIdentifierURN">
+    <xs:restriction base="xs:anyURI"/>
+  </xs:simpleType>
+
+  <xs:simpleType name="PTCChatGroupID">
+    <xs:restriction base="xs:anyURI"/>
+  </xs:simpleType>
+
+  <xs:element name="ECX1TargetIdentifierExtensions" type="ECX1TargetIdentifierExtensions"/>
+  <xs:complexType name="ECX1TargetIdentifierExtensions">
+    <xs:sequence>
+      <xs:element name="EECID" type="EECID"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="EECID">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+  <xs:element name="UPFLIT3TargetIdentifierExtensions" type="UPFLIT3TargetIdentifierExtensions"/>
+  <xs:complexType name="UPFLIT3TargetIdentifierExtensions">
+    <xs:sequence>
+      <xs:element name="UPFLIT3TargetIdentifier" type="UPFLIT3TargetIdentifier" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="UPFLIT3TargetIdentifier">
+    <xs:choice>
+      <xs:element name="FSEID" type="FSEID"/>
+      <xs:element name="PDRID" type="xs:unsignedInt"/>
+      <xs:element name="QERID" type="xs:unsignedInt"/>
+      <xs:element name="NetworkInstance" type="xs:hexBinary"/>
+      <xs:element name="GTPTunnelDirection" type="GTPTunnelDirection"/>
+      <xs:element name="FTEID" type="FTEID"/>
+      <xs:element name="PDR" type="xs:hexBinary"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="FSEID">
+    <xs:sequence>
+      <xs:element name="SEID" type="xs:unsignedLong"/>
+      <xs:element name="IPv4Address" type="common:IPv4Address" minOccurs="0"/>
+      <xs:element name="IPv6Address" type="common:IPv6Address" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="FTEID">
+    <xs:sequence>
+      <xs:element name="TEID" type="xs:unsignedInt"/>
+      <xs:element name="IPv4Address" type="common:IPv4Address" minOccurs="0"/>
+      <xs:element name="IPv6Address" type="common:IPv6Address" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="GTPTunnelDirection">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Outbound"/>
+      <xs:enumeration value="Inbound"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="IdentifierAssociationExtensions" type="IdentifierAssociationExtensions"/>
+
+  <xs:complexType name="X1Extension">
+    <xs:choice>
+      <xs:element name="LALSLILCSTargetProvisioning" type="LALSLILCSTargetProvisioningExtensions"/>
+      <xs:element name="LALSLTFProvisioning" type="LALSLTFProvisioningExtensions"/>
+      <xs:element name="HeaderReporting" type="PDHRReportingExtensions"/>
+      <xs:element name="SMSFExtensions" type="SMSFProvisioningExtensions"/>
+      <xs:element name="IdentifierAssociation" type="IdentifierAssociationExtensions"/>
+      <xs:element name="SDP" type="SDP"/>
+      <xs:element name="STIRSHAKENProvisioning" type="STIRSHAKENTargetProvisioningExtensions"/>
+      <xs:element name="LocationOnlyProvisioning" type="LocationOnlyProvisioningExtensions"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="LALSLILCSTargetProvisioningExtensions">
+    <xs:sequence>
+      <xs:element name="PositioningServiceType" type="PositioningServiceType"/>
+      <xs:element name="PositioningPeriodicity" type="PositioningPeriodicity" minOccurs="0"/>
+      <xs:element name="PositioningParameters" type="PositioningParameters" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="PositioningServiceType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Immediate"/>
+      <xs:enumeration value="Periodic"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PositioningPeriodicity">
+    <xs:restriction base="xs:nonNegativeInteger">
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="PositioningParameters">
+    <xs:sequence>
+      <xs:element name="RequestedLocationType" type="RequestedLocationType" minOccurs="0"/>
+      <xs:element name="RequestedResponseType" type="RequestedResponseType" minOccurs="0"/>
+      <xs:element name="MaxLocationAge" type="xs:nonNegativeInteger" minOccurs="0"/>
+      <xs:element name="ResponseTimingRequired" type="ResponseTimingRequired" minOccurs="0"/>
+      <xs:element name="ResponseTimer" type="xs:nonNegativeInteger" minOccurs="0"/>
+      <xs:element name="HorizontalAccuracy" type="NumberWithQOSClass" minOccurs="0"/>
+      <xs:element name="AltitudeAccuracy" type="NumberWithQOSClass" minOccurs="0"/>
+      <xs:element name="MotionStateRequest" type="EmptyElement" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:simpleType name="RequestedLocationType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CURRENT"/>
+      <xs:enumeration value="CURRENT_OR_LAST"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="RequestedResponseType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="SYNC"/>
+      <xs:enumeration value="ASYNC"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ResponseTimingRequired">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="NO_DELAY"/>
+      <xs:enumeration value="LOW_DELAY"/>
+      <xs:enumeration value="DELAY_TOL"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="NumberWithQOSClass">
+    <xs:simpleContent>
+      <xs:extension base="xs:nonNegativeInteger">
+        <xs:attribute name="qos_class" type="QOSClass"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:simpleType name="QOSClass">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ASSURED"/>
+      <xs:enumeration value="BEST_EFFORT"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EmptyElement">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value=""/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="LALSLTFProvisioningExtensions">
+    <xs:sequence>
+      <xs:element name="LILCSClientAddress" type="LILCSClientIPAddress"/>
+      <xs:element name="PositioningParameters" type="PositioningParameters" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="LILCSClientIPAddress">
+    <xs:sequence>
+      <xs:choice>
+        <xs:element name="IPv4Address" type="common:IPv4Address"/>
+        <xs:element name="IPv6Address" type="common:IPv6Address"/>
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PDHRReportingExtensions">
+    <xs:sequence>
+      <xs:element name="PDHType" type="PDHType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PDHType">
+    <xs:choice>
+      <xs:element name="PDHR" type="EmptyElement"/>
+      <xs:element name="PDSR" type="PDSRParameters"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="PDSRParameters">
+    <xs:sequence>
+      <xs:element name="PDSRTriggerType" type="PDSRTriggerType" minOccurs="1" maxOccurs="unbounded"/>
+      <xs:element name="useSessionTriggers" type="xs:boolean" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PDSRTriggerType">
+    <xs:choice>
+      <xs:element name="TimerExpiry" type="TimerExpiryInSeconds"/>
+      <xs:element name="PacketCount" type="xs:nonNegativeInteger"/>
+      <xs:element name="ByteCount" type="xs:nonNegativeInteger"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="SMSFProvisioningExtensions">
+    <xs:sequence>
+      <xs:element name="TruncateTPUserData" type="EmptyElement" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="TimerExpiryInSeconds">
+    <xs:restriction base="xs:nonNegativeInteger">
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="IdentifierAssociationExtensions">
+    <xs:sequence>
+      <xs:element name="IdentifierAssociationEventsGenerated" type="IdentifierAssociationEventsGenerated"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="IdentifierAssociationEventsGenerated">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="IdentifierAssociation"/>
+      <xs:enumeration value="All"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="IdentityAssociationTargetIdentifier" type="EmptyElement"/>
+
+  <xs:element name="AKMATargetIdentifier" type="AKMATargetIdentifier"/>
+  <xs:complexType name="AKMATargetIdentifier">
+    <xs:choice>
+      <xs:element name="AKID" type="common:NAI"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:element name="HR" type="EmptyElement"/>
+  <xs:element name="IMSSignaling" type="EmptyElement"/>
+  <xs:element name="APN" type="common:ShortString"/>
+  <xs:element name="DNN" type="common:ShortString"/>
+
+  <xs:element name="HRLIT1TargetIdentifierExtensions" type="HRLIT1TargetIdentifierExtensions"/>
+
+  <xs:complexType name="HRLIT1TargetIdentifierExtensions">
+    <xs:sequence>
+      <xs:element name="HRLIT1TargetIdentifier" type="HRLIT1TargetIdentifier" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="HRLIT1TargetIdentifier">
+    <xs:choice>
+      <xs:element name="PDUSessionID" type="PDUSessionID"/>
+      <xs:element name="BearerID" type="BearerID"/>
+      <xs:element name="IMSVoiceMedia" type="EmptyElement"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:simpleType name="PDUSessionID">
+    <xs:restriction base="xs:unsignedInt">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="255"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="BearerID">
+    <xs:restriction base="xs:unsignedInt">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="255"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="RCSTargetIdentifierExtensions" type="RCSTargetIdentifierExtensions"/>
+
+  <xs:complexType name="RCSTargetIdentifierExtensions">
+    <xs:sequence>
+      <xs:element name="RCSTargetIdentifier" type="RCSTargetIdentifier" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="RCSTargetIdentifier">
+    <xs:choice>
+      <xs:element name="RCSContentURI" type="RCSContentURI"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:simpleType name="RCSContentURI">
+    <xs:restriction base="xs:anyURI"/>
+  </xs:simpleType>
+
+  <xs:element name="IMST3TargetIdentifierExtensions" type="IMST3TargetIdentifierExtensions"/>
+
+  <xs:complexType name="IMST3TargetIdentifierExtensions">
+    <xs:sequence>
+      <xs:element name="IMST3TargetIdentifierExtension" type="IMST3TargetIdentifierExtension" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="IMST3TargetIdentifierExtension">
+    <xs:choice>
+      <xs:element name="H248ContextID" type="H248ContextID"/>
+      <xs:element name="PayloadDirectionAssignment" type="PayloadDirectionAssignment"/>
+      <xs:element name="TriggerScope" type="TriggerScope"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:simpleType name="PayloadDirectionAssignment">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ToTarget"/>
+      <xs:enumeration value="FromTarget"/>
+      <xs:enumeration value="NotDetermined"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="H248ContextID">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="1"/>
+      <xs:maxInclusive value="4294967293"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TriggerScope">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Unidirectional"/>
+      <xs:enumeration value="Bidirectional"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="SDP">
+    <xs:sequence>
+      <xs:element name="SDPData" type="SDPData" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SDPData">
+    <xs:choice>
+      <xs:element name="LocalSDP" type="SDPInfo"/>
+      <xs:element name="RemoteSDP" type="SDPInfo"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:simpleType name="SDPInfo">
+    <xs:restriction base="xs:string">
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="STIRSHAKENTargetProvisioningExtensions">
+    <xs:sequence>
+      <xs:element name="ReportDiversionPASSporTInfo" type="ReportDiversionPASSporTInfo"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="ReportDiversionPASSporTInfo">
+    <xs:restriction base="xs:boolean">
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="LocationOnlyProvisioningExtensions">
+    <xs:sequence>
+      <xs:element name="LocationOnly" type="EmptyElement" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="DelegatedTaskStatus" type="DelegatedTaskStatus"/>
+
+  <xs:complexType name="DelegatedTaskStatus">
+      <xs:sequence>
+          <xs:element name="ListOfDelegatedTasks" type="ListOfDelegatedTasks"/>
+      </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfDelegatedTasks">
+      <xs:sequence>
+          <xs:element name="DelegatedTask" type="DelegatedTask" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="DelegatedTask">
+    <xs:sequence>
+        <xs:element name="NEID" type="x1:NeIdentifier"/>
+        <xs:element name="TaskDetails" type="x1:TaskDetails"/>
+        <xs:element name="TaskStatus" type="x1:TaskStatus" minOccurs="0"/>
+        <xs:element name="LastTaskStatusTime" type="common:QualifiedMicrosecondDateTime" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

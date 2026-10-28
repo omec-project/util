@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SPDX-FileCopyrightText: 2026 Forsway Scandinavia AB
+  SPDX-License-Identifier: Apache-2.0
+
+  Ours, not ETSI's. TS_103_221_01.xsd imports its two dependencies without a
+  schemaLocation, so a validator handed that file alone cannot resolve
+  etsi103280:* or hashedID:* and reports every reference to them as an error —
+  which would drown the real findings.
+
+  This wrapper imports all four (those three, and the 3GPP LI_T3 extension schema
+  below) with explicit locations. The published files stay
+  byte-identical to what ETSI serves, which is what the digest check in
+  TestRenderedResponsesValidate enforces.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+  <xs:import namespace="http://uri.etsi.org/03280/common/2017/07"
+             schemaLocation="TS_103_280.xsd"/>
+  <xs:import namespace="http://uri.etsi.org/03221/X1/2017/10/HashedID"
+             schemaLocation="TS_103_221_01_HashedID.xsd"/>
+  <xs:import namespace="http://uri.etsi.org/03221/X1/2017/10"
+             schemaLocation="TS_103_221_01.xsd"/>
+  <!--
+    The 3GPP LI_T3 extension, from the TS 33.128 attachments. Without it the
+    targetIdentifierExtension content fails the strict wildcard in TS 103 221-1's
+    Extension type, and the detection criteria a CC-TF sends could not be validated
+    at all.
+  -->
+  <xs:import namespace="urn:3GPP:ns:li:3GPPX1Extensions:r18:v6"
+             schemaLocation="urn_3GPP_ns_li_3GPPX1Extensions.xsd"/>
+</xs:schema>
