@@ -5,6 +5,7 @@ package x2x3
 
 import (
 	"encoding/binary"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -133,6 +134,34 @@ func TestKeepalivePayloadFormatIsAcceptedOnKeepalivesOnly(t *testing.T) {
 				t.Errorf("Marshal() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// TestAKeepaliveSettingAZeroedFieldIsNotBuilt is clause 5.1's definition held at the
+// encoder: every mandatory field but version, PDU type and header length is zero, so a
+// keepalive carries no payload and says nothing about any task.
+func TestAKeepaliveSettingAZeroedFieldIsNotBuilt(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		set  func(*PDU)
+	}{
+		{"a payload", func(p *PDU) { p.Payload = []byte{1} }},
+		{"a payload format", func(p *PDU) { p.PayloadFormat = PayloadFormat3GPP33128 }},
+		{"a direction", func(p *PDU) { p.Direction = DirectionNotApplicable }},
+		{"an XID", func(p *PDU) { p.XID[0] = 1 }},
+		{"a correlation ID", func(p *PDU) { p.CorrelationID[7] = 1 }},
+	} {
+		for _, k := range []*PDU{Keepalive(7), KeepaliveAck(7)} {
+			t.Run(fmt.Sprintf("%s/type %d", tc.name, k.Type), func(t *testing.T) {
+				if _, err := k.Marshal(); err != nil {
+					t.Fatalf("Marshal() of the keepalive as built = %v, want nil", err)
+				}
+				tc.set(k)
+				if _, err := k.Marshal(); err == nil {
+					t.Errorf("Marshal() of PDU type %d with %s = nil error, want refused", k.Type, tc.name)
+				}
+			})
+		}
 	}
 }
 
