@@ -108,8 +108,9 @@ All six values are modelled and match the table. Value 0 is reserved for the kee
 mechanism, and is emitted on exactly the PDUs that reservation is for: clause 5.1 has a
 Keepalive zero every mandatory field but three, so its direction is 0 and never anything
 else. No product PDU carries it: `Marshal` refuses an X2 or X3 PDU whose direction is 0 or
-outside the table. Decoding accepts any value, since a peer on a later minor version may use
-one added after this transcription.
+outside the table, and a keepalive that sets its direction, or any other mandatory field
+clause 5.1 zeroes, or that carries a payload. Decoding accepts any value, since a peer on a
+later minor version may use one added after this transcription.
 
 | Value | Meaning | Modelled as |
 |---|---|---|
