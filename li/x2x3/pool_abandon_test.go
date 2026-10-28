@@ -58,6 +58,13 @@ func TestAPoolCloseThatGivesUpCountsWhatItAbandons(t *testing.T) {
 		t.Fatalf("Close() = %v, want the close deadline", err)
 	}
 
+	// Counted by the time Close returns, with the worker still blocked: the process that
+	// closed the pool may exit now, and the worker would never get to count them.
+	if got := drops.Load(); got != 10 {
+		t.Errorf("%d of the 10 units still queued were reported dropped when Close returned, want "+
+			"all 10 before the blocked delivery ends", got)
+	}
+
 	close(inner.release)
 	eventually(t, "the abandoned sender's worker to finish", func() bool {
 		return inner.sent.Load()+drops.Load() >= 11
@@ -105,6 +112,9 @@ func TestAPoolCloseWaitsForEverySenderAmongSeveral(t *testing.T) {
 	if err := p.Close(); !errors.Is(err, errCloseTimedOut) {
 		t.Fatalf("Close() = %v, want the close deadline: it returned before the blocked sender "+
 			"answered", err)
+	}
+	if got := drops.Load(); got != 10 {
+		t.Errorf("%d of the 10 units were reported dropped when Close returned, want all 10", got)
 	}
 
 	close(inner.release)

@@ -50,7 +50,9 @@ type Pool struct {
 // onError is called with each worker delivery error and onDrop when a PDU is dropped before
 // any delivery was attempted for it — a full queue, a closed sender, or a close that gave up
 // waiting; both may be nil. A delivery error says how many product units it cost (LostUnits),
-// so a failed batch is accounted per unit and not per call.
+// so a failed batch is accounted per unit and not per call. onDrop may run on the goroutine
+// calling Close, once per unit a close that gave up leaves queued, so it must not wait on
+// anything that goroutine holds.
 //
 // A keepalive fault means the same thing as a delivery error — this destination is not
 // working — so it is reported through onError rather than through a callback of its own.
@@ -210,6 +212,11 @@ func (p *Pool) UnreachableAmong(addrs []string) (unreachable, inUse int) {
 		if !ok {
 			continue
 		}
+		// For creates a sender before anything is sent through it, so holding one is not
+		// having tried the destination.
+		if a, ok := s.(attemptReporter); ok && !a.attempted() {
+			continue
+		}
 		inUse++
 		if r, ok := s.(Reachability); ok && r.Unreachable() {
 			unreachable++
@@ -245,7 +252,8 @@ const closeTimeout = 2 * time.Second
 // expires is left to its goroutine: this runs at teardown, the process is about to go, and
 // the alternative is being killed part-way through the same work with less of it done. What
 // that sender has not yet started to deliver is abandoned and reported to onDrop, one call per
-// unit, so the product the process takes with it is counted rather than silently lost.
+// unit, before Close returns. The batch its worker is already writing is not: it is reported
+// through onError if its write ends, which may be after the process has gone.
 func (p *Pool) Close() error {
 	p.mu.Lock()
 	senders := p.senders
