@@ -1,0 +1,65 @@
+3GPP deliverables and their attachments are published under the copyright notice
+reproduced below. It is not an open-source licence: it reserves all rights and
+permits reproduction only as expressly stated. It is recorded here because REUSE
+requires every SPDX identifier used in this repository to have its terms on file,
+and because a reader is entitled to see the actual terms rather than an
+identifier that implies terms it does not have.
+
+The files it covers in this repository are two attachments to 3GPP TS 33.128
+(Release 18), both vendored unmodified as test data, so that the implementation can be
+checked against the published definitions without network access:
+
+    li/x1/testdata/schemas/urn_3GPP_ns_li_3GPPX1Extensions.xsd
+
+the X1 extension schema, byte-identical to the copy 3GPP publishes at
+https://forge.3gpp.org/rep/sa3/li/-/raw/main/33128/r18/urn_3GPP_ns_li_3GPPX1Extensions.xsd
+and pinned by digest in li/x1/schema_validation_test.go, so a change to it fails the
+build; and
+
+    li/iri/testdata/asn1/TS33128Payloads.asn
+
+the xIRI ASN.1 module, whose source and digest are recorded in
+li/iri/testdata/asn1/README.md.
+
+
+Copyright Notification, as printed in 3GPP TS 33.128
+----------------------------------------------------
+
+No part may be reproduced except as authorized by written permission.
+The copyright and the foregoing restriction extend to reproduction in all media.
+
+(c) 2026, 3GPP Organizational Partners (ARIB, ATIS, CCSA, ETSI, TSDSI, TTA, TTC).
+All rights reserved.
+
+UMTS(TM) is a Trade Mark of ETSI registered for the benefit of its members
+3GPP(TM) is a Trade Mark of ETSI registered for the benefit of its Members and of
+the 3GPP Organizational Partners
+LTE(TM) is a Trade Mark of ETSI registered for the benefit of its Members and of
+the 3GPP Organizational Partners
+GSM(R) and the GSM logo are registered and owned by the GSM Association
+
+
+Copyright Notification, as printed in the ETSI publication of the same
+specification (ETSI TS 133 128)
+-----------------------------------------------------------------------
+
+ETSI is one of the 3GPP Organizational Partners named above, and republishes this
+specification as an ETSI Technical Specification. Its notice states the exception
+under which extracts may be reproduced:
+
+No part of this document may be reproduced in any form, by any means and in any
+media, without the prior written authorization of ETSI and except as expressly
+permitted below.
+
+By way of exception and when the document is a normative deliverable (European
+Standard (EN), Technical Specification (TS), Group Specification (GS) or ETSI
+Standard (ES)), ETSI authorizes to reproduce and incorporate into products,
+services and technical documentation only those extracts (e.g. templates) that are
+strictly necessary for the technical implementation of the normative deliverable,
+to ensure compliance with the latter.
+
+Nothing in this notice shall be construed as limiting any mandatory exceptions to
+copyright provided by applicable law.
+
+(c) ETSI 2026.
+All rights reserved.
