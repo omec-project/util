@@ -6,3 +6,16 @@ The Initial Developer of the work is free5GC (https://www.free5gc.org/).
 At the time of forking, no copyright statements were found
 in the free5GC files or directories.
 Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
+
+
+The li/ directory (Lawful Interception)
+Copyright 2026 Forsway Scandinavia AB
+
+It implements the in-network parts of the 3GPP/ETSI Lawful
+Interception architecture for SD-Core: the X1 provisioning interface
+(ETSI TS 103 221-1), the X2/X3 delivery framing (ETSI TS 103 221-2), the
+TS 33.128 xIRI encoder, the intercept-task store and the LI PKI helpers.
+
+The li/ directory also carries, as test data, ETSI schemas under BSD-3-Clause and
+3GPP TS 33.128 attachments (an X1 schema and the xIRI ASN.1 module) under the 3GPP
+copyright notice recorded in LICENSES/LicenseRef-3GPP.txt.

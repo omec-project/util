@@ -97,6 +97,28 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      # Field order across li is chosen for something a size-ordered layout would lose:
+      # - li/iri's record structs follow the member order of the TS 33.128 ASN.1 SEQUENCEs they
+      #   encode, and the tag audit in li/iri/emit_tags_test.go walks them in that order
+      #   against the emitted encoding, so a reorder breaks the audit, not only readability.
+      # - li/x1's message structs follow the TS 103 221-1 XSD sequences, so each reads against
+      #   its schema type. Decoding is by element name and responses are rendered from
+      #   templates, so this is readability, not wire order.
+      # - The stateful types (x2x3.Client, x1.Reporter, the watchers, the store) keep each
+      #   field beside the mutex that guards it and the comment saying so.
+      # - The test tables use positional literals, which a reorder would break or, between
+      #   fields of one type, silently re-pair.
+      # The network-function repositories disable this check entirely.
+      - path: ^li/
+        linters:
+          - govet
+        text: fieldalignment
+      # li's tests assert against record and field names and disposition text taken from the
+      # specification tables; naming each repeated literal would hide what is being checked.
+      - path: ^li/.*_test\.go$
+        linters:
+          - goconst
     paths:
       - third_party$
       - builtin$
