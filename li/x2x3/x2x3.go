@@ -168,7 +168,7 @@ func permitted(r [2]bool, t PDUType) bool {
 	case PDUTypeX3:
 		return r[1]
 	default:
-		return true // keepalive PDUs do not carry a checked payload
+		return true // keepalive PDUs carry no payload (clause 5.1), and validate refuses one
 	}
 }
 
@@ -209,6 +209,10 @@ type PDU struct {
 // direction is not one of table 5.2.6-1's. Direction 0 is reserved for the keepalive PDUs,
 // which carry no direction (clause 5.1), so on X2 and X3 it is refused rather than sent as
 // though it said something about the communication.
+//
+// A keepalive is refused unless it is what clause 5.1 defines: every mandatory field but the
+// version, PDU type and header length zero, which its NOTE reads as no payload. Only the
+// conditional attributes are left to the caller, where the Sequence Number goes.
 func (p *PDU) validate() error {
 	switch p.Type {
 	case PDUTypeX2, PDUTypeX3:
@@ -220,6 +224,10 @@ func (p *PDU) validate() error {
 				p.Direction, p.Type)
 		}
 	case PDUTypeKeepalive, PDUTypeKeepaliveAck:
+		if p.PayloadFormat != PayloadFormatReserved || p.Direction != DirectionReservedKeepalive ||
+			p.XID != [xidLength]byte{} || p.CorrelationID != [CorrelationIDLength]byte{} || len(p.Payload) != 0 {
+			return fmt.Errorf("x2x3: PDU type %d sets a mandatory field clause 5.1 requires to be zero", p.Type)
+		}
 	default:
 		return fmt.Errorf("x2x3: PDU type %d is not one table 5.2.2-1 defines", p.Type)
 	}

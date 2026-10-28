@@ -393,20 +393,30 @@ func TestAPartiallyWrittenUnitIsResentWhole(t *testing.T) {
 		t.Fatalf("SendBatch after a recoverable partial write returned %v, want nil", err)
 	}
 
-	// Wait for both streams to drain.
 	marshalled := make([][]byte, len(pdus))
-	total := 0
 	for i, p := range pdus {
 		b, err := p.Marshal()
 		if err != nil {
 			t.Fatal(err)
 		}
 		marshalled[i] = b
-		total += len(b)
 	}
 
+	// Wait for both streams to drain: until every unit is there, not until as many bytes
+	// are. The stream the write stopped in holds a prefix of the unit that was resent, so the
+	// byte count reaches the total while the last unit may still be on its way.
+	allArrived := func() bool {
+		got := mdf.all()
+		for _, one := range marshalled {
+			if !bytes.Contains(got, one) {
+				return false
+			}
+		}
+
+		return true
+	}
 	deadline := time.Now().Add(20 * time.Second)
-	for time.Now().Before(deadline) && len(mdf.all()) < total {
+	for time.Now().Before(deadline) && !allArrived() {
 		time.Sleep(50 * time.Millisecond)
 	}
 
