@@ -3,7 +3,10 @@
 
 package x2x3
 
-import "testing"
+import (
+	"crypto/tls"
+	"testing"
+)
 
 // stubReachable is a Sender with an opinion about a destination it does not have, so the
 // counting can be exercised without an MDF to take away.
@@ -90,5 +93,33 @@ func TestAsyncSenderAnswersForTheSenderBehindIt(t *testing.T) {
 	defer up.Close()
 	if up.Unreachable() {
 		t.Error("the queue reports a reachable destination as unreachable")
+	}
+}
+
+// TestADestinationNothingWasSentToIsNotCounted: For creates a sender before anything is sent
+// through it, so a pool can hold senders for destinations it has never tried. Counting those
+// as in use understates an outage: one failing destination among three held, of which only it
+// was tried, is one of one unreachable, not one of three.
+func TestADestinationNothingWasSentToIsNotCounted(t *testing.T) {
+	p := NewPool(&tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, nil)
+	t.Cleanup(func() { p.Close() }) //nolint:errcheck // test cleanup
+
+	// Ports nothing listens on, so the one that is tried fails at once.
+	addrs := []string{"127.0.0.1:1", "127.0.0.1:2", "127.0.0.1:3"}
+	for _, addr := range addrs {
+		p.For(addr)
+	}
+	if unreachable, inUse := p.UnreachableAmong(addrs); unreachable != 0 || inUse != 0 {
+		t.Fatalf("three destinations nothing was sent to count %d of %d, want 0 of 0", unreachable, inUse)
+	}
+
+	//nolint:errcheck // the outcome is read through UnreachableAmong
+	_ = p.For(addrs[0]).Send(&PDU{Type: PDUTypeX2, PayloadFormat: PayloadFormat3GPP33128, Direction: DirectionNotApplicable})
+	eventually(t, "the tried destination to be found unreachable", func() bool {
+		unreachable, _ := p.UnreachableAmong(addrs)
+		return unreachable == 1
+	})
+	if unreachable, inUse := p.UnreachableAmong(addrs); unreachable != 1 || inUse != 1 {
+		t.Errorf("one tried and failing destination among three held counts %d of %d, want 1 of 1", unreachable, inUse)
 	}
 }

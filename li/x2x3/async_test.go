@@ -143,7 +143,10 @@ func TestAsyncSenderDropsWhenFull(t *testing.T) {
 // from. It must never wait for a batch to fill, or delivery latency would depend on how
 // idle the target is.
 func TestAsyncSenderBatchesWhatIsAlreadyQueued(t *testing.T) {
-	rec := &batchRecorder{}
+	// The first delivery is held until the rest are queued. Otherwise a schedule in which the
+	// worker delivers each PDU before the next is sent is a valid one, and finds nothing to
+	// batch through no fault of the batching.
+	rec := &batchRecorder{hold: make(chan struct{}), held: make(chan struct{})}
 	// Depth well above the number queued, so nothing is dropped.
 	a := NewAsyncSender(rec, 256, nil, nil)
 
@@ -152,15 +155,20 @@ func TestAsyncSenderBatchesWhatIsAlreadyQueued(t *testing.T) {
 		if err := a.Send(&PDU{Type: PDUTypeX3}); err != nil {
 			t.Fatalf("Send: %v", err)
 		}
+		if i == 0 {
+			<-rec.held // the worker is in its first delivery
+		}
 	}
+	close(rec.hold)
 	a.Close()
 
 	total, calls := rec.totals()
 	if total != n {
 		t.Errorf("delivered %d PDUs, want %d", total, n)
 	}
-	// The point of batching: fewer writes than PDUs. Exactly how many depends on
-	// scheduling, so this asserts the property rather than a number.
+	// The point of batching: fewer writes than PDUs. With the first delivery held the rest
+	// are all queued before the worker looks, so this asserts the property rather than the
+	// exact count, which would pin maxDeliveryBatch.
 	if calls >= n {
 		t.Errorf("took %d writes for %d PDUs; nothing was batched", calls, n)
 	}
@@ -322,9 +330,26 @@ type batchRecorder struct {
 	mu    sync.Mutex
 	pdus  int
 	calls int
+
+	// hold, when set, holds the first delivery until it is closed, and held is closed when
+	// that delivery has begun.
+	hold     chan struct{}
+	held     chan struct{}
+	holdOnce sync.Once
+}
+
+func (b *batchRecorder) waitFirst() {
+	if b.hold == nil {
+		return
+	}
+	b.holdOnce.Do(func() {
+		close(b.held)
+		<-b.hold
+	})
 }
 
 func (b *batchRecorder) Send(*PDU) error {
+	b.waitFirst()
 	b.mu.Lock()
 	b.pdus++
 	b.calls++
@@ -334,6 +359,7 @@ func (b *batchRecorder) Send(*PDU) error {
 }
 
 func (b *batchRecorder) SendBatch(pdus []*PDU) error {
+	b.waitFirst()
 	b.mu.Lock()
 	b.pdus += len(pdus)
 	b.calls++

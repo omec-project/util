@@ -101,6 +101,9 @@ type Client struct {
 	// held across a dial and a write, and an answer to a provisioning function must not
 	// wait for either. See Unreachable.
 	unreachable atomic.Bool
+	// offered records that a delivery has been attempted to this destination at all, which
+	// is what makes it one Pool.UnreachableAmong counts. Kept outside mu for the same reason.
+	offered atomic.Bool
 }
 
 // minRedialInterval is how long a client waits after a failed dial before it dials the same
@@ -243,6 +246,7 @@ func (c *Client) Send(pdu *PDU) error {
 // boundaries are the offsets at which each product unit in b ends, so a retry after a
 // partial write can resume at one. Nil means b is a single unit.
 func (c *Client) sendBytes(b []byte, boundaries []int) error {
+	c.offered.Store(true)
 	c.mu.Lock()
 	err := c.deliverLocked(b, boundaries)
 
@@ -303,6 +307,11 @@ func (c *Client) sendBytes(b []byte, boundaries []int) error {
 // has already dialled.
 func (c *Client) Unreachable() bool {
 	return c.unreachable.Load()
+}
+
+// attempted reports whether a delivery has been attempted to this destination.
+func (c *Client) attempted() bool {
+	return c.offered.Load()
 }
 
 // deliverLocked writes already-marshalled PDU bytes, reconnecting once if the MDF has

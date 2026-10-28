@@ -156,4 +156,10 @@ func TestClosingABlackholedDestinationIsBounded(t *testing.T) {
 			"function decides how long this element takes to stop, and a teardown that overruns a "+
 			"grace period is SIGKILLed with its X1 tasking never withdrawn", closeTimeout)
 	}
+
+	// The case under test is a write to a connected peer that does not read, not a stalled
+	// handshake: the bound has to hold for the former.
+	if mdf.handshaken() == 0 {
+		t.Error("no handshake completed, so Close was bounded while dialling, not while writing")
+	}
 }
