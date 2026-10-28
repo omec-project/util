@@ -175,6 +175,19 @@ func TestADamagedCABundleIsRefused(t *testing.T) {
 		t.Errorf("Load of a bundle with a damaged certificate = %v, want a refusal", err)
 	}
 
+	// A block whose body is not base64 is passed over by pem.Decode without an error, before
+	// a valid block and after one alike.
+	undecodable := []byte("-----BEGIN CERTIFICATE-----\n!!!not base64!!!\n-----END CERTIFICATE-----\n")
+	for name, bundle := range map[string][]byte{
+		"before the anchor": append(append([]byte{}, undecodable...), caPEM...),
+		"after the anchor":  append(append([]byte{}, caPEM...), undecodable...),
+	} {
+		_, err := Load(writeTriple(t, t.TempDir(), neCert, neKey, bundle))
+		if err == nil || !strings.Contains(err.Error(), "1 PEM block(s) do not decode") {
+			t.Errorf("Load of a bundle with an undecodable block %s = %v, want a refusal", name, err)
+		}
+	}
+
 	_, err := Load(writeTriple(t, t.TempDir(), neCert, neKey, neKey))
 	if err == nil || !strings.Contains(err.Error(), "1 PEM block(s) that are not certificates") {
 		t.Errorf("Load of a CA file holding a key = %v, want a refusal counting the key block", err)

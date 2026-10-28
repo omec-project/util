@@ -20,6 +20,7 @@
 package mtls
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -99,6 +100,17 @@ func withinValidity(c *x509.Certificate, now time.Time) error {
 	return nil
 }
 
+// pemBlockOpenings counts the lines that open a PEM block, recognised as pem.Decode
+// recognises them: "-----BEGIN " at the start of the data or of a line.
+func pemBlockOpenings(data []byte) int {
+	n := bytes.Count(data, []byte("\n-----BEGIN "))
+	if bytes.HasPrefix(data, []byte("-----BEGIN ")) {
+		n++
+	}
+
+	return n
+}
+
 // caPool builds the trust anchors from a PEM bundle, admitting only CA certificates that
 // are within their validity period.
 //
@@ -110,7 +122,10 @@ func withinValidity(c *x509.Certificate, now time.Time) error {
 // An anchor outside its validity period verifies no chain, so it is left out too, and
 // a bundle that is left with none is refused with the count of what was skipped and
 // why. A CERTIFICATE block that does not parse is an error: the bundle is damaged, and
-// the anchor it should have carried may be the one the peers use.
+// the anchor it should have carried may be the one the peers use. So is a block that does
+// not decode at all, which pem.Decode passes over without saying so: it skips a block
+// whose body is not valid base64 and goes on to the next, and stops at one that ends the
+// bundle, so either way the bundle would load with that block missing.
 func caPool(bundle []byte, now time.Time) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 
@@ -143,6 +158,9 @@ func caPool(bundle []byte, now time.Time) (*x509.CertPool, error) {
 		anchors++
 	}
 
+	if undecoded := pemBlockOpenings(bundle) - (anchors + notCA + outOfDate + otherBlocks); undecoded > 0 {
+		return nil, fmt.Errorf("%d PEM block(s) do not decode", undecoded)
+	}
 	if anchors == 0 {
 		return nil, fmt.Errorf("contains no usable CA certificate: %d without basicConstraints "+
 			"CA:TRUE, %d outside their validity period, %d PEM block(s) that are not "+

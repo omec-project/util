@@ -192,6 +192,9 @@ func TestContradictoryTargetsFindsCombinationsNothingSatisfies(t *testing.T) {
 		{"an IMEISV and its own IMEI", []TargetIdentifier{id(TargetPEI, "3578400512345678"), id(TargetPEI, "35784005123456")}, false},
 		{"a SUPI and a GPSI", []TargetIdentifier{id(TargetSUPI, "262019876543210"), id(TargetGPSI, "1")}, false},
 		{"a session and a direction", []TargetIdentifier{id(TargetFSEID, "1"), id(TargetGTPTunnelDirection, "Outbound")}, false},
+		{"two PDR IDs", []TargetIdentifier{id(TargetPDRID, "1"), id(TargetPDRID, "2")}, true},
+		// One PDR can be associated with several QERs, and all of them apply to its packets.
+		{"two QER IDs", []TargetIdentifier{id(TargetQERID, "1"), id(TargetQERID, "2")}, false},
 		{"a criterion named twice", []TargetIdentifier{id(TargetFSEID, "1"), id(TargetFSEID, "1")}, false},
 		{"one criterion", []TargetIdentifier{id(TargetSUPI, "262019876543210")}, false},
 	} {
@@ -254,5 +257,27 @@ func TestTheTwoShapesOfOneTEIDAreCompatible(t *testing.T) {
 		if _, _, got := task.ContradictoryTargets(); got != c.contradict {
 			t.Errorf("F-TEID %q with %q: contradictory = %v, want %v", c.a, c.b, got, c.contradict)
 		}
+	}
+}
+
+// TestAPacketUnderSeveralQERsMatchesEachOfThem: a PDR associated with a session-level and a
+// flow-level QER subjects its packets to both, so a task naming both QER IDs is satisfied by
+// such a packet, and one naming a QER the PDR is not associated with is not.
+func TestAPacketUnderSeveralQERsMatchesEachOfThem(t *testing.T) {
+	packet := []TargetIdentifier{
+		{Type: TargetPDRID, Value: "1"},
+		{Type: TargetQERID, Value: "1"},
+		{Type: TargetQERID, Value: "2"},
+	}
+	both := InterceptTask{Targets: []TargetIdentifier{{Type: TargetQERID, Value: "1"}, {Type: TargetQERID, Value: "2"}}}
+	if _, _, contradictory := both.ContradictoryTargets(); contradictory {
+		t.Fatal("a task naming two QERs of one PDR was refused as contradictory")
+	}
+	if !both.MatchedBy(packet) {
+		t.Error("a packet under both QERs did not match a task naming both")
+	}
+	other := InterceptTask{Targets: []TargetIdentifier{{Type: TargetQERID, Value: "1"}, {Type: TargetQERID, Value: "3"}}}
+	if other.MatchedBy(packet) {
+		t.Error("a packet matched a task naming a QER its PDR is not associated with")
 	}
 }

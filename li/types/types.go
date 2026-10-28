@@ -64,7 +64,8 @@ const (
 	// Value is the identifier in decimal. Both are scoped to a PFCP session, so a
 	// criterion using one is only unambiguous alongside the session it belongs to.
 	TargetPDRID TargetIdentifierType = "PDRID"
-	// TargetQERID names a QoS enforcement rule, as TargetPDRID names a detection rule.
+	// TargetQERID names a QoS enforcement rule, as TargetPDRID names a detection rule. A
+	// packet can be subject to several: its PDR can be associated with more than one QER.
 	TargetQERID TargetIdentifierType = "QERID"
 	// TargetNetworkInstance selects every session on a network instance (a DNN, in
 	// practice), so it is the one criterion broader than a session. The schema types
@@ -356,12 +357,12 @@ func (t InterceptTask) NamesOnlyTypes(kinds ...TargetIdentifierType) bool {
 // match, and TS 103 221-1 table 6.2.1.2-1 has an element reject "an inappropriate
 // combination of identifiers" rather than acknowledge it. The single-valued
 // properties are a subscriber's SUPI and GPSI, and a packet's F-SEID, F-TEID, UE
-// address, network instance, tunnel direction, PDR and rule identifiers. A packet's UE
-// address is also of one family, so a UE IPv4 address and a UE IPv6 address contradict
-// each other as two IPv4 addresses do. These are
-// judged per packet, which is how a CC-POI applies them: a session holds many PDRs and
-// rules, but each packet is matched by one of each, so a task naming two PDR IDs selects
-// nothing. A subscriber holds one SUPI; the GPSI is single-valued here because the
+// address, network instance, tunnel direction, PDR and PDR ID. A packet's QER IDs are a
+// list, since one PDR can be associated with several QERs, so two QER IDs do not
+// contradict each other. A packet's UE address is also of one family, so a UE IPv4
+// address and a UE IPv6 address contradict each other as two IPv4 addresses do. These are
+// judged per packet, which is how a CC-POI applies them: a session holds many PDRs, but
+// each packet is matched by one PDR, so a task naming two PDR IDs selects nothing. A subscriber holds one SUPI; the GPSI is single-valued here because the
 // SD-Core AMF presents one per subscriber. A packet has one UE transport port and one
 // protocol, so two port criteria contradict unless they are the same.
 //
@@ -411,10 +412,15 @@ func contradicts(a, b TargetIdentifier) bool {
 }
 
 // singleValued are the identifier kinds a subject or a packet holds one value of.
+//
+// TargetQERID is not one of them. A packet is detected by one PDR, but that PDR can be
+// associated with several QERs, every one of which applies to it (TS 29.244 table
+// 7.5.2.2-1, QER ID: "Several IEs within the same IE type may be present to represent a
+// list of QERs to be associated to the PDR"), so two QER IDs can both hold for a packet.
 var singleValued = []TargetIdentifierType{
 	TargetSUPI, TargetGPSI,
 	TargetFSEID, TargetFTEID, TargetUEIPv4, TargetUEIPv6,
-	TargetNetworkInstance, TargetGTPTunnelDirection, TargetPDR, TargetPDRID, TargetQERID,
+	TargetNetworkInstance, TargetGTPTunnelDirection, TargetPDR, TargetPDRID,
 }
 
 func isPort(t TargetIdentifierType) bool {
