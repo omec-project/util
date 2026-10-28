@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Block diagram
 
-![DRSM Usage in AMF](/drsm/images/drsm.png)
+![DRSM Usage in AMF](./images/drsm.png)
 
 ## Introduction
 
