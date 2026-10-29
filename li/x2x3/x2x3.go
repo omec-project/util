@@ -109,7 +109,8 @@ const (
 )
 
 // payloadFormatRules records whether each format is permitted on X2 and X3
-// respectively, transcribed from TS 103 221-2 table 5.4.1-1.
+// respectively, transcribed from TS 103 221-2 table 5.4.1-1, except where TS 33.128
+// differs: its clause 5.3.1 makes TS 33.128 prevail in a conflict.
 //
 // TRANSCRIBED FROM V1.10.1 (2026-03). Restate the revision whenever this table
 // is updated: the table is not checked against any published source, so without
@@ -125,7 +126,8 @@ var payloadFormatRules = map[PayloadFormat][2]bool{
 	PayloadFormatIPv6:         {true, true},
 	PayloadFormatEthernet:     {false, true},
 	PayloadFormatRTP:          {false, true},
-	PayloadFormatSIP:          {true, false},
+	// Table 5.4.1-1 says not on X3; TS 33.128 V18.16.0 clause 7.13.6.2 sends RCS content there.
+	PayloadFormatSIP:          {true, true},
 	PayloadFormatDHCP:         {true, false},
 	PayloadFormatRADIUS:       {true, false},
 	PayloadFormatGTPU:         {false, true},

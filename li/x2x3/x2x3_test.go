@@ -117,11 +117,12 @@ func TestRejectsBadVersionAndFormat(t *testing.T) {
 }
 
 // TestPayloadFormatTableMatchesSpec asserts the whole of TS 103 221-2 V1.10.1
-// table 5.4.1-1, not only the handful of formats this project emits. The table in
-// x2x3.go is transcribed by hand from a specification that publishes no
-// machine-readable form, so nothing checks it against the source; what this test
-// does is make the *next* revision's addition fail here rather than pass
-// unnoticed, which is how value 17 went missing for three revisions.
+// table 5.4.1-1, as TS 33.128 V18.16.0 amends it, not only the handful of formats
+// this project emits. The table in x2x3.go is transcribed by hand from a
+// specification that publishes no machine-readable form, so nothing checks it
+// against the source; what this test does is make the *next* revision's addition
+// fail here rather than pass unnoticed, which is how value 17 went missing for
+// three revisions.
 func TestPayloadFormatTableMatchesSpec(t *testing.T) {
 	// Value, name, permitted on X2, permitted on X3 — table 5.4.1-1.
 	spec := []struct {
@@ -138,7 +139,8 @@ func TestPayloadFormatTableMatchesSpec(t *testing.T) {
 		{PayloadFormatIPv6, "IPv6 Packet", true, true},
 		{PayloadFormatEthernet, "Ethernet Frame", false, true},
 		{PayloadFormatRTP, "RTP Packet", false, true},
-		{PayloadFormatSIP, "SIP Message", true, false},
+		// "No" on X3 in the table; TS 33.128 V18.16.0 clause 7.13.6.2 sends it there.
+		{PayloadFormatSIP, "SIP Message", true, true},
 		{PayloadFormatDHCP, "DHCP Message", true, false},
 		{PayloadFormatRADIUS, "RADIUS Packet", true, false},
 		{PayloadFormatGTPU, "GTP-U Message", false, true},
@@ -158,10 +160,10 @@ func TestPayloadFormatTableMatchesSpec(t *testing.T) {
 			continue
 		}
 		if got := want.value.allowedOn(PDUTypeX2); got != want.x2 {
-			t.Errorf("format %d (%s) on X2 = %v, table 5.4.1-1 says %v", want.value, want.name, got, want.x2)
+			t.Errorf("format %d (%s) on X2 = %v, want %v", want.value, want.name, got, want.x2)
 		}
 		if got := want.value.allowedOn(PDUTypeX3); got != want.x3 {
-			t.Errorf("format %d (%s) on X3 = %v, table 5.4.1-1 says %v", want.value, want.name, got, want.x3)
+			t.Errorf("format %d (%s) on X3 = %v, want %v", want.value, want.name, got, want.x3)
 		}
 	}
 }
