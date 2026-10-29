@@ -49,6 +49,26 @@ func TestAFormatTheTableForbidsIsRefusedOnDecode(t *testing.T) {
 	}
 }
 
+// TestAnRCSSIPMessageOnX3IsDecoded: TS 33.128 V18.16.0 clause 7.13.6.2 sends RCS content that
+// is a SIP message over LI_X3 with payload format 9, which TS 103 221-2 table 5.4.1-1 permits
+// on X2 only. Clause 5.3.1 makes TS 33.128 prevail, so refusing it would refuse a conformant
+// CC-POI's product. The format is rewritten on the wire, so the decoder is tested on its own.
+func TestAnRCSSIPMessageOnX3IsDecoded(t *testing.T) {
+	b, err := (&PDU{Type: PDUTypeX3, PayloadFormat: PayloadFormatIPv4, Direction: DirectionNotApplicable, Payload: []byte("INVITE")}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary.BigEndian.PutUint16(b[12:14], uint16(PayloadFormatSIP))
+
+	p, _, err := Unmarshal(b)
+	if err != nil {
+		t.Fatalf("an X3 PDU carrying a SIP message was refused: %v", err)
+	}
+	if p.PayloadFormat != PayloadFormatSIP {
+		t.Errorf("decoded payload format %d, want %d", p.PayloadFormat, PayloadFormatSIP)
+	}
+}
+
 // TestThisElementDoesNotSendAFormatItDoesNotKnow: the decoder's tolerance does not extend to
 // what this element sends.
 func TestThisElementDoesNotSendAFormatItDoesNotKnow(t *testing.T) {

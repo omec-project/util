@@ -184,8 +184,8 @@ func TestSendBatchReportsMarshalFailure(t *testing.T) {
 	defer client.Close()
 
 	good := &PDU{Type: PDUTypeX3, PayloadFormat: PayloadFormatIPv4, Direction: DirectionNotApplicable, Payload: []byte{0x45, 0x00}}
-	// SIP is an X2-only payload format, so this one cannot be framed as X3.
-	bad := &PDU{Type: PDUTypeX3, PayloadFormat: PayloadFormatSIP, Direction: DirectionNotApplicable, Payload: []byte("INVITE")}
+	// DHCP is an X2-only payload format, so this one cannot be framed as X3.
+	bad := &PDU{Type: PDUTypeX3, PayloadFormat: PayloadFormatDHCP, Direction: DirectionNotApplicable, Payload: []byte{0x01}}
 
 	if err := client.SendBatch([]*PDU{good, bad, good}); err == nil {
 		t.Fatal("SendBatch discarded an unframeable PDU without reporting it")

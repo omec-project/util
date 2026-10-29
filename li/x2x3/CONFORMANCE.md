@@ -16,6 +16,15 @@ renumbered them by clause.
 table 5.3.1-2 is not TS 103 221-2 table 5.3.1-2. Earlier versions state clause 5.3 as prose —
 see [Conditional attributes](#conditional-attributes--table-531-2) for what changed.
 
+**Where the two disagree, TS 33.128 applies.** Its clause 5.3.1 says "In the event of a
+conflict between ETSI TS 103 221-2 [8] and the present document, the terms of the present
+document shall apply." One conflict changes what this package accepts: TS 33.128 sends SIP
+Message (payload format 9) on LI_X3, which TS 103 221-2 table 5.4.1-1 does not permit — see
+[Payload formats](#payload-formats--table-541-1). One reading is narrower than TS 33.128's
+text: the Other target identifier carries the matched subject's other identities, not every
+identity at the network function — see
+[Conditional attributes](#conditional-attributes--table-531-2).
+
 ## What this is, and what it is not
 
 This is a **reading**, not a check. ETSI publishes no machine-readable definition of the
@@ -37,7 +46,7 @@ covers:
   It cannot catch a field or PDU type that *neither* implementation emits, because nothing
   ever exercises it. Every gap recorded below is of that second kind.
 - **A table-driven test over the payload format table** (`x2x3_test.go`), which asserts the
-  whole of table 5.4.1-1 including the X2/X3 permissions. That is not a check against the
+  whole of table 5.4.1-1 including the X2/X3 permissions, as TS 33.128 amends them. That is not a check against the
   published source, but it does make the next addition fail a test rather than pass
   unnoticed.
 
@@ -78,7 +87,7 @@ one gap in this document whose remedy is not in this repository.
 **On decode**, a differing minor version is accepted and a differing major version is
 rejected, which follows the compatibility rule the clause defines. A payload format table
 5.4.1-1 does not list is accepted with it, since a later minor revision may add one; a format
-the table forbids on that PDU type is refused. On encode only the listed, permitted formats
+the table, as TS 33.128 amends it, forbids on that PDU type is refused. On encode only the listed, permitted formats
 are sent. The keepalive reader reads
 an X2/X3 socket, so that leniency is load-bearing. The read path is bounded — a peer's
 declared length beyond a few kilobytes is refused and the connection dropped — because
@@ -177,7 +186,7 @@ the same limit every interoperability result here carries.
 | 7 | Interception Point ID (IPID) | 5.3.8 | **Emitted** on X2 and X3: `AMF-IRI-POI`, `SMF-IRI-POI`, `UPF-CC-POI`. Each network function contains one point of interception, so the value is a property of the code rather than of the deployment. |
 | 8 | Sequence Number | 5.3.9 | **Emitted** on X2 and X3, numbered per the clause's `(XID, DID, NFID, IPID, Correlation ID)` context and not per connection — `Sequencer` holds one counter per live context and drops it when the tasking does — on an ordinary withdrawal, a bulk deactivation and a fail-safe purge alike, since the numbering belongs to the tasking and not to the circumstances of its removal, and *not* on a modification, which keeps the XID and so keeps every context the task's own records have already numbered. **The DID is deliberately not part of the key.** The other four components are constant for a task at one POI, so the varying part is `(XID, Correlation ID)`; keying on the DID as well would number one record separately per destination, and a record delivered to two of a task's destinations must carry one number or each mediation function holds a numbering no other does, with gaps in it indistinguishable from loss. The keepalive mechanism has its own counter, one per connection, for the reason the clause implies: a Keepalive PDU zeroes the XID and Correlation ID, so its context is not any task's, and numbering keepalives from a task's sequence would advance the numbers an MDF reads to detect that task's lost product. |
 | 9 | Timestamp | 5.3.10 | **Emitted** on X2 and X3 as the clause's POSIX timespec, two *unsigned* 32-bit integers. On X2 it is the time the event occurred, captured at the report hook; on X3 the time the xCC was generated, taken at framing. **It is the only time information this element sends** — see the note below. |
-| 10 | Source IPv4 address | 5.3.11 | Absent. For X3 the addresses are inside the intercepted packet. |
+| 10 | Source IPv4 address | 5.3.11 | Absent. For X3 the addresses are inside the intercepted packet in the formats this project emits (5 and 12). |
 | 11 | Destination IPv4 address | 5.3.12 | Absent, as above. |
 | 12 | Source IPv6 address | 5.3.13 | Absent, as above. |
 | 13 | Destination IPv6 address | 5.3.14 | Absent, as above. |
@@ -194,8 +203,9 @@ the same limit every interoperability result here carries.
 ## Payload formats — table 5.4.1-1
 
 Values 1 to 16 were compared field by field against the table and the X2/X3 permissions
-match it exactly. Value 0 is `N/A` in the specification, because a keepalive PDU carries no
-payload, and is refused here on both interfaces, which is consistent with that. Value 17 was
+match it exactly, except SIP Message on X3, which follows TS 33.128 (see the table). Value 0
+is `N/A` in the specification, because a keepalive PDU carries no payload, and is refused
+here on both interfaces, which is consistent with that. Value 17 was
 introduced by CR019r2 in V1.8.1; the transcribed table carries the revision it was read from
 so that the next addition is noticed.
 
@@ -212,7 +222,7 @@ Of these, this project emits exactly three: format 2 on X2, and formats 5 and 12
 | 6 | IPv6 packet | Yes | Yes | Permitted, not currently emitted. |
 | 7 | Ethernet frame | No | Yes | Permitted on X3, never emitted. |
 | 8 | RTP packet | No | Yes | Permitted on X3, never emitted. |
-| 9 | SIP message | Yes | No | Permitted on X2, never emitted. |
+| 9 | SIP message | Yes | No (Yes per TS 33.128) | Permitted on X2 **and X3**, never emitted. TS 33.128 V18.16.0 clause 7.13.6.2 has the CC-POI in an RCS Server send RCS content that is a SIP message over LI_X3 with payload format 9, as it has since V18.7.0 (2024-03), and clause 7.13.7 has the MDF3 mediate it as `RCSCCPDU.encapsulatedRCSPayload.sIP`. Its clause 5.3.1 makes TS 33.128 prevail in a conflict, so refusing it would refuse a conformant CC-POI's product. |
 | 10 | DHCP message | Yes | No | Permitted on X2, never emitted. |
 | 11 | RADIUS packet | Yes | No | Permitted on X2, never emitted. |
 | 12 | GTP-U message | No | Yes | **Emitted** on X3 — the encapsulated form. Confirmed against the reference implementation; see below. |
