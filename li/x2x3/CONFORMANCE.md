@@ -6,9 +6,15 @@ SPDX-License-Identifier: Apache-2.0
 # TS 103 221-2 conformance disposition
 
 **Made against ETSI TS 103 221-2 V1.10.1 (2026-03).** Every table and clause number below
-refers to that revision. When a newer revision is published, this document is what tells you
+refers to that revision, except where TS 33.128 is named. When a newer revision is published, this document is what tells you
 whether the code disagrees with the specification or merely predates it — that distinction
-is the reason the version is stated at the top rather than left implied.
+is the reason the version is stated at the top rather than left implied. Revisions up to
+V1.7.1 number their tables in sequence, so table 5.3.1-2 here is "Table 5" there; V1.8.1
+renumbered them by clause.
+
+**3GPP TS 33.128 is cited at V18.16.0 (2026-06).** Its clause 5.3 tables are its own: TS 33.128
+table 5.3.1-2 is not TS 103 221-2 table 5.3.1-2. Earlier versions state clause 5.3 as prose —
+see [Conditional attributes](#conditional-attributes--table-531-2) for what changed.
 
 ## What this is, and what it is not
 
@@ -90,7 +96,7 @@ declared length beyond a few kilobytes is refused and the connection dropped —
 | Payload Direction | 2 | 5.2.6 | **Emitted and parsed.** All six values are modelled, and `Marshal` refuses a product PDU whose direction is not one of 1 to 5; see the direction table below. |
 | XID | 16 | 5.2.7 | **Emitted and parsed.** Correctly implements the ProductID override: the clause requires that when the X1 task carries an optional ProductID, the XID field is populated with it instead of the task's own XID. `types.InterceptTask.DeliveryXID` encodes that rule and all three POIs label product through it. |
 | Correlation ID | 8 | 5.2.8 | **Emitted and parsed.** Supplied by the triggering function for triggered tasks and never derived locally; zero when the POI does not correlate the PDU, as the clause requires. |
-| Conditional Attribute Fields | variable | 5.3 | **Emitted and parsed.** An IRI-POI populates the six TS 33.128 requires on an xIRI, and a CC-POI the four table 5.3.3-2 requires on an xCC; the remaining sixteen are absent with a reason. See table 5.3.1-2 below. |
+| Conditional Attribute Fields | variable | 5.3 | **Emitted and parsed.** An IRI-POI populates the six that TS 33.128 V18.16.0 requires on an xIRI, and a CC-POI the four its table 5.3.3-2 requires on an xCC; the remaining sixteen are absent with a reason. See TS 103 221-2 table 5.3.1-2 below. |
 | Payload | variable | 5.4 | **Emitted and parsed.** |
 
 ## PDU types — table 5.2.2-1
@@ -135,17 +141,23 @@ Clause 5.3 makes these attributes something the POI "may provide … as directed
 relevant LI architecture", and for this project the relevant architecture is 3GPP TS 33.128 —
 which directs a great deal. **Six of the 22 are required, and all six are emitted.**
 
-TS 33.128 table 5.3.1-2 applies to both LI_X2 and LI_X3 and says the **NFID** "shall be set
-to indicate the NF that contains the POI" and the **IPID** "shall be set to indicate the POI
-(within the NF) that generated the xIRI". Table 5.3.2-2 adds, for every xIRI on LI_X2,
+TS 33.128 V18.16.0 table 5.3.1-2 applies to both LI_X2 and LI_X3 and says the **NFID** "shall
+be set to indicate the NF that contains the POI" and the **IPID** "shall be set to indicate the
+POI (within the NF) that generated the xIRI". Table 5.3.2-2 adds, for every xIRI on LI_X2,
 **Timestamp** ("shall be present and set to the time at which the event occurred"),
 **Sequence Number** ("shall be present"), **Matched Target Identifier** ("shall be set to
 indicate what target identity was matched") and **Other Target Identifier** ("shall be set
 with all other target identities present at the NF"). Table 5.3.3-2 requires Timestamp and
-Sequence Number on LI_X3 too, and makes AXRI optional.
+Sequence Number on LI_X3 too, and clause 5.3.3 makes AXRI optional.
 
 So the AMF and SMF IRI-POIs each owe six attributes on every xIRI, and the UPF CC-POI owes
 four on every xCC. All are emitted.
+
+Earlier versions of TS 33.128 ask for no more, so this conforms to them as well. Before
+V18.8.0 (2024-06), clause 5.3 is prose, and from V18.8.0 it is the tables above; V18.8.0 also
+added the Timestamp and Sequence Number to an xCC, so before it LI_X3 asks only for NFID and
+IPID. NFID and IPID are "should" up to V18.5.0 and "shall" from V18.6.0 (2023-12). The xIRI
+requirements of table 5.3.2-2 are already "shall" in the prose of V18.4.0 clause 5.3.2.
 
 **What interoperability verifies, and what it does not.** The reference implementation stores
 PDUs whose headers are longer than the mandatory 40 bytes — a 40-byte control beside headers
@@ -160,7 +172,7 @@ the same limit every interoperability result here carries.
 | 2 | 3GPP TS 33.128 defined attribute | 5.3.3 | Absent. **The one most likely to be required**, since TS 33.128 is this project's governing architecture. |
 | 3 | 3GPP TS 33.108 defined attribute | 5.3.4 | Absent. TS 33.108 is the EPS-generation interface; not implemented here. |
 | 4 | Proprietary attribute | 5.3.5 | Absent by choice. A standardized attribute is preferable and the clause frames this as temporary support. |
-| 5 | Domain ID (DID) | 5.3.6 | Absent. TS 33.128 does not require it; the destinations are resolved from the X1 task, and where a task names more than one of a delivery type every one of them receives that task's product. |
+| 5 | Domain ID (DID) | 5.3.6 | Absent. TS 33.128 V18.16.0 clause 5.3 does not require it; the destinations are resolved from the X1 task, and where a task names more than one of a delivery type every one of them receives that task's product. |
 | 6 | Network Function ID (NFID) | 5.3.7 | **Emitted** on X2 and X3, set to the identifier the element asserts on X1 (its `neId`), so the identity an MDF receives is the one the ADMF tasks. |
 | 7 | Interception Point ID (IPID) | 5.3.8 | **Emitted** on X2 and X3: `AMF-IRI-POI`, `SMF-IRI-POI`, `UPF-CC-POI`. Each network function contains one point of interception, so the value is a property of the code rather than of the deployment. |
 | 8 | Sequence Number | 5.3.9 | **Emitted** on X2 and X3, numbered per the clause's `(XID, DID, NFID, IPID, Correlation ID)` context and not per connection — `Sequencer` holds one counter per live context and drops it when the tasking does — on an ordinary withdrawal, a bulk deactivation and a fail-safe purge alike, since the numbering belongs to the tasking and not to the circumstances of its removal, and *not* on a modification, which keeps the XID and so keeps every context the task's own records have already numbered. **The DID is deliberately not part of the key.** The other four components are constant for a task at one POI, so the varying part is `(XID, Correlation ID)`; keying on the DID as well would number one record separately per destination, and a record delivered to two of a task's destinations must carry one number or each mediation function holds a numbering no other does, with gaps in it indistinguishable from loss. The keepalive mechanism has its own counter, one per connection, for the reason the clause implies: a Keepalive PDU zeroes the XID and Correlation ID, so its context is not any task's, and numbering keepalives from a task's sequence would advance the numbers an MDF reads to detect that task's lost product. |
@@ -172,11 +184,11 @@ the same limit every interoperability result here carries.
 | 14 | Source port | 5.3.15 | Absent, as above. |
 | 15 | Destination port | 5.3.16 | Absent, as above. |
 | 16 | IP protocol | 5.3.17 | Absent, as above. |
-| 17 | Matched target identifier | 5.3.18 | **Emitted** on X2, one occurrence per identity of the task that the subject presents, as the clause's bare UTF-8 fragment (`<supiimsi>…</supiimsi>`). Not emitted on X3, which table 5.3.3-2 does not require and a CC-POI tasked by packet criteria could not populate without inventing it. |
-| 18 | Other target identifier | 5.3.19 | **Emitted** on X2, one occurrence per remaining identity **of that subject**. Not every identity the network function holds: the literal reading of table 5.3.2-2 would disclose unrelated subscribers to an agency holding a warrant for one. |
+| 17 | Matched target identifier | 5.3.18 | **Emitted** on X2, one occurrence per identity of the task that the subject presents, as the clause's bare UTF-8 fragment (`<supiimsi>…</supiimsi>`). Not emitted on X3, which TS 33.128 V18.16.0 table 5.3.3-2 does not require and a CC-POI tasked by packet criteria could not populate without inventing it. |
+| 18 | Other target identifier | 5.3.19 | **Emitted** on X2, one occurrence per remaining identity **of that subject**. Not every identity the network function holds: the literal reading of TS 33.128 V18.16.0 table 5.3.2-2 would disclose unrelated subscribers to an agency holding a warrant for one. |
 | 19 | MIME content type | 5.3.20 | Absent. Applies to the MIME payload format, which this project does not emit. |
 | 20 | MIME content transfer encoding | 5.3.21 | Absent, as above. |
-| 21 | Additional XID related information (AXRI) | 5.3.22 | Absent. TS 33.128 clause 5.3.3 makes it a "may" for efficient xCC delivery, not a requirement. |
+| 21 | Additional XID related information (AXRI) | 5.3.22 | Absent. TS 33.128 V18.16.0 clause 5.3.3 makes it a "may" for efficient xCC delivery, not a requirement. |
 | 22 | SDP session description | 5.3.23 | Absent. Applies to session descriptions this project does not intercept. |
 
 ## Payload formats — table 5.4.1-1

@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-// Conditional attribute types, ETSI TS 103 221-2 table 5.3.1-2.
+// Conditional attribute types, ETSI TS 103 221-2 table 5.3.1-2 — "Table 5" in V1.7.1 and
+// earlier, which numbered tables in sequence; V1.8.1 renumbered them by clause.
 //
 // TRANSCRIBED FROM V1.10.1 (2026-03). Restate the revision whenever this list is
 // extended, for the reason payloadFormatRules carries the same stamp: a stale
@@ -21,10 +22,14 @@ import (
 //
 // Which interface owes which is 3GPP TS 33.128's to say, not this specification's:
 // clause 5.3 makes every attribute conditional "as directed by the relevant LI
-// architecture". Table 5.3.1-2 of TS 33.128 requires NFID and IPID on both X2 and
-// X3; table 5.3.2-2 adds Timestamp, Sequence Number and the two target identifiers
-// for an xIRI; table 5.3.3-2 requires Timestamp and Sequence Number for an xCC and
-// requires neither target identifier.
+// architecture". Read against TS 33.128 V18.16.0 (2026-06), whose tables in clause 5.3
+// are its own and share numbers with this specification's: its table 5.3.1-2 requires
+// NFID and IPID on both X2 and X3; table 5.3.2-2 adds Timestamp, Sequence Number and the
+// two target identifiers for an xIRI; table 5.3.3-2 requires Timestamp and Sequence
+// Number for an xCC and requires neither target identifier. Earlier versions ask for no
+// more, so emitting these conforms to them too: clause 5.3 is prose before V18.8.0
+// (2024-06), which added the xCC Timestamp and Sequence Number, and NFID and IPID are
+// "should" before V18.6.0 (2023-12).
 const (
 	AttrNFID                    uint16 = 6
 	AttrIPID                    uint16 = 7
@@ -78,7 +83,7 @@ func SequenceNumber(n uint32) TLV {
 // passes a clock reading, so that is not a value it should meet.
 //
 // This function timestamps nothing itself, deliberately. What belongs here is the
-// time the *event* occurred on X2 (TS 33.128 table 5.3.2-2) and the time the xCC was
+// time the *event* occurred on X2 (TS 33.128 V18.16.0 table 5.3.2-2) and the time the xCC was
 // generated on X3 (table 5.3.3-2). Those differ whenever a record is built after the
 // fact, and a mediation function cannot tell which one it was given — so sampling
 // the clock in here would quietly convert the first into the second.
@@ -156,7 +161,7 @@ func NewIdentity(nfID, pointID string) *Identity {
 // identity.
 //
 // The instant is the caller's to choose, because the two interfaces define it
-// differently — the event's time on X2 (TS 33.128 table 5.3.2-2) and the xCC's
+// differently — the event's time on X2 (TS 33.128 V18.16.0 table 5.3.2-2) and the xCC's
 // generation time on X3 (table 5.3.3-2). Nothing here reads a clock, so a POI cannot
 // report the second where the first was required.
 //
