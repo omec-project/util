@@ -12,8 +12,9 @@ import (
 )
 
 // TestAttributeTypesMatchSpec asserts the six type numbers against ETSI
-// TS 103 221-2 table 5.3.1-2 (V1.10.1). Transcribed constants with no check are how
-// payload format 17 stayed missing for three revisions.
+// TS 103 221-2 table 5.3.1-2 (V1.10.1; "Table 5" in V1.7.1 and earlier, with the same six
+// values). Transcribed constants with no check are how payload format 17 stayed missing
+// for three revisions.
 func TestAttributeTypesMatchSpec(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -143,7 +144,7 @@ func TestIdentityAttributesCarryTheirValue(t *testing.T) {
 }
 
 // TestMarshalCarriesAllSixAttributes is the xIRI case end to end: the six
-// attributes TS 33.128 table 5.3.2-2 requires, through Marshal and back.
+// attributes TS 33.128 V18.16.0 table 5.3.2-2 requires, through Marshal and back.
 func TestMarshalCarriesAllSixAttributes(t *testing.T) {
 	when := time.Unix(1_767_225_600, 123_456_789)
 	attrs := []TLV{
