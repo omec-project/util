@@ -226,7 +226,10 @@ type KeepaliveConfig struct {
 	// OnFault is called when the mechanism establishes that a mediation function is
 	// not answering, or that it is answering with something this element cannot
 	// parse. It carries the same meaning as a delivery failure — the destination is
-	// not working — so a POI wires it to whatever it already reports those with.
+	// not working — so a POI wires it to whatever it already reports those with. It is
+	// called once per outage rather than once per expiry or reconnect: a destination already
+	// standing unreachable or refused is not reported again until a valid acknowledgement
+	// has ended the outage.
 	//
 	// It runs on the connection's keepalive or read goroutine, or on the probe that
 	// follows a peer's close — and NewPool wires the delivery worker's error callback to
@@ -1047,10 +1050,17 @@ func (c *Client) protocolError(st *connState, err error) {
 // when both are ready — says nothing about the replacement, and marking the destination
 // unreachable and reporting a fault over it would announce a dead mediation function that is
 // answering perfectly well on the new connection.
+//
+// The error is reported once per outage, as every other route to the same conclusion reports
+// it. A mediation function that accepts each reconnect and acknowledges nothing lets every
+// connection reach TIME_P2 in turn, and each expiry disconnects and redials, but the
+// destination has stood unreachable since the first.
 func (c *Client) expire(st *connState) {
 	c.mu.Lock()
-	current := c.live == st
-	if current {
+	report := false
+	if c.live == st {
+		// A destination already standing unreachable or refused has been reported.
+		report = !c.unreachable.Load() && c.rejection == nil
 		// Set before the fault is reported and before the redial, so that a status
 		// request racing this cannot be answered "reachable" by an element that has just
 		// concluded otherwise.
@@ -1064,7 +1074,7 @@ func (c *Client) expire(st *connState) {
 	}
 	c.mu.Unlock()
 
-	if current {
+	if report {
 		c.fault(fmt.Errorf("x2x3: no keepalive acknowledgement from %s within %s (TIME_P2)", c.addr, c.keepalive.TimeP2))
 	}
 }
