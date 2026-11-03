@@ -19,6 +19,9 @@
 // modelled but produced by no point of interception (see li/README.md). Each record
 // type is a slice of the module's record: the members a point of interception here can
 // supply, with the rest recorded, with a reason, in asn1_drift_test.go.
+//
+// Table and clause numbers in this package are those of TS 33.128 V18.16.0 unless another
+// specification is named.
 package iri
 
 import "net"
@@ -169,7 +172,7 @@ type FTEID struct {
 }
 
 // FiveGSGTPTunnels ::= SEQUENCE — the 5GS user plane tunnels of a PDU session
-// (TS 33.128 table 6.2.3-1C). Only uLNGUUPTunnelInformation is modelled: it is
+// (TS 33.128 V18.16.0 table 6.2.3-1C). Only uLNGUUPTunnelInformation is modelled: it is
 // the F-TEID of the UPF endpoint of the NG-U transport bearer, which is the
 // value a POI here can supply. additionalULNGUUPTunnelInformation (multiple NG-U
 // bearers) and dLRANTunnelInformation (downlink RAN tunnel and QoS flows) are
@@ -179,7 +182,7 @@ type FiveGSGTPTunnels struct {
 }
 
 // GTPTunnelInfo ::= SEQUENCE — the user plane GTP tunnels of a session
-// (TS 33.128 table 6.2.3-1B). The payload tables mark this field **M** in
+// (TS 33.128 V18.16.0 table 6.2.3-1B). The payload tables mark this field **M** in
 // SMFPDUSessionEstablishment, SMFPDUSessionModification and
 // SMFStartOfInterceptionWithEstablishedPDUSession, while the published ASN.1
 // module marks it OPTIONAL — so a record omitting it would decode cleanly and still
@@ -234,7 +237,7 @@ const (
 )
 
 // Initiator ::= ENUMERATED — who is initiating the rejection or indicating the
-// failure, per the field's description in TS 33.128 table 6.2.3-5.
+// failure, per the field's description in TS 33.128 V18.16.0 table 6.2.3-5.
 type Initiator int
 
 // The Initiator values.
@@ -874,7 +877,7 @@ type AMFRANHandoverCommand struct {
 
 // AMFRANHandoverRequest is a slice of the same-named record (XIRIEvent [114]).
 // Despite the name it is generated on the HANDOVER REQUEST **ACKNOWLEDGE** from
-// the target RAN node, per TS 33.128 clause 6.2.2.2.9.3. Eight
+// the target RAN node, per TS 33.128 V18.16.0 clause 6.2.2.2.9.3. Eight
 // mandatory members; handoverCause and sourceToTargetContainer originate in the
 // earlier HANDOVER REQUIRED and have to be carried forward.
 type AMFRANHandoverRequest struct {

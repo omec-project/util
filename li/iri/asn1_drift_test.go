@@ -13,10 +13,9 @@ import (
 	"testing"
 )
 
-// This is the TS 33.128 counterpart of the X1 schema drift audit: it compiles
-// each record's field list from the published ASN.1 module and fails when the
-// module defines a field this package neither models nor declares as absent on
-// purpose.
+// This is a drift audit: it compiles each record's field list from the published
+// ASN.1 module and fails when the module defines a field this package neither
+// models nor declares as absent on purpose.
 //
 // What it can and cannot establish, because the difference is the whole reason
 // it exists:
@@ -42,7 +41,7 @@ import (
 // real omission be silenced by the same edit that records an inapplicable field.
 // A field whose payload table marks it M is rejected from this map outright.
 //
-// The anti-rot rule is the X1 audit's: a field in neither map fails the test, AND
+// The anti-rot rule: a field in neither map fails the test, AND
 // an entry that has since been modelled — or that the module no longer defines —
 // also fails, so neither list can rot into a description of a state that has moved
 // on.

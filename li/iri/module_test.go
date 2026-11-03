@@ -18,9 +18,9 @@ import (
 // definition another skips — so that two audits each passing said different things about the
 // same module.
 
-// modulePath is the TS 33.128 ASN.1 module this package holds. It is the same file the X1
-// schema validation reads, so a claim about what the specification permits and the artifact
-// the claim came from are one thing rather than two.
+// modulePath is the TS 33.128 ASN.1 module this package holds. Each audit of the module reads
+// this one file, so a claim about what the specification permits and the artifact the claim
+// came from are one thing rather than two.
 const modulePath = "testdata/asn1/TS33128Payloads.asn"
 
 // moduleSource is the module's text. A check that cannot run is not a check that passes: the

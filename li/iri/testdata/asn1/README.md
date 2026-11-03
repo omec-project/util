@@ -33,9 +33,9 @@ the thing that will tell you what that meant.
 ## Licensing
 
 The module is a 3GPP work and carries `LicenseRef-3GPP` in a `.license` sidecar rather than
-a header — a header would alter the file and break the digest. The same arrangement covers
-the 3GPP schema vendored under `x1/testdata/schemas/`; see `LICENSES/LicenseRef-3GPP.txt`
-for the notice and the republication exception the vendoring rests on.
+a header — a header would alter the file and break the digest. See
+`LICENSES/LicenseRef-3GPP.txt` for the notice and the republication exception the vendoring
+rests on.
 
 ## What this module is not
 
