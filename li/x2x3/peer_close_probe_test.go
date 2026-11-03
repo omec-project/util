@@ -27,6 +27,11 @@ type probeMDF struct {
 	later atomic.Int64
 	// silent stops later connections acknowledging Keepalives, which they otherwise do.
 	silent atomic.Bool
+	// holdFirst keeps the first connection open after its PDU is read until releaseFirst, for
+	// a test that changes the element's state before the close can start a probe.
+	holdFirst atomic.Bool
+	released  chan struct{}
+	release   sync.Once
 }
 
 // newProbeMDF starts a mediation function that reads one PDU on its first connection and
@@ -43,7 +48,8 @@ func newProbeMDF(t *testing.T, closeLater, die bool) *probeMDF {
 	}
 	t.Cleanup(func() { _ = ln.Close() })
 
-	m := &probeMDF{ln: ln, addr: ln.Addr().String(), firstClosed: make(chan struct{})}
+	m := &probeMDF{ln: ln, addr: ln.Addr().String(), firstClosed: make(chan struct{}), released: make(chan struct{})}
+	t.Cleanup(m.releaseFirst)
 
 	go func() {
 		first := true
@@ -61,6 +67,9 @@ func newProbeMDF(t *testing.T, closeLater, die bool) *probeMDF {
 				go func(c net.Conn) {
 					//nolint:errcheck // the close below is what this peer does either way
 					_, _ = readPDU(c)
+					if m.holdFirst.Load() {
+						<-m.released
+					}
 					if die {
 						_ = ln.Close()
 					}
@@ -94,6 +103,11 @@ func newProbeMDF(t *testing.T, closeLater, die bool) *probeMDF {
 	}()
 
 	return m
+}
+
+// releaseFirst lets a first connection held by holdFirst close.
+func (m *probeMDF) releaseFirst() {
+	m.release.Do(func() { close(m.released) })
 }
 
 func (m *probeMDF) waitFirstClosed(t *testing.T) {
@@ -312,14 +326,18 @@ func TestDeliveriesBetweenProbesDoNotMultiplyThem(t *testing.T) {
 // minute, longer than the wait.
 func TestAProbeThatReconnectsIsAcknowledgedBeforeTheDestinationIsReachable(t *testing.T) {
 	m := newProbeMDF(t, false, false)
+	m.holdFirst.Store(true)
 
 	c := clientTo(t, m.addr, KeepaliveConfig{})
 
 	if err := c.Send(product()); err != nil {
 		t.Fatalf("the first delivery failed: %v", err)
 	}
-	// An outage the element concluded earlier, still standing when the peer closes.
+	// An outage the element concluded earlier, still standing when the peer closes. The peer
+	// is held until it is stored: a close before it would start the probe whose connection
+	// this test is about without the prompt Keepalive an unreachable destination gets.
 	c.unreachable.Store(true)
+	m.releaseFirst()
 	m.waitFirstClosed(t)
 
 	eventually(t, "the element to reconnect on its own", func() bool { return m.accepted.Load() == 2 })
@@ -335,13 +353,18 @@ func TestADialThatSucceedsIsNotEvidenceOfReachability(t *testing.T) {
 
 	m := newProbeMDF(t, false, false)
 	m.silent.Store(true)
+	m.holdFirst.Store(true)
 
 	c := clientTo(t, m.addr, KeepaliveConfig{})
 
 	if err := c.Send(product()); err != nil {
 		t.Fatalf("the first delivery failed: %v", err)
 	}
+	// Stored before the peer closes, as in the test above: stored after a probe had already
+	// reconnected, it would leave the destination unreachable whatever the dial had done, and
+	// the test would pass without testing anything.
 	c.unreachable.Store(true)
+	m.releaseFirst()
 	m.waitFirstClosed(t)
 
 	eventually(t, "the element to reconnect on its own", func() bool { return m.accepted.Load() == 2 })

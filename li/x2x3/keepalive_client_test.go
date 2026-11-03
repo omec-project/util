@@ -309,6 +309,58 @@ func TestKeepaliveExpiryDisconnectsAndReports(t *testing.T) {
 	})
 }
 
+// TestRepeatedExpiriesReportOnce: a mediation function that accepts each reconnect and
+// acknowledges nothing lets every connection reach TIME_P2 in turn. Each expiry still
+// disconnects and redials, but the destination has stood unreachable since the first, and
+// that is reported once, as every other route to the same conclusion reports it.
+func TestRepeatedExpiriesReportOnce(t *testing.T) {
+	m := startMDF(t, nil) // accepts every connection, acknowledges nothing
+
+	var faults atomic.Int64
+	c := clientTo(t, m.addr, fastKeepalive(func(error) { faults.Add(1) }))
+
+	if err := c.Send(product()); err != nil {
+		t.Fatalf("Send() error = %v", err)
+	}
+
+	// The fourth connection is the third expiry's redial, so the second has been reported, if
+	// it is going to be.
+	eventually(t, "three expiries", func() bool {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		return len(m.conns) >= 4
+	})
+
+	if n := faults.Load(); n != 1 {
+		t.Errorf("%d faults reported for one mediation function that stayed silent, want 1", n)
+	}
+}
+
+// TestAnExpiryAfterARecoveryIsReported: the outage TestRepeatedExpiriesReportOnce reports once
+// ends with a valid acknowledgement, and a silence after it is a new outage, reported again.
+func TestAnExpiryAfterARecoveryIsReported(t *testing.T) {
+	var answer atomic.Bool
+	m := startMDF(t, func(c net.Conn, p *PDU) {
+		if answer.Load() {
+			answerCorrectly(c, p)
+		}
+	})
+
+	var faults atomic.Int64
+	c := clientTo(t, m.addr, fastKeepalive(func(error) { faults.Add(1) }))
+
+	if err := c.Send(product()); err != nil {
+		t.Fatalf("Send() error = %v", err)
+	}
+
+	eventually(t, "the first outage to be reported", func() bool { return faults.Load() == 1 })
+	answer.Store(true)
+	eventually(t, "an acknowledgement to end the outage", func() bool { return !c.Unreachable() })
+	answer.Store(false)
+	eventually(t, "the second outage to be reported", func() bool { return faults.Load() >= 2 })
+}
+
 // TestKeepaliveToleratesTwoMissedAcknowledgements pins the arithmetic of the default
 // timers: TIME_P2 is three TIME_P1s, so two lost acknowledgements are survivable and
 // the deadline runs from the last one seen rather than from each Keepalive.
@@ -383,6 +435,7 @@ func TestAReplayedAcknowledgementDoesNotPostponeTheDeadline(t *testing.T) {
 	var (
 		mu    sync.Mutex
 		first []byte
+		on    net.Conn
 	)
 
 	m := startMDF(t, func(c net.Conn, p *PDU) {
@@ -404,10 +457,18 @@ func TestAReplayedAcknowledgementDoesNotPostponeTheDeadline(t *testing.T) {
 
 				return
 			}
-			first = b
+			first, on = b, c
 		}
-		replay := first
+		replay, same := first, c == on
 		mu.Unlock()
+
+		// Only on the connection the acknowledgement was genuine for. Each connection numbers
+		// its Keepalives from the start, so on the redial TIME_P2 forces, the replay would
+		// answer that connection's first Keepalive correctly and end the outage, as it should,
+		// before the assertion below could see it.
+		if !same {
+			return
+		}
 
 		//nolint:errcheck // test MDF; a failed write is the connection going away
 		_, _ = c.Write(replay)
@@ -615,6 +676,12 @@ func TestKeepaliveRefusesAnOverLargePDU(t *testing.T) {
 	if err := c.Send(product()); err != nil {
 		t.Fatalf("Send() error = %v", err)
 	}
+	c.mu.Lock()
+	refused := c.live
+	c.mu.Unlock()
+	if refused == nil {
+		t.Fatal("no connection after a delivery, so the drop below could not be told apart")
+	}
 
 	// A well-formed header claiming the largest payload the field can express,
 	// which is one byte under four gigabytes.
@@ -636,11 +703,13 @@ func TestKeepaliveRefusesAnOverLargePDU(t *testing.T) {
 		t.Fatal("an over-large declared length was not refused")
 	}
 
+	// Dropped, rather than nil: the probe that follows a protocol error may already have
+	// installed a replacement.
 	eventually(t, "the connection to be dropped", func() bool {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 
-		return c.live == nil
+		return c.live != refused
 	})
 }
 
