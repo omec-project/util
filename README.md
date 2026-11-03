@@ -28,10 +28,6 @@ single Go module, `github.com/omec-project/util`; import only the packages you n
 | `mongoapi` | MongoDB client wrapper and index management helpers |
 | `ueauth` | Key derivation function (KDF) helpers for UE authentication |
 
-## Requirements
-
-Go 1.26.0 or later (see `go.mod`).
-
 ## Development
 
 ```bash
