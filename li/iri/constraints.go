@@ -359,7 +359,74 @@ var (
 		// which TS 33.128 does not list.
 		reflect.TypeOf(CauseRadioNetwork(0)): {28: true},
 	}
+
+	// choices are the CHOICEs by the `choice:` name their members carry: the name the module
+	// gives each, for a refusal, and the Go types its alternatives are, which are the types the
+	// switches in emit.go accept. A CHOICE member is declared `any`, so it can hold any Go
+	// value, including one that contains itself; the walk refuses anything else before it
+	// descends, so it only ever traverses this package's own types, and those do not contain
+	// themselves. TestASN1EmittedTagsMatchDeclarations encodes every alternative, so one
+	// missing here fails there.
+	choices = map[string]choice{
+		"supi": {"SUPI", []reflect.Type{reflect.TypeOf(IMSI("")), reflect.TypeOf(NAI(""))}},
+		"pei":  {"PEI", []reflect.Type{reflect.TypeOf(IMEI("")), reflect.TypeOf(IMEISV(""))}},
+		"gpsi": {"GPSI", []reflect.Type{reflect.TypeOf(MSISDN("")), reflect.TypeOf(NAI(""))}},
+		"ueEndpointAddress": {"UEEndpointAddress", []reflect.Type{
+			reflect.TypeOf(IPv4Address(nil)), reflect.TypeOf(IPv6Address(nil)), reflect.TypeOf(MACAddress(nil)),
+		}},
+		"amfFailureCause": {"AMFFailureCause", []reflect.Type{
+			reflect.TypeOf(FiveGMMCause(0)), reflect.TypeOf(FiveGSMCause(0)),
+		}},
+		"fiveGSSubscriberID": {"FiveGSSubscriberID", []reflect.Type{
+			reflect.TypeOf(SubscriberSUPI{}), reflect.TypeOf(SubscriberPEI{}), reflect.TypeOf(SubscriberGPSI{}),
+		}},
+		"serviceMessageIdentity": {"ServiceMessageIdentity", []reflect.Type{
+			reflect.TypeOf(ServiceRequestIdentity(nil)), reflect.TypeOf(ServiceAcceptIdentity(nil)),
+		}},
+		"handoverCause": {"HandoverCause", []reflect.Type{
+			reflect.TypeOf(CauseRadioNetwork(0)), reflect.TypeOf(CauseTransport(0)), reflect.TypeOf(CauseNas(0)),
+			reflect.TypeOf(CauseProtocol(0)), reflect.TypeOf(CauseMisc(0)),
+		}},
+		"xiriEvent": {"XIRIEvent", []reflect.Type{
+			reflect.TypeOf(AMFRegistration{}),
+			reflect.TypeOf(AMFDeregistration{}),
+			reflect.TypeOf(AMFLocationUpdate{}),
+			reflect.TypeOf(AMFStartOfInterceptionWithRegisteredUE{}),
+			reflect.TypeOf(AMFUnsuccessfulProcedure{}),
+			reflect.TypeOf(SMFPDUSessionEstablishment{}),
+			reflect.TypeOf(SMFPDUSessionModification{}),
+			reflect.TypeOf(SMFPDUSessionRelease{}),
+			reflect.TypeOf(SMFStartOfInterceptionWithEstablishedPDUSession{}),
+			reflect.TypeOf(SMFUnsuccessfulProcedure{}),
+			reflect.TypeOf(AMFIdentifierAssociation{}),
+			reflect.TypeOf(AMFPositioningInfoTransfer{}),
+			reflect.TypeOf(AMFRANHandoverCommand{}),
+			reflect.TypeOf(AMFRANHandoverRequest{}),
+			reflect.TypeOf(AMFUEPolicyTransfer{}),
+			reflect.TypeOf(AMFUEServiceAccept{}),
+			reflect.TypeOf(AMFIdentifierDeassociation{}),
+		}},
+	}
 )
+
+// choice is one CHOICE: its name in the module and the Go types of its alternatives.
+type choice struct {
+	name         string
+	alternatives []reflect.Type
+}
+
+// alternative refuses v unless it is one of the named CHOICE's alternatives, with the
+// refusal the emitter would give.
+func alternative(name, path string, v reflect.Value) error {
+	c := choices[name]
+	for _, t := range c.alternatives {
+		if v.Type() == t {
+			return nil
+		}
+	}
+
+	return notAnAlternative(c.name, path, v.Interface())
+}
 
 // validateConstraints walks a record and refuses any value that violates the restriction its
 // own type carries.
@@ -372,7 +439,20 @@ func validateConstraints(event any) error {
 		return missing("the XIRIEvent")
 	}
 
-	return walkConstrained(reflect.ValueOf(event), typeName(reflect.TypeOf(event)), false, true)
+	return walkConstrained(reflect.ValueOf(event), typeName(reflect.TypeOf(event)), false, true, "")
+}
+
+// validateEvent is validateConstraints for the event EncodeXIRI is given. The walk descends
+// only into this package's own types, so the event must be an XIRIEvent alternative before
+// it starts.
+func validateEvent(event any) error {
+	if event != nil {
+		if err := alternative("xiriEvent", "XIRIPayload.Event", reflect.ValueOf(event)); err != nil {
+			return err
+		}
+	}
+
+	return validateConstraints(event)
 }
 
 // typeName is how a refusal names a record: its bare name, as the emitter's own refusals do,
@@ -414,7 +494,10 @@ func sizeText(lo, hi int) string {
 // is nil, empty or zero, so for those an empty value really is "not present"; it writes a
 // mandatory member unconditionally, so an empty one would go out as a zero-length value its
 // type forbids, and is refused here instead.
-func walkConstrained(v reflect.Value, path string, zeroForbidden, mandatory bool) error {
+//
+// choice is the `choice:` name of the CHOICE this value is a member of, or of whose
+// alternatives it is a list, and empty otherwise; see choices.
+func walkConstrained(v reflect.Value, path string, zeroForbidden, mandatory bool, choice string) error {
 	if !v.IsValid() {
 		return nil
 	}
@@ -434,9 +517,16 @@ func walkConstrained(v reflect.Value, path string, zeroForbidden, mandatory bool
 			return nil
 		}
 
+		if v.Kind() == reflect.Interface && choice != "" {
+			if err := alternative(choice, path, v.Elem()); err != nil {
+				return err
+			}
+		}
+
 		// The flags carry through: a pointer expresses presence, so what the field said
-		// about its value still applies to the value behind it.
-		return walkConstrained(v.Elem(), path, zeroForbidden, mandatory)
+		// about its value still applies to the value behind it. The alternative's own
+		// members carry their own CHOICEs.
+		return walkConstrained(v.Elem(), path, zeroForbidden, mandatory, "")
 
 	case reflect.Struct:
 		// An optional structure at its zero value is omitted (isZero in emit.go), so its
@@ -458,7 +548,7 @@ func walkConstrained(v reflect.Value, path string, zeroForbidden, mandatory bool
 					path, sf.Name, field.Len(), least)
 			}
 			if err := walkConstrained(field, path+"."+sf.Name,
-				mandatoryEnumFields[key], !isOptional(sf)); err != nil {
+				mandatoryEnumFields[key], !isOptional(sf), choiceOf(sf)); err != nil {
 				return err
 			}
 		}
@@ -472,7 +562,7 @@ func walkConstrained(v reflect.Value, path string, zeroForbidden, mandatory bool
 		// An element of a list is present by being in it.
 		for i := range v.Len() {
 			if err := walkConstrained(v.Index(i), fmt.Sprintf("%s[%d]", path, i),
-				zeroForbidden, true); err != nil {
+				zeroForbidden, true, choice); err != nil {
 				return err
 			}
 		}
@@ -491,6 +581,18 @@ func isOptional(sf reflect.StructField) bool {
 	}
 
 	return false
+}
+
+// choiceOf is the `choice:` name in a record field's asn1 struct tag, or empty for a field that
+// is not a CHOICE.
+func choiceOf(sf reflect.StructField) string {
+	for _, opt := range strings.Split(sf.Tag.Get("asn1"), ",") {
+		if name, ok := strings.CutPrefix(opt, "choice:"); ok {
+			return name
+		}
+	}
+
+	return ""
 }
 
 // constraintOf applies the restriction v's own type carries, if it has one. zeroForbidden is

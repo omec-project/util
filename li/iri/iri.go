@@ -907,7 +907,7 @@ func EncodeXIRI(event any) ([]byte, error) {
 	// this element would believe it delivered, a conformant mediation function would discard
 	// what it cannot validate, and no fault would be raised on either side. See
 	// constraints.go.
-	if err := validateConstraints(event); err != nil {
+	if err := validateEvent(event); err != nil {
 		return nil, err
 	}
 

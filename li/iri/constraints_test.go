@@ -4,6 +4,8 @@
 package iri
 
 import (
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -405,5 +407,120 @@ func TestTheSUCIAndTAILeafConstraintsAreEnforced(t *testing.T) {
 	// The conformant value must pass, or the cases above prove nothing.
 	if err := validateConstraints(base()); err != nil {
 		t.Errorf("a conformant SUCI was refused: %v", err)
+	}
+}
+
+// TestAValueThatIsNoAlternativeIsRefusedBeforeItIsWalked: a CHOICE member is declared `any`, so
+// it can hold any Go value, including one that contains itself. The constraint walk runs before
+// the emitter, so it must refuse such a value by name, as the emitter would, rather than descend
+// into it without end.
+func TestAValueThatIsNoAlternativeIsRefusedBeforeItIsWalked(t *testing.T) {
+	cyclic := []any{nil}
+	cyclic[0] = cyclic
+
+	registration := goldenSamples()["AMFRegistration"].(AMFRegistration)
+	registration.SUPI = cyclic
+	establishment := goldenSamples()["SMFPDUSessionEstablishment"].(SMFPDUSessionEstablishment)
+	establishment.UEEndpoint = []any{IPv4Address{10, 0, 0, 1}, cyclic}
+
+	for _, tc := range []struct {
+		name  string
+		event any
+		want  string
+	}{
+		{
+			"in a CHOICE member", registration,
+			"AMFRegistration.SUPI holds []interface {}, which is not an alternative of the SUPI CHOICE",
+		},
+		{
+			"in a list of CHOICE alternatives", establishment,
+			"SMFPDUSessionEstablishment.UEEndpoint[1] holds []interface {}, which is not an alternative of the UEEndpointAddress CHOICE",
+		},
+		{
+			"as the event", cyclic,
+			"XIRIPayload.Event holds []interface {}, which is not an alternative of the XIRIEvent CHOICE",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := EncodeXIRI(tc.event)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("not refused as a non-alternative.\n got: %v\nwant substring: %s", err, tc.want)
+			}
+		})
+	}
+}
+
+// TestTheWalksAlternativesAreTheModelledOnes: the walk refuses what choices does not list, and
+// the emitters refuse what their switches do not take, so the two must agree. A type missing
+// from choices fails the tag audit, which encodes every modelled alternative; this catches the
+// other direction, a type choices lists that is not modelled.
+func TestTheWalksAlternativesAreTheModelledOnes(t *testing.T) {
+	if len(choices) != len(modelledAlternatives) {
+		t.Errorf("choices has %d CHOICEs, and %d are modelled", len(choices), len(modelledAlternatives))
+	}
+	for name, c := range choices {
+		modelled := map[reflect.Type]bool{}
+		for _, typ := range modelledAlternatives[name] {
+			modelled[typ] = true
+		}
+		listed := map[reflect.Type]bool{}
+		for _, typ := range c.alternatives {
+			listed[typ] = true
+			if !modelled[typ] {
+				t.Errorf("choices lists %s as an alternative of %s, which is not modelled", typ.Name(), c.name)
+			}
+		}
+		for typ := range modelled {
+			if !listed[typ] {
+				t.Errorf("%s is a modelled alternative of %s that choices does not list", typ.Name(), c.name)
+			}
+		}
+	}
+}
+
+// TestTheWalkReachesNoTypeThatContainsItself: the walk follows pointers, slices and CHOICE
+// alternatives without bound, and finishes only because every type it can reach from a record
+// ends. A field declared as an interface outside a CHOICE, or a type that reaches itself, would
+// let a caller build a value the walk never leaves.
+func TestTheWalkReachesNoTypeThatContainsItself(t *testing.T) {
+	var visit func(typ reflect.Type, stack []reflect.Type, where string)
+	visit = func(typ reflect.Type, stack []reflect.Type, where string) {
+		if slices.Contains(stack, typ) {
+			t.Errorf("%s: %s contains itself", where, typ.Name())
+			return
+		}
+		stack = append(stack, typ)
+
+		switch typ.Kind() {
+		case reflect.Pointer, reflect.Slice, reflect.Array:
+			visit(typ.Elem(), stack, where)
+		case reflect.Interface:
+			t.Errorf("%s is declared %s outside a CHOICE, so the walk would follow whatever it holds", where, typ)
+		case reflect.Struct:
+			for i := range typ.NumField() {
+				sf := typ.Field(i)
+				if !sf.IsExported() {
+					continue
+				}
+				w := where + "." + sf.Name
+				name := choiceOf(sf)
+				if name == "" {
+					visit(sf.Type, stack, w)
+					continue
+				}
+				c, ok := choices[name]
+				if !ok {
+					t.Errorf("%s is tagged choice:%s, which choices does not list", w, name)
+					continue
+				}
+				for _, alt := range c.alternatives {
+					visit(alt, stack, w+"("+alt.Name()+")")
+				}
+			}
+		}
+	}
+
+	for _, record := range choices["xiriEvent"].alternatives {
+		visit(record, nil, record.Name())
 	}
 }
