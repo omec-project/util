@@ -923,10 +923,13 @@ func TestKeepaliveExpiryReachesTheFaultProbe(t *testing.T) {
 	// Delivered successfully, so nothing is faulty yet.
 	eventually(t, "the delivery to arrive", func() bool { return m.count(PDUTypeX2) >= 1 })
 
+	// A slow test goroutine can already be past the expiry here. The outage is reported
+	// once, so a report taken now is the one the final assertion needs.
+	var expiry error
 	select {
-	case err := <-faults:
-		if !strings.Contains(err.Error(), "TIME_P2") {
-			t.Fatalf("unexpected fault before the expiry: %v", err)
+	case expiry = <-faults:
+		if !strings.Contains(expiry.Error(), "TIME_P2") {
+			t.Fatalf("unexpected fault before the expiry: %v", expiry)
 		}
 	case <-time.After(30 * time.Millisecond):
 	}
@@ -939,13 +942,15 @@ func TestKeepaliveExpiryReachesTheFaultProbe(t *testing.T) {
 		return unreachable == 1 && inUse == 1
 	})
 
-	select {
-	case err := <-faults:
-		if !strings.Contains(err.Error(), "TIME_P2") {
-			t.Errorf("fault = %v, want the TIME_P2 expiry", err)
+	if expiry == nil {
+		select {
+		case expiry = <-faults:
+		case <-time.After(time.Second):
+			t.Fatal("the expiry set the probe's answer but pushed no report; clause 6.2.4 requires both")
 		}
-	case <-time.After(time.Second):
-		t.Error("the expiry set the probe's answer but pushed no report; clause 6.2.4 requires both")
+	}
+	if !strings.Contains(expiry.Error(), "TIME_P2") {
+		t.Errorf("fault = %v, want the TIME_P2 expiry", expiry)
 	}
 }
 
