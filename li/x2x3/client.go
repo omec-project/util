@@ -68,6 +68,18 @@ type Client struct {
 	// until a Keepalive is acknowledged, or nil. While it stands deliveries are refused rather
 	// than written: see refused. Guarded by mu.
 	rejection error
+	// outage is whether a route the keepalive mechanism reports from — a TIME_P2 expiry, a
+	// protocol error, a Keepalive that could not be written, a probe that could not dial — has
+	// reported this destination and no valid acknowledgement has arrived since: the outage
+	// those routes report once (see reportedLocked). It is kept apart from unreachable, which a
+	// delivery whose write succeeds clears, so that a mediation function that reads product and
+	// acknowledges nothing, or answers it with something this element cannot parse, is not
+	// reported again on every expiry or reconnect while traffic flows.
+	//
+	// Only a route that reports sets it. A destination a failed delivery left unreachable has
+	// told the delivery's caller, which need not be OnFault, so the next of these routes to
+	// find it failing once a write has succeeded still reports. Guarded by mu.
+	outage bool
 
 	// lifetime is cancelled by Close. It bounds the dials this client makes, so a Close
 	// does not wait out a dial's timeout, and it is what a probe waiting out its backoff

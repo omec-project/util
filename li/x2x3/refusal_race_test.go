@@ -101,6 +101,8 @@ func TestAFailedKeepaliveOnAnUnreachableDestinationIsNotReportedAgain(t *testing
 	}{
 		{"unreachable", func(c *Client) { c.unreachable.Store(true) }},
 		{"refused", func(c *Client) { c.rejection = errors.New("tls: unknown certificate authority") }},
+		// A TIME_P2 expiry reported, then a delivery written, which marks it reachable.
+		{"in an outage", func(c *Client) { c.outage = true }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := &countingDialer{next: func(int64) (net.Conn, error) { return nil, errors.New("connection refused") }}
@@ -162,6 +164,85 @@ func TestARefusalReadAfterAWriterDroppedTheConnectionStands(t *testing.T) {
 		t.Errorf("the refusal was reported %d times, want once", n)
 	}
 	eventually(t, "a probe to follow the refusal", func() bool { return d.dials.Load() >= 1 })
+}
+
+// TestAProbeInAReportedOutageIsNotReportedAgain: a TIME_P2 expiry has been reported, a
+// delivery written since has marked the destination reachable, and the peer then closes. The
+// probe that follows cannot dial, but no acknowledgement has ended the outage it confirms.
+func TestAProbeInAReportedOutageIsNotReportedAgain(t *testing.T) {
+	d := &countingDialer{next: func(int64) (net.Conn, error) { return nil, errors.New("connection refused") }}
+
+	var faults faultLog
+	c := NewClient("mdf.example:1", nil, idleKeepalive(faults.record))
+	c.dialConn = d.dial
+	c.redialInterval = 10 * time.Millisecond
+	t.Cleanup(func() { _ = c.Close() })
+
+	c.mu.Lock()
+	c.outage = true
+	c.probeLocked()
+	c.mu.Unlock()
+
+	eventually(t, "the probe to dial several times", func() bool { return d.dials.Load() >= 3 })
+	// Close waits for the probe goroutine, which is after anything it reports.
+	_ = c.Close()
+	if n := faults.count(); n != 0 {
+		t.Errorf("a probe in a reported outage reported it again: %v", faults.all())
+	}
+}
+
+// TestAnExpirySilencedByAFailedDeliveryLeavesTheNextToReport: a failed delivery marked the
+// destination unreachable and told its caller, which need not be OnFault, so the expiry that
+// follows is silent without starting an outage. Once a delivery has been written, the next
+// expiry is the first report OnFault hears.
+func TestAnExpirySilencedByAFailedDeliveryLeavesTheNextToReport(t *testing.T) {
+	d := &countingDialer{next: func(int64) (net.Conn, error) { return nil, errors.New("connection refused") }}
+
+	var faults faultLog
+	c := NewClient("mdf.example:1", nil, idleKeepalive(faults.record))
+	c.dialConn = d.dial
+	c.redialInterval = time.Hour // the probe the first expiry starts waits; only the expiries speak
+	t.Cleanup(func() { _ = c.Close() })
+
+	ok := func(b []byte) (int, error) { return len(b), nil }
+	st := heldConn(c, newScriptedConn(ok))
+	c.unreachable.Store(true) // the failed delivery
+	c.expire(st)
+	if n := faults.count(); n != 0 {
+		t.Fatalf("an expiry on a destination a delivery had found unreachable was reported: %v", faults.all())
+	}
+
+	st = heldConn(c, newScriptedConn(ok))
+	c.unreachable.Store(false) // a delivery written since
+	c.expire(st)
+	if n := faults.count(); n != 1 {
+		t.Errorf("the first expiry OnFault could hear was reported %d times, want once", n)
+	}
+}
+
+// TestARefusalAfterAReportedOutageIsReported: the destination already stands unreachable, from
+// a TIME_P2 expiry or a probe dial that failed, and the mediation function it then reaches
+// refuses this element. The outage has been reported, but not that it is a refusal, which is
+// the part an operator can act on, so the refusal is reported in its own right.
+func TestARefusalAfterAReportedOutageIsReported(t *testing.T) {
+	d := &countingDialer{next: func(int64) (net.Conn, error) { return nil, errors.New("connection refused") }}
+
+	var faults faultLog
+	c := NewClient("mdf.example:1", nil, idleKeepalive(faults.record))
+	c.dialConn = d.dial
+	t.Cleanup(func() { _ = c.Close() })
+
+	st := heldConn(c, newScriptedConn(func(b []byte) (int, error) { return len(b), nil }))
+	c.mu.Lock()
+	c.unreachable.Store(true) // reported when it began
+	c.outage = true
+	c.mu.Unlock()
+
+	c.refused(st, &net.OpError{Op: "remote error", Err: errors.New("tls: unknown certificate authority")})
+
+	if n := faults.count(); n != 1 {
+		t.Errorf("a refusal met during a reported outage was reported %d times, want once", n)
+	}
 }
 
 // TestARefusalOnAReplacedConnectionLeavesTheNewerOneToSpeak: a newer connection is held. It

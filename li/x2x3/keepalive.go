@@ -229,7 +229,7 @@ type KeepaliveConfig struct {
 	// not working — so a POI wires it to whatever it already reports those with. It is
 	// called once per outage rather than once per expiry or reconnect: a destination already
 	// standing unreachable or refused is not reported again until a valid acknowledgement
-	// has ended the outage.
+	// has ended the outage, and deliveries written in the meantime do not end it.
 	//
 	// It runs on the connection's keepalive or read goroutine, or on the probe that
 	// follows a peer's close — and NewPool wires the delivery worker's error callback to
@@ -430,10 +430,11 @@ func (c *Client) sendKeepalive(st *connState) bool {
 		if c.afterKeepaliveFailed != nil {
 			c.afterKeepaliveFailed()
 		}
-		// A destination already standing unreachable or refused has been reported. The
-		// Keepalive that failed was most likely the prompt one sent on a redial to find out
-		// whether that had changed (see installLocked): it has not, and saying so again would
-		// report one outage once per redial.
+		// A destination already standing unreachable or refused, or in an outage no
+		// acknowledgement has ended, has been reported. The Keepalive that failed was most
+		// likely the prompt one sent on a redial to find out whether that had changed (see
+		// installLocked): it has not, and saying so again would report one outage once per
+		// redial.
 		if !errors.Is(err, errAlreadyUnreachable) {
 			c.fault(fmt.Errorf("x2x3: keepalive to %s: %w", c.addr, err))
 		}
@@ -488,8 +489,9 @@ func (c *Client) writeOn(st *connState, b []byte, markUnreachable bool) error {
 			return err
 		}
 
-		already := c.unreachable.Load() || c.rejection != nil
+		already := c.reportedLocked()
 		c.unreachable.Store(true)
+		c.outage = c.outage || !already
 		// Followed by a probe, as a peer's close is: nothing else redials a destination that
 		// has nothing to deliver, so without one a mediation function that comes back — or
 		// stops refusing this element — would stay reported unreachable until traffic happened
@@ -838,14 +840,15 @@ func (c *Client) probeAfterPeerClose() {
 		}
 		if err != nil {
 			c.lastDialFailure, c.lastDialErr = time.Now(), err
-			// A destination already standing unreachable or refused has been reported, by
-			// whichever failure started the probe or by this probe's first failed dial; a
-			// dial that fails as well confirms it.
-			already := c.unreachable.Load() || c.rejection != nil
+			// A destination already standing unreachable or refused, or in an outage no
+			// acknowledgement has ended, has been reported, by whichever failure started the
+			// probe or by this probe's first failed dial; a dial that fails as well confirms it.
+			already := c.reportedLocked()
 			// Set before the fault is reported, so a status request racing this cannot be
 			// answered "reachable" by an element that has just concluded otherwise — the
 			// rule expire follows.
 			c.unreachable.Store(true)
+			c.outage = c.outage || !already
 			// probing stays set: this probe goes on dialling, and no other is started
 			// beside it.
 			c.mu.Unlock()
@@ -934,6 +937,7 @@ func (c *Client) handleInbound(st *connState, p *PDU) bool {
 		if c.live == st {
 			c.unreachable.Store(false)
 			c.rejection = nil
+			c.outage = false
 		}
 		c.mu.Unlock()
 
@@ -1009,23 +1013,27 @@ func (c *Client) answerKeepalive(st *connState, p *PDU) bool {
 // Only while st is still the connection this client holds, and under mu, as every other
 // writer of the flag: a stale connection's reader storing it after a delivery has redialled
 // and found the destination reachable would overwrite the newer conclusion. The fault is
-// reported either way, for the reason above — except on a destination already standing
-// unreachable or refused, which has been reported: the probe that follows a protocol error
-// reconnects once per redialInterval, and a peer that sends garbage on every connection would
-// otherwise be reported once per reconnect.
+// reported either way, for the reason above. On the connection still held it is not reported
+// for a destination already standing unreachable or refused, or in an outage no valid
+// acknowledgement has ended, which has been reported: the probe that follows a protocol error
+// reconnects once per redialInterval, and deliveries reconnect as they need to, and a peer that
+// sends garbage on every connection would otherwise be reported once per reconnect. A stale
+// connection's error is reported as it stands, since the conclusion it would be checked
+// against belongs to the replacement.
 func (c *Client) protocolError(st *connState, err error) {
 	c.mu.Lock()
 	report := true
 	if c.live == st {
-		// A destination already standing unreachable or refused has been reported. The
-		// probe that follows reconnects once per redialInterval, and a peer that answers each
-		// connection with something this element cannot parse would otherwise be reported once
-		// per reconnect.
-		report = !c.unreachable.Load() && c.rejection == nil
+		// A destination already standing unreachable or refused, or in an outage no
+		// acknowledgement has ended, has been reported. The probe that follows reconnects
+		// once per redialInterval, and a peer that answers each connection with something
+		// this element cannot parse would otherwise be reported once per reconnect.
+		report = !c.reportedLocked()
 		// Stored before the fault is reported, so a status request racing this cannot be
 		// answered "reachable" by an element that has just concluded otherwise — the
 		// ordering expire already uses.
 		c.unreachable.Store(true)
+		c.outage = c.outage || report
 		c.dropLocked()
 		// Nothing else would dial this destination again while it is idle.
 		c.probeLocked()
@@ -1054,13 +1062,15 @@ func (c *Client) protocolError(st *connState, err error) {
 // The error is reported once per outage, as every other route to the same conclusion reports
 // it. A mediation function that accepts each reconnect and acknowledges nothing lets every
 // connection reach TIME_P2 in turn, and each expiry disconnects and redials, but the
-// destination has stood unreachable since the first.
+// destination has stood unreachable since the first. Deliveries written in the meantime do not
+// end the outage: they mark the destination reachable, since the mediation function is reading,
+// but only a valid acknowledgement answers what TIME_P2 asks (see reportedLocked).
 func (c *Client) expire(st *connState) {
 	c.mu.Lock()
 	report := false
 	if c.live == st {
-		// A destination already standing unreachable or refused has been reported.
-		report = !c.unreachable.Load() && c.rejection == nil
+		report = !c.reportedLocked()
+		c.outage = c.outage || report
 		// Set before the fault is reported and before the redial, so that a status
 		// request racing this cannot be answered "reachable" by an element that has just
 		// concluded otherwise.
@@ -1077,6 +1087,16 @@ func (c *Client) expire(st *connState) {
 	if report {
 		c.fault(fmt.Errorf("x2x3: no keepalive acknowledgement from %s within %s (TIME_P2)", c.addr, c.keepalive.TimeP2))
 	}
+}
+
+// reportedLocked reports whether this destination's failure has been reported and nothing has
+// ended it since, so that a route to the same conclusion stays silent: a refusal standing, a
+// failed exchange that marked it unreachable, or an outage the keepalive mechanism reported
+// and no valid acknowledgement has ended. The last is what holds while deliveries flow, since
+// a delivery whose write succeeds marks the destination reachable but acknowledges nothing.
+// Called with mu held.
+func (c *Client) reportedLocked() bool {
+	return c.unreachable.Load() || c.rejection != nil || c.outage
 }
 
 func (c *Client) fault(err error) {

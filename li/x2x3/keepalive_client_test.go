@@ -337,6 +337,78 @@ func TestRepeatedExpiriesReportOnce(t *testing.T) {
 	}
 }
 
+// TestRepeatedExpiriesUnderTrafficReportOnce is TestRepeatedExpiriesReportOnce with deliveries
+// flowing. Each one that is written marks the destination reachable, since the mediation
+// function is reading, but it has still acknowledged nothing: only an acknowledgement ends
+// the outage the first expiry reported.
+func TestRepeatedExpiriesUnderTrafficReportOnce(t *testing.T) {
+	m := startMDF(t, nil) // reads every product, acknowledges nothing
+
+	var faults atomic.Int64
+	c := clientTo(t, m.addr, fastKeepalive(func(error) { faults.Add(1) }))
+
+	stop := make(chan struct{})
+	sent := make(chan struct{})
+	go func() {
+		defer close(sent)
+		for {
+			select {
+			case <-stop:
+				return
+			case <-time.After(5 * time.Millisecond):
+				_ = c.Send(product()) //nolint:errcheck // the expiries are what is under test
+			}
+		}
+	}()
+
+	eventually(t, "three expiries", func() bool {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		return len(m.conns) >= 4
+	})
+	close(stop)
+	<-sent
+
+	if n := faults.Load(); n != 1 {
+		t.Errorf("%d faults reported for one mediation function that read every product and "+
+			"acknowledged nothing, want 1", n)
+	}
+}
+
+// TestRepeatedProtocolErrorsUnderTrafficReportOnce: a mediation function that reads every
+// product and answers each with something this element cannot parse is reported once, as the
+// expiry is, although every connection the deliveries redial meets the same answer and each
+// delivery written marks the destination reachable.
+func TestRepeatedProtocolErrorsUnderTrafficReportOnce(t *testing.T) {
+	b, err := product().Marshal()
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	m := startMDF(t, func(c net.Conn, p *PDU) {
+		if p.Type == PDUTypeX2 {
+			_, _ = c.Write(b) //nolint:errcheck // product inbound, which the element refuses
+		}
+	})
+
+	var faults atomic.Int64
+	c := clientTo(t, m.addr, KeepaliveConfig{TimeP1: time.Hour, TimeP2: time.Hour, OnFault: func(error) { faults.Add(1) }})
+
+	eventually(t, "four connections, each answered", func() bool {
+		_ = c.Send(product()) //nolint:errcheck // the answer is what is under test
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		return len(m.conns) >= 4
+	})
+	eventually(t, "the first answer to be reported", func() bool { return faults.Load() >= 1 })
+
+	if n := faults.Load(); n != 1 {
+		t.Errorf("%d faults reported for one mediation function that answered every product "+
+			"with a protocol error, want 1", n)
+	}
+}
+
 // TestAnExpiryAfterARecoveryIsReported: the outage TestRepeatedExpiriesReportOnce reports once
 // ends with a valid acknowledgement, and a silence after it is a new outage, reported again.
 func TestAnExpiryAfterARecoveryIsReported(t *testing.T) {
