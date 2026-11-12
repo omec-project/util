@@ -328,3 +328,99 @@ func TestANilTLSConfigIsRefusedBeforeAnyDial(t *testing.T) {
 		t.Error("a client with no TLS configuration connected to the mediation function")
 	}
 }
+
+// TestARefusalInTheHandshakeIsReportedDuringAnOutage: under TLS 1.2 a mediation function checks
+// the certificate before the client's half of the handshake completes, so its refusal fails the
+// dial rather than arriving in an alert after it. That is still a refusal. Met by the probe of a
+// destination already standing unreachable, it is reported — once — rather than taken for one
+// more failed dial of the outage, which would leave unsaid the fault the ADMF can act on.
+func TestARefusalInTheHandshakeIsReportedDuringAnOutage(t *testing.T) {
+	t.Parallel()
+
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
+
+	serverCert := selfSignedServer(t)
+	go func() {
+		for {
+			raw, acceptErr := ln.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func() {
+				defer raw.Close()
+				// An empty pool: no client certificate verifies.
+				conn := tls.Server(raw, &tls.Config{
+					Certificates: []tls.Certificate{serverCert},
+					MinVersion:   tls.VersionTLS12,
+					MaxVersion:   tls.VersionTLS12,
+					ClientAuth:   tls.RequireAndVerifyClientCert,
+				})
+				_ = conn.HandshakeContext(context.Background()) //nolint:errcheck // the refusal is the point
+			}()
+		}
+	}()
+
+	var faults faultLog
+	c := clientWithCert(t, ln.Addr().String(), KeepaliveConfig{TimeP1: time.Hour, TimeP2: 2 * time.Hour, OnFault: faults.record})
+
+	var refusing atomic.Bool
+	tls12 := &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // test transport: the server's side is under test
+		Certificates:       []tls.Certificate{selfSignedServer(t)},
+		MinVersion:         tls.VersionTLS12,
+		MaxVersion:         tls.VersionTLS12,
+	}
+	c.dialConn = func(ctx context.Context) (net.Conn, error) {
+		if !refusing.Load() {
+			return nil, errors.New("connection refused")
+		}
+
+		return (&tls.Dialer{Config: tls12}).DialContext(ctx, "tcp", ln.Addr().String())
+	}
+
+	// The outage: the delivery's dial fails, the destination stands unreachable, and the probe
+	// that follows goes on failing to dial it.
+	if err := c.Send(product()); err == nil {
+		t.Fatal("a delivery to a destination that cannot be dialled succeeded")
+	}
+	eventually(t, "a probe dial to fail", func() bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+
+		return !c.lastProbe.IsZero() && c.lastDialErr != nil && c.reportedLocked()
+	})
+
+	// It comes back, refusing this element's certificate in the handshake.
+	refusing.Store(true)
+	refusals := func() int {
+		n := 0
+		for _, f := range faults.all() {
+			if refusedAtTLS(f) {
+				n++
+			}
+		}
+
+		return n
+	}
+	eventually(t, "the refusal in the handshake to be reported", func() bool { return refusals() > 0 })
+
+	// Several more refused dials.
+	time.Sleep(5 * c.redialInterval)
+
+	if n := refusals(); n != 1 {
+		t.Errorf("the refusal was reported %d times, want once: %v", n, faults.all())
+	}
+	c.mu.Lock()
+	rejection := c.rejection
+	c.mu.Unlock()
+	if rejection == nil {
+		t.Error("a refusal in the handshake left no refusal standing")
+	}
+	if !c.Unreachable() {
+		t.Error("a destination refusing this element reads reachable")
+	}
+}

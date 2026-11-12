@@ -33,7 +33,8 @@ var ErrNilPDU = errors.New("x2x3: nil product unit")
 //
 // The caller supplies the *tls.Config — for LI this is mtls.ClientTLS(), which
 // presents the network element's LI certificate and verifies the MDF. A nil one is refused:
-// every delivery fails without a dial, with an error naming the cause (see errNilTLSConfig).
+// NewPool refuses it at construction, and a client built with one fails every delivery without
+// a dial, with an error naming the cause (see errNilTLSConfig).
 type Client struct {
 	addr         string
 	tlsConfig    *tls.Config
@@ -553,15 +554,16 @@ func (c *Client) dialLocked() error {
 	return nil
 }
 
-// errNilTLSConfig is what every dial of a client built with a nil *tls.Config fails with.
+// errNilTLSConfig is what NewPool returns for a nil *tls.Config, and what every dial of a client
+// built with one fails with.
 //
 // crypto/tls reads a nil config as the zero one, which presents no client certificate and
 // verifies the mediation function against the system roots: a connection that no mediation
 // function provisioned for LI should accept, and one that could reach an endpoint it should not
-// trust. So the dial is refused before any I/O, and the failure reaches the caller as any failed
-// dial does — in the delivery's error, which a Pool passes to onError — naming the cause.
-// Refused here rather than in NewClient because the constructors return no error; see
-// KeepaliveConfig.Validate.
+// trust. NewPool refuses it before building anything. NewClient returns no error (see
+// KeepaliveConfig.Validate), so a client built with one refuses each dial before any I/O, and
+// the failure reaches the caller as any failed dial does, in the delivery's error, naming the
+// cause.
 var errNilTLSConfig = errors.New("no TLS configuration: X2/X3 delivery is over TLS only")
 
 // dial opens a connection to the mediation function without touching the client's state,

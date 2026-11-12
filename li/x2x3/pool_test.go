@@ -5,7 +5,9 @@ package x2x3
 
 import (
 	"crypto/tls"
+	"errors"
 	"testing"
+	"time"
 )
 
 // stubReachable is a Sender with an opinion about a destination it does not have, so the
@@ -21,7 +23,7 @@ func (s *stubReachable) Unreachable() bool { return s.down }
 // of them is unreachable is that destination's business rather than the element's — so the
 // pool answers in numbers and there is nothing here for a fault description to leak.
 func TestPoolUnreachableCountsWhatIsWrongAndNotWhose(t *testing.T) {
-	p := NewPool(nil, KeepaliveConfig{Disabled: true}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, nil)
 	both := []string{"10.0.60.122:42069", "10.0.60.123:42069"}
 
 	if unreachable, inUse := p.UnreachableAmong(both); unreachable != 0 || inUse != 0 {
@@ -50,7 +52,7 @@ func TestPoolUnreachableCountsWhatIsWrongAndNotWhose(t *testing.T) {
 // element would report itself faulty for the life of the process, including while holding no
 // tasking at all. Asking only about destinations still in use is what settles it.
 func TestADestinationNoLongerInUseIsNotCounted(t *testing.T) {
-	p := NewPool(nil, KeepaliveConfig{Disabled: true}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, nil)
 	p.senders["10.0.60.122:42069"] = &stubReachable{down: true}
 
 	if unreachable, _ := p.UnreachableAmong([]string{"10.0.60.122:42069"}); unreachable != 1 {
@@ -70,7 +72,7 @@ func TestADestinationNoLongerInUseIsNotCounted(t *testing.T) {
 // element built that way report itself faulty, which is how the withdrawn probe failed and
 // the failure that gets the whole field ignored.
 func TestASenderThatCannotAnswerIsTakenAsReachable(t *testing.T) {
-	p := NewPool(nil, KeepaliveConfig{Disabled: true}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, nil)
 	p.senders["10.0.60.122:42069"] = &recordingSender{}
 
 	if unreachable, inUse := p.UnreachableAmong([]string{"10.0.60.122:42069"}); unreachable != 0 || inUse != 1 {
@@ -101,7 +103,7 @@ func TestAsyncSenderAnswersForTheSenderBehindIt(t *testing.T) {
 // as in use understates an outage: one failing destination among three held, of which only it
 // was tried, is one of one unreachable, not one of three.
 func TestADestinationNothingWasSentToIsNotCounted(t *testing.T) {
-	p := NewPool(&tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, nil)
 	t.Cleanup(func() { p.Close() }) //nolint:errcheck // test cleanup
 
 	// Ports nothing listens on, so the one that is tried fails at once.
@@ -121,5 +123,46 @@ func TestADestinationNothingWasSentToIsNotCounted(t *testing.T) {
 	})
 	if unreachable, inUse := p.UnreachableAmong(addrs); unreachable != 1 || inUse != 1 {
 		t.Errorf("one tried and failing destination among three held counts %d of %d, want 1 of 1", unreachable, inUse)
+	}
+}
+
+// mustPool is NewPool for a test whose configuration is valid.
+func mustPool(t *testing.T, tlsConfig *tls.Config, ka KeepaliveConfig, onError func(error), onDrop func()) *Pool {
+	t.Helper()
+
+	p, err := NewPool(tlsConfig, ka, onError, onDrop)
+	if err != nil {
+		t.Fatalf("NewPool: %v", err)
+	}
+
+	return p
+}
+
+// TestNewPoolRefusesWhatWouldFailEveryDelivery: a nil *tls.Config and keepalive timers
+// KeepaliveConfig.Validate refuses each leave every destination failing, the first at its dial
+// and the second on a timer. A pool is built where an element starts its LI, so it refuses both
+// there, naming the cause, rather than letting the first delivery to each destination find out.
+func TestNewPoolRefusesWhatWouldFailEveryDelivery(t *testing.T) {
+	t.Parallel()
+
+	valid := &tls.Config{MinVersion: tls.VersionTLS12}
+
+	if p, err := NewPool(nil, KeepaliveConfig{}, nil, nil); !errors.Is(err, errNilTLSConfig) || p != nil {
+		t.Errorf("NewPool(nil config) = %v, %v; want no pool and an error naming the missing TLS configuration", p, err)
+	}
+
+	bad := KeepaliveConfig{TimeP1: 2 * time.Second, TimeP2: time.Second}
+	if p, err := NewPool(valid, bad, nil, nil); err == nil || p != nil {
+		t.Errorf("NewPool(TIME_P2 below TIME_P1) = %v, %v; want no pool and Validate's error", p, err)
+	} else if want := bad.Validate(); err.Error() != want.Error() {
+		t.Errorf("NewPool(TIME_P2 below TIME_P1) error = %q, want Validate's %q", err, want)
+	}
+
+	p, err := NewPool(valid, KeepaliveConfig{}, nil, nil)
+	if err != nil || p == nil {
+		t.Fatalf("NewPool(valid) = %v, %v; want a pool", p, err)
+	}
+	if err := p.Close(); err != nil {
+		t.Errorf("Close: %v", err)
 	}
 }

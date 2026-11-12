@@ -4,6 +4,7 @@
 package x2x3
 
 import (
+	"crypto/tls"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -40,7 +41,7 @@ func TestAPoolCloseThatGivesUpCountsWhatItAbandons(t *testing.T) {
 	inner := &blockingSender{release: make(chan struct{}), entered: make(chan struct{})}
 	a := NewAsyncSender(inner, 64, nil, func() { drops.Add(1) })
 
-	p := NewPool(nil, KeepaliveConfig{}, nil, func() { drops.Add(1) })
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, func() { drops.Add(1) })
 	p.senders["mdf.example:1"] = a
 
 	if err := a.Send(product()); err != nil {
@@ -92,7 +93,7 @@ func TestAPoolCloseWaitsForEverySenderAmongSeveral(t *testing.T) {
 	inner := &blockingSender{release: make(chan struct{}), entered: make(chan struct{})}
 	blocked := NewAsyncSender(inner, 64, nil, func() { drops.Add(1) })
 
-	p := NewPool(nil, KeepaliveConfig{}, nil, func() { drops.Add(1) })
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, func() { drops.Add(1) })
 	p.senders["blocked.example:1"] = blocked
 	for _, addr := range []string{"a.example:1", "b.example:1", "c.example:1"} {
 		p.senders[addr] = &recordingSender{}

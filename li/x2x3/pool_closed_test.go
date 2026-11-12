@@ -20,7 +20,7 @@ import (
 // under test and a discarding sender satisfies it: nothing is dialled and no worker
 // is started.
 func TestForAfterCloseBuildsNothing(t *testing.T) {
-	p := NewPool(nil, KeepaliveConfig{}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, nil)
 
 	if s := p.For("192.0.2.1:42069"); s == nil {
 		t.Fatal("a live pool returned no sender")
@@ -50,7 +50,7 @@ func TestForAfterCloseBuildsNothing(t *testing.T) {
 // product is still being offered — and the offering path is a signalling or
 // data-plane path that delivery may neither block nor fault.
 func TestClosedPoolSenderIsSafeToUse(t *testing.T) {
-	p := NewPool(nil, KeepaliveConfig{}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, nil)
 	if err := p.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestClosedPoolSenderIsSafeToUse(t *testing.T) {
 // unreachable — the element has not looked. A closed pool's phantom senders must
 // not put a fault into an element's status answer.
 func TestClosedPoolReportsNoFault(t *testing.T) {
-	p := NewPool(nil, KeepaliveConfig{}, nil, nil)
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, nil)
 	const addr = "192.0.2.1:42069"
 	p.For(addr)
 
@@ -94,7 +94,7 @@ func TestClosedPoolReportsNoFault(t *testing.T) {
 // own teardown is the POI's business.
 func TestAClosedPoolReportsItsLateProduct(t *testing.T) {
 	drops := 0
-	p := NewPool(nil, KeepaliveConfig{}, nil, func() { drops++ })
+	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, func() { drops++ })
 	if err := p.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestClosingABlackholedDestinationIsBounded(t *testing.T) {
 	// A peer that completes the handshake and never reads: the queue cannot drain.
 	mdf := newHalfOpenMDF(t, cert, 0, true)
 
-	p := NewPool(&tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // test peer
+	p := mustPool(t, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // test peer
 		KeepaliveConfig{Disabled: true}, nil, nil)
 
 	s := p.For(mdf.addr)

@@ -6,6 +6,7 @@ package x2x3
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -45,8 +46,12 @@ type Pool struct {
 
 // NewPool returns a pool that dials with tlsConfig, running the clause 6.2.4 keepalive
 // mechanism on every connection it opens as keepalive describes — the zero value being
-// the specification's own defaults. A nil tlsConfig is refused as NewClient refuses it: every
-// delivery fails without a dial, and onError hears it.
+// the specification's own defaults.
+//
+// It refuses, before anything is built, what would leave every destination failing: a nil
+// tlsConfig, which crypto/tls would read as the zero configuration, and a keepalive configuration KeepaliveConfig.Validate
+// refuses. A pool is built where an element starts its LI, so an error here stops that start
+// with the cause named, rather than surfacing in the first delivery to each destination.
 //
 // onError is called with each worker delivery error and onDrop when a PDU is dropped before
 // any delivery was attempted for it — a full queue, a closed sender, or a close that gave up
@@ -69,7 +74,13 @@ type Pool struct {
 // close the pool — Close waits for those goroutines, so a callback blocked on something the
 // closing goroutine holds would stall the close (bounded here by closeTimeout, and unbounded
 // for a caller closing a sender directly).
-func NewPool(tlsConfig *tls.Config, keepalive KeepaliveConfig, onError func(error), onDrop func()) *Pool {
+func NewPool(tlsConfig *tls.Config, keepalive KeepaliveConfig, onError func(error), onDrop func()) (*Pool, error) {
+	if tlsConfig == nil {
+		return nil, fmt.Errorf("x2x3: %w", errNilTLSConfig)
+	}
+	if err := keepalive.Validate(); err != nil {
+		return nil, err
+	}
 	if keepalive.OnFault == nil {
 		keepalive.OnFault = onError
 	}
@@ -80,7 +91,7 @@ func NewPool(tlsConfig *tls.Config, keepalive KeepaliveConfig, onError func(erro
 		onError:   onError,
 		onDrop:    onDrop,
 		senders:   make(map[string]Sender),
-	}
+	}, nil
 }
 
 // discardSender is what a closed pool hands out: product offered to it is dropped, and

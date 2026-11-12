@@ -4,6 +4,7 @@
 package x2x3
 
 import (
+	"crypto/tls"
 	"errors"
 	"os"
 	"os/exec"
@@ -424,7 +425,7 @@ func TestANilProductUnitIsRefusedAtEveryEntryPoint(t *testing.T) {
 
 	t.Run("a closed Pool's sender", func(t *testing.T) {
 		drops := 0
-		p := NewPool(nil, KeepaliveConfig{Disabled: true}, nil, func() { drops++ })
+		p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true}, nil, func() { drops++ })
 		if err := p.Close(); err != nil {
 			t.Fatal(err)
 		}

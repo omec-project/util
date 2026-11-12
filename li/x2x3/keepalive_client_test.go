@@ -6,6 +6,7 @@ package x2x3
 import (
 	"crypto/tls"
 	"encoding/binary"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -980,8 +981,8 @@ func TestKeepaliveExpiryReachesTheFaultProbe(t *testing.T) {
 	m := startMDF(t, nil) // never acknowledges
 
 	faults := make(chan error, 8)
-	p := NewPool(&tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test transport
-		fastKeepalive(nil),
+	p := mustPool(t, &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test transport
+		KeepaliveConfig{},
 		func(err error) {
 			select {
 			case faults <- err:
@@ -989,6 +990,9 @@ func TestKeepaliveExpiryReachesTheFaultProbe(t *testing.T) {
 			}
 		}, nil)
 	defer p.Close()
+	// Timers at test speed, below the floor NewPool enforces, so set past it.
+	fast := fastKeepalive(nil)
+	p.keepalive.TimeP1, p.keepalive.TimeP2 = fast.TimeP1, fast.TimeP2
 
 	s := p.For(m.addr)
 	if err := s.Send(product()); err != nil {
@@ -1043,8 +1047,8 @@ func TestProtocolErrorReachesTheFaultProbe(t *testing.T) {
 	m := startMDF(t, nil)
 
 	faults := make(chan error, 8)
-	p := NewPool(&tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test transport
-		KeepaliveConfig{TimeP1: time.Hour, TimeP2: time.Hour},
+	p := mustPool(t, &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test transport
+		KeepaliveConfig{TimeP1: time.Hour, TimeP2: 2 * time.Hour},
 		func(err error) {
 			select {
 			case faults <- err:
@@ -1123,4 +1127,97 @@ func TestAnAcknowledgementReachesTheTimerWhileADeliveryHoldsTheLock(t *testing.T
 
 	c.mu.Unlock()
 	<-done
+}
+
+// dataWithErrConn is a net.Conn whose read returns data together with an error, as crypto/tls
+// does when the record after the data is an alert.
+type dataWithErrConn struct {
+	*scriptedConn
+	data []byte
+	err  error
+}
+
+func (d *dataWithErrConn) Read(b []byte) (int, error) {
+	n := copy(b, d.data)
+	d.data = d.data[n:]
+
+	return n, d.err
+}
+
+// TestAnAcknowledgementReadWithAnErrorIsActedOn: io.Reader may return data and an error from one
+// read, and crypto/tls does when the record after the data is an alert — a close_notify, or a
+// refusal. The reader acts on the data before the error: an acknowledgement that arrived with
+// the close after it still reaches the TIME_P2 timer.
+func TestAnAcknowledgementReadWithAnErrorIsActedOn(t *testing.T) {
+	t.Parallel()
+
+	for name, readErr := range map[string]error{
+		"close_notify": io.EOF,
+		"alert":        &net.OpError{Op: "remote error", Err: tls.AlertError(42)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			c := NewClient("127.0.0.1:1", &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true})
+			t.Cleanup(func() { c.Close() }) //nolint:errcheck // test cleanup
+
+			st := &connState{acks: make(chan struct{}, 1), stop: make(chan struct{})}
+			ack, err := KeepaliveAck(st.seq.take()).Marshal()
+			if err != nil {
+				t.Fatal(err)
+			}
+			st.conn = &dataWithErrConn{scriptedConn: newScriptedConn(nil), data: ack, err: readErr}
+
+			st.wg.Add(1)
+			c.readLoop(st)
+
+			select {
+			case <-st.acks:
+			default:
+				t.Errorf("an acknowledgement read together with %v was discarded: the TIME_P2 timer "+
+					"never heard it, and the peer that answered in time is disconnected for it", readErr)
+			}
+		})
+	}
+}
+
+// TestARefusalBehindAPeerKeepaliveIsClassified: a peer's Keepalive read together with a refusal
+// fails the acknowledgement this element writes back, and the connection goes over that write.
+// The refusal read with it is still what happened, and the reader is the only party that has it:
+// it is classified and reported, not lost with the connection.
+func TestARefusalBehindAPeerKeepaliveIsClassified(t *testing.T) {
+	t.Parallel()
+
+	var faults faultLog
+	c := NewClient("127.0.0.1:1", &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true, OnFault: faults.record})
+	t.Cleanup(func() { c.Close() }) //nolint:errcheck // test cleanup
+
+	keepalive, err := Keepalive(7).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	refusal := &net.OpError{Op: "remote error", Err: tls.AlertError(42)}
+	write := func([]byte) (int, error) { return 0, refusal }
+	st := &connState{acks: make(chan struct{}, 1), stop: make(chan struct{})}
+	st.conn = &dataWithErrConn{scriptedConn: newScriptedConn(write), data: keepalive, err: refusal}
+
+	c.mu.Lock()
+	c.live = st
+	c.mu.Unlock()
+
+	st.wg.Add(1)
+	c.readLoop(st)
+
+	refused := 0
+	for _, f := range faults.all() {
+		if refusedAtTLS(f) {
+			refused++
+		}
+	}
+	if refused != 1 {
+		t.Errorf("a refusal read behind a peer's Keepalive was reported %d times, want once: %v", refused, faults.all())
+	}
+	if !c.Unreachable() {
+		t.Error("a destination that refused this element reads reachable")
+	}
 }

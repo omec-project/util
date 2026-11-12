@@ -242,7 +242,9 @@ type KeepaliveConfig struct {
 	// not working — so a POI wires it to whatever it already reports those with. It is
 	// called once per outage rather than once per expiry or reconnect: a destination already
 	// standing unreachable or refused is not reported again until a valid acknowledgement
-	// has ended the outage, and deliveries written in the meantime do not end it.
+	// has ended the outage, and deliveries written in the meantime do not end it. The one
+	// exception is a refusal at the TLS layer met during an outage reported for another
+	// reason: it is a different fault, and is reported once.
 	//
 	// It runs on the connection's keepalive or read goroutine, or on the probe that
 	// follows a peer's close — and NewPool wires the delivery worker's error callback to
@@ -261,13 +263,11 @@ type KeepaliveConfig struct {
 // repositories would be three chances for one of them to drift into accepting timers
 // that disconnect every connection on schedule.
 //
-// The constructors deliberately do not call it. NewClient, NewPool and
-// NewAsyncSender return no error, so a constructor that validated could only clamp an
-// out-of-range value to the defaults — which is not enforcement, and would hide exactly
-// the mistake this exists to surface — or change its signature, which is an API break
-// for every caller to guard a path a validating caller never takes. Callers are expected
-// to call this before building anything, so what a constructor check would add is a
-// second answer for a configuration that has already been refused.
+// NewPool calls it and returns its error, before building anything: a pool is where an element
+// builds its delivery, so that is where a bad configuration stops the element's LI from
+// starting. NewClient returns no error, so it does not: a constructor that validated without one could only clamp an out-of-range value to the defaults — which is not
+// enforcement, and would hide exactly the mistake this exists to surface. A caller building a
+// client directly calls this first.
 //
 // The specification constrains only that each timer is at least one second. The
 // relationship between them is left implied, and the implication is not subtle:
@@ -540,15 +540,12 @@ func (c *Client) readLoop(st *connState) {
 	)
 
 	for {
-		n, err := st.conn.Read(tmp)
-		if err != nil {
-			// Either the peer closed the connection, or this element did — routine,
-			// every redial does it — or the peer's TLS layer refused it. readFailed tells
-			// them apart.
-			c.readFailed(st, err)
-
-			return
-		}
+		// What a read returned is acted on before the error it returned with. io.Reader allows
+		// both at once, and crypto/tls returns them together when the record after the data is
+		// an alert: an acknowledgement in the same read as the close_notify or refusal that
+		// follows it. Handling the error first would discard that acknowledgement, and with it
+		// the evidence that ends an outage or a refusal.
+		n, readErr := st.conn.Read(tmp)
 
 		buf = append(buf, tmp[:n]...)
 		// Refuse a PDU larger than this mechanism can be asked to hold before
@@ -576,8 +573,25 @@ func (c *Client) readLoop(st *connState) {
 
 			buf = buf[used:]
 			if !c.handleInbound(st, p) {
+				// An error read with this PDU still says why the connection ended. A peer's
+				// Keepalive followed by a refusal fails the acknowledgement this element writes,
+				// and the connection goes over that write; the refusal behind it is what
+				// happened, and only this reader has it.
+				if readErr != nil {
+					c.readFailed(st, readErr)
+				}
+
 				return
 			}
+		}
+
+		if readErr != nil {
+			// Either the peer closed the connection, or this element did — routine,
+			// every redial does it — or the peer's TLS layer refused it. readFailed tells
+			// them apart.
+			c.readFailed(st, readErr)
+
+			return
 		}
 	}
 }
@@ -611,8 +625,9 @@ func (c *Client) readFailed(st *connState, err error) {
 	c.peerClosed(st)
 }
 
-// refusedAtTLS reports whether a read failed because the peer's TLS layer sent an alert, or
-// because what arrived was not TLS — rather than because the connection closed.
+// refusedAtTLS reports whether a read or a dial failed because the peer's TLS layer sent an
+// alert, or because what arrived was not TLS — rather than because the connection closed or
+// could not be made.
 //
 // The two must not be confused, and TLS 1.3 is what makes them easy to confuse. The client's
 // half of the handshake completes before the server has verified the client's certificate,
@@ -703,7 +718,22 @@ func (c *Client) refused(st *connState, err error) {
 	// delivery — before this reader has read the alert, and the writer then drops the
 	// connection without knowing why. The reader is the only party that saw the refusal, so
 	// it is recorded here either way; returning because st is no longer held would lose it.
-	//
+	report := c.refusedLocked(err)
+	c.mu.Unlock()
+
+	if report {
+		c.fault(err)
+	}
+}
+
+// refusedLocked records a refusal at the TLS layer, whether a reader met it in an alert after
+// the handshake (refused) or a probe's dial met it in the handshake (probeAfterPeerClose): the
+// destination is unreachable, deliveries back off from it as from a failed dial, and with the
+// keepalive mechanism running the refusal stands and a probe keeps dialling. It reports whether
+// the caller is to report the refusal, which it is unless one already stands: an outage
+// reported for another reason does not cover it, since a mediation function that refuses this
+// element's certificate is a different fault, and one the ADMF can act on. The caller holds mu.
+func (c *Client) refusedLocked(err error) bool {
 	// Stored before the fault is reported, as expire does.
 	c.unreachable.Store(true)
 	c.lastDialFailure, c.lastDialErr = time.Now(), err
@@ -713,11 +743,8 @@ func (c *Client) refused(st *connState, err error) {
 		c.rejection = err
 		c.probeLocked()
 	}
-	c.mu.Unlock()
 
-	if report {
-		c.fault(err)
-	}
+	return report
 }
 
 // peerClosed drops st once its read side has failed, if it is still the connection this
@@ -808,7 +835,8 @@ func (c *Client) probeLocked() {
 //
 // A dial that fails is reported only if it is news — the first time the destination is found
 // unreachable. Every later failure confirms what has already been reported, and saying it once
-// per redialInterval would report one outage once a second.
+// per redialInterval would report one outage once a second. A dial refused at the TLS layer is
+// the exception: it is reported unless a refusal already stands, as refused reports one.
 //
 // probing is cleared in the same critical section that ends the probe, on every exit. Clearing
 // it afterwards, under a second acquisition of mu, would leave a window in which the connection
@@ -854,6 +882,23 @@ func (c *Client) probeAfterPeerClose() {
 			}
 
 			return
+		}
+		if err != nil && refusedAtTLS(err) {
+			// The handshake met the refusal a reader meets after it: an alert from a mediation
+			// function that checks the certificate before the client's half of the handshake
+			// completes, as TLS 1.2 does. It is a refusal, not one more failed dial, and is
+			// recorded and reported as refused does — including during an outage already
+			// reported, which a mediation function that comes back refusing this element does
+			// not continue. probing stays set, and this probe goes on dialling.
+			err = fmt.Errorf("x2x3: %s refused the connection at the TLS layer: %w", c.addr, err)
+			report := c.refusedLocked(err)
+			c.mu.Unlock()
+
+			if report {
+				c.fault(err)
+			}
+
+			continue
 		}
 		if err != nil {
 			c.lastDialFailure, c.lastDialErr = time.Now(), err
