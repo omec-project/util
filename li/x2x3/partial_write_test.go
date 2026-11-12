@@ -24,6 +24,12 @@ import (
 type halfOpenMDF struct {
 	addr string
 
+	// stop ends every stall when the test does. A stall that outlived its test would keep
+	// alive the client writing into it, since a pool that gives up on a sender leaves the
+	// sender's worker draining, and a later test that counts client goroutines would count
+	// that client's.
+	stop chan struct{}
+
 	mu       sync.Mutex
 	streams  [][]byte
 	accepted int
@@ -60,9 +66,11 @@ func newHalfOpenMDF(t *testing.T, cert tls.Certificate, stallAfter int, stallEve
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	})
-	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
-
-	m := &halfOpenMDF{addr: ln.Addr().String()}
+	m := &halfOpenMDF{addr: ln.Addr().String(), stop: make(chan struct{})}
+	t.Cleanup(func() {
+		close(m.stop)
+		ln.Close() //nolint:errcheck // test cleanup
+	})
 
 	go func() {
 		for {
@@ -104,7 +112,10 @@ func newHalfOpenMDF(t *testing.T, cert tls.Certificate, stallAfter int, stallEve
 					if first && read >= stallAfter {
 						// Stop reading and hold the connection open: the client's
 						// write fills the socket buffer and trips its deadline.
-						time.Sleep(30 * time.Second)
+						select {
+						case <-m.stop:
+						case <-time.After(30 * time.Second):
+						}
 
 						return
 					}
