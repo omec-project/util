@@ -45,7 +45,8 @@ type Pool struct {
 
 // NewPool returns a pool that dials with tlsConfig, running the clause 6.2.4 keepalive
 // mechanism on every connection it opens as keepalive describes — the zero value being
-// the specification's own defaults.
+// the specification's own defaults. A nil tlsConfig is refused as NewClient refuses it: every
+// delivery fails without a dial, and onError hears it.
 //
 // onError is called with each worker delivery error and onDrop when a PDU is dropped before
 // any delivery was attempted for it — a full queue, a closed sender, or a close that gave up

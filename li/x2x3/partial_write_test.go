@@ -461,3 +461,47 @@ func TestADroppedUnitIsTheOneThatCouldNotBeResent(t *testing.T) {
 			"every later batch would stall the same way, and nothing would ever report it")
 	}
 }
+
+// TestTheResendIsRefusedWhileARefusalStands holds the resend after a partial write to the rule
+// the first write follows: nothing is written to a destination whose refusal stands. No lock is
+// released between the two writes, so the refusal is set from the dial hook, which runs under the
+// same lock as the redial.
+func TestTheResendIsRefusedWhileARefusalStands(t *testing.T) {
+	t.Parallel()
+
+	pdus := stallingBatch(stallCapacity(t), 0xCD)
+
+	mdf := newHalfOpenMDF(t, selfSignedServer(t), 64*1024)
+	c := stallingClient(t, mdf.addr)
+
+	refusal := errors.New("remote error: tls: unknown certificate authority")
+	dial := c.dialConn
+	var dials int
+	c.dialConn = func(ctx context.Context) (net.Conn, error) {
+		dials++
+		if dials == 2 {
+			c.rejection = refusal
+		}
+
+		return dial(ctx)
+	}
+
+	err := c.SendBatch(pdus)
+	if dials < 2 {
+		t.Fatalf("the first write did not stall (%d dial), so there was no resend to examine", dials)
+	}
+	if !errors.Is(err, refusal) {
+		t.Fatalf("SendBatch() error = %v, want the standing refusal", err)
+	}
+	if LostUnits(err) == 0 {
+		t.Error("the units the resend did not write are not counted as lost")
+	}
+
+	// Whatever reaches the second connection was written past the refusal.
+	time.Sleep(200 * time.Millisecond)
+	mdf.mu.Lock()
+	defer mdf.mu.Unlock()
+	if len(mdf.streams) > 1 && len(mdf.streams[1]) > 0 {
+		t.Errorf("the resend wrote %d bytes to a destination whose refusal stands", len(mdf.streams[1]))
+	}
+}

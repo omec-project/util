@@ -32,7 +32,8 @@ var ErrNilPDU = errors.New("x2x3: nil product unit")
 // It is safe for concurrent use.
 //
 // The caller supplies the *tls.Config — for LI this is mtls.ClientTLS(), which
-// presents the network element's LI certificate and verifies the MDF.
+// presents the network element's LI certificate and verifies the MDF. A nil one is refused:
+// every delivery fails without a dial, with an error naming the cause (see errNilTLSConfig).
 type Client struct {
 	addr         string
 	tlsConfig    *tls.Config
@@ -116,6 +117,10 @@ type Client struct {
 	// offered records that a delivery has been attempted to this destination at all, which
 	// is what makes it one Pool.UnreachableAmong counts. Kept outside mu for the same reason.
 	offered atomic.Bool
+	// mismatches counts the keepalive PDUs whose Sequence Number this element could not act
+	// on, across every connection the client has held — see KeepaliveMismatches. It is
+	// written by each connection's reader, which must not wait for mu.
+	mismatches atomic.Uint64
 }
 
 // minRedialInterval is how long a client waits after a failed dial before it dials the same
@@ -358,9 +363,8 @@ func (c *Client) deliverLocked(b []byte, boundaries []int) error {
 	}
 	// After the dial, so a refused destination is still redialled by the traffic offered to
 	// it, and the connection's prompt Keepalive is what lifts the refusal.
-	if c.rejection != nil {
-		return lostUnits(units, fmt.Errorf("x2x3: not delivering to %s until it acknowledges a keepalive: %w",
-			c.addr, c.rejection))
+	if refusal := c.refusalLocked(); refusal != nil {
+		return lostUnits(units, refusal)
 	}
 
 	n, err := c.writeLocked(b)
@@ -409,6 +413,12 @@ func (c *Client) deliverLocked(b []byte, boundaries []int) error {
 
 		return lostUnits(pending, dialErr)
 	}
+	// The resend is a delivery too, and is held to the same rule as the first write: nothing is
+	// written to a destination whose refusal stands. The redialled connection is kept, as the
+	// first write's is, since its prompt Keepalive is what lifts the refusal.
+	if refusal := c.refusalLocked(); refusal != nil {
+		return lostUnits(pending, refusal)
+	}
 	m, err := c.writeLocked(rest)
 	if err == nil {
 		return nil
@@ -440,6 +450,17 @@ func (c *Client) deliverLocked(b []byte, boundaries []int) error {
 	}
 
 	return lostUnits(lost, fmt.Errorf("x2x3: send to %s: %w", c.addr, err))
+}
+
+// refusalLocked returns the error a delivery fails with while the mediation function's refusal
+// of this element stands (see Client.rejection), or nil when none does. Every write of product
+// asks it first. The caller holds mu.
+func (c *Client) refusalLocked() error {
+	if c.rejection == nil {
+		return nil
+	}
+
+	return fmt.Errorf("x2x3: not delivering to %s until it acknowledges a keepalive: %w", c.addr, c.rejection)
 }
 
 // unitsIn counts the product units in the last restLen bytes of a total-byte buffer whose
@@ -532,6 +553,17 @@ func (c *Client) dialLocked() error {
 	return nil
 }
 
+// errNilTLSConfig is what every dial of a client built with a nil *tls.Config fails with.
+//
+// crypto/tls reads a nil config as the zero one, which presents no client certificate and
+// verifies the mediation function against the system roots: a connection that no mediation
+// function provisioned for LI should accept, and one that could reach an endpoint it should not
+// trust. So the dial is refused before any I/O, and the failure reaches the caller as any failed
+// dial does — in the delivery's error, which a Pool passes to onError — naming the cause.
+// Refused here rather than in NewClient because the constructors return no error; see
+// KeepaliveConfig.Validate.
+var errNilTLSConfig = errors.New("no TLS configuration: X2/X3 delivery is over TLS only")
+
 // dial opens a connection to the mediation function without touching the client's state,
 // so a caller that must not hold mu across it — the post-close probe — can dial and decide
 // under the lock afterwards whether the connection is still wanted.
@@ -541,6 +573,9 @@ func (c *Client) dial() (net.Conn, error) {
 
 	if c.dialConn != nil {
 		return c.dialConn(ctx)
+	}
+	if c.tlsConfig == nil {
+		return nil, fmt.Errorf("x2x3: dial %s: %w", c.addr, errNilTLSConfig)
 	}
 
 	d := tls.Dialer{NetDialer: &net.Dialer{}, Config: c.tlsConfig}
@@ -702,6 +737,9 @@ func (c *Client) SendBatch(pdus []*PDU) error {
 	}
 
 	c.keepBatchBuffers(buf, ends)
+	// Zeroed on every exit, once the write has returned, so the buffer kept for the next batch
+	// holds capacity and no content — see maxRetainedBatchBytes.
+	defer clear(buf)
 
 	if len(buf) == 0 {
 		return lostUnits(skipped, marshalErr)
@@ -722,10 +760,10 @@ func (c *Client) SendBatch(pdus []*PDU) error {
 // than this — an unusual burst of large X3 payloads — is still sent, but its buffer is not
 // kept, so one burst does not pin its size in memory for the life of the client.
 //
-// What is kept is the last batch's marshalled PDUs, in plaintext — intercepted content, before
-// TLS — for as long as the client lives: up to this much per destination, overwritten by the
-// next batch and never cleared. A process memory dump of an element delivering X3 can contain
-// the content of its last batch to each destination.
+// What is kept is the buffer's capacity, not its content. The buffer holds marshalled PDUs in
+// plaintext — intercepted content, before TLS — while a batch is written, and SendBatch zeroes
+// it once the write returns, so between batches it holds nothing a process memory dump could
+// read back. The PDUs themselves belong to the caller, which decides how long they live.
 const maxRetainedBatchBytes = 4 << 20
 
 // keepBatchBuffers retains buf and ends for the next batch, unless buf has grown past

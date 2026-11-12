@@ -343,3 +343,43 @@ func TestUnreachableDoesNotWaitForADeliveryInFlight(t *testing.T) {
 			"hold up the answer to a provisioning function")
 	}
 }
+
+// TestSendBatchLeavesNoProductInTheBufferItKeeps: SendBatch reuses its buffer from batch to
+// batch, and that buffer holds intercepted content in plaintext while a batch is written. Once
+// the write returns, what is kept is capacity, not content.
+func TestSendBatchLeavesNoProductInTheBufferItKeeps(t *testing.T) {
+	t.Parallel()
+
+	c := NewClient("mdf.invalid:0", &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true})
+	c.dialConn = func(context.Context) (net.Conn, error) {
+		near, far := net.Pipe()
+		go io.Copy(io.Discard, far) //nolint:errcheck // drains until the client closes
+
+		return near, nil
+	}
+	t.Cleanup(func() { c.Close() }) //nolint:errcheck // test cleanup
+
+	content := bytes.Repeat([]byte{0xEE}, 512)
+	pdus := []*PDU{
+		{Type: PDUTypeX3, PayloadFormat: PayloadFormatIPv4, Direction: DirectionToTarget, Payload: content},
+		{Type: PDUTypeX3, PayloadFormat: PayloadFormatIPv4, Direction: DirectionFromTarget, Payload: content},
+	}
+	if err := c.SendBatch(pdus); err != nil {
+		t.Fatalf("SendBatch() error = %v", err)
+	}
+
+	c.batchMu.Lock()
+	kept := c.batchBuf[:cap(c.batchBuf)]
+	c.batchMu.Unlock()
+
+	if len(kept) == 0 {
+		t.Fatal("no buffer was kept for the next batch, so there is nothing to examine")
+	}
+	if bytes.Contains(kept, content[:64]) {
+		t.Error("the buffer SendBatch keeps between batches still holds the last batch's " +
+			"content in plaintext: a process memory dump would read it back")
+	}
+	if !bytes.Equal(kept, make([]byte, len(kept))) {
+		t.Error("the buffer SendBatch keeps between batches is not zeroed")
+	}
+}

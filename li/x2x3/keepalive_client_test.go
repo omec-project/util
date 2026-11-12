@@ -616,12 +616,15 @@ func TestKeepaliveWrongSequenceDoesNotPostponeTheDeadline(t *testing.T) {
 		t.Fatalf("Send() error = %v", err)
 	}
 
-	eventually(t, "the mismatch to be noticed", func() bool {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
-		return c.live != nil && c.live.mismatches.Load() > 0
+	eventually(t, "the mismatch to be counted", func() bool {
+		return c.KeepaliveMismatches() > 0
 	})
+	// The count is the client's, and is read through the sender a POI holds.
+	// A bare wrapper, not NewAsyncSender: no worker is wanted, and closing one would close c.
+	if got := (&AsyncSender{inner: c}).KeepaliveMismatches(); got == 0 {
+		t.Errorf("AsyncSender.KeepaliveMismatches() = 0 over a client that counted %d: "+
+			"a POI holding the sender cannot see the peer's numbering defect", c.KeepaliveMismatches())
+	}
 
 	// The deadline is not postponed by traffic that acknowledges nothing this connection
 	// sent, so the fail-safe fires.
@@ -1086,4 +1089,38 @@ func TestProtocolErrorReachesTheFaultProbe(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Error("the protocol error set the probe's answer but pushed no report; both are owed")
 	}
+}
+
+// TestAnAcknowledgementReachesTheTimerWhileADeliveryHoldsTheLock pins the order in
+// handleInbound: the timer is told before mu is taken. A delivery holds mu across its dial and
+// its write, so an acknowledgement that waited for the lock to signal would sit behind the
+// delivery while TIME_P2 ran out, and the expiry would tear down a connection whose peer had
+// answered in time.
+func TestAnAcknowledgementReachesTheTimerWhileADeliveryHoldsTheLock(t *testing.T) {
+	t.Parallel()
+
+	c := NewClient("127.0.0.1:1", &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{Disabled: true})
+	t.Cleanup(func() { c.Close() }) //nolint:errcheck // test cleanup
+
+	st := &connState{acks: make(chan struct{}, 1), stop: make(chan struct{})}
+	ack := KeepaliveAck(st.seq.take())
+
+	// A delivery mid-write.
+	c.mu.Lock()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		c.handleInbound(st, ack)
+	}()
+
+	select {
+	case <-st.acks:
+	case <-time.After(2 * time.Second):
+		t.Error("a valid acknowledgement did not reach the TIME_P2 timer while a delivery held " +
+			"the client's lock: the deadline runs on, and a peer that answered in time can be " +
+			"disconnected and reported over a delivery that was slow")
+	}
+
+	c.mu.Unlock()
+	<-done
 }

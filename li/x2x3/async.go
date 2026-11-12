@@ -28,6 +28,14 @@ type Reachability interface {
 	Unreachable() bool
 }
 
+// KeepaliveMismatchCounter is implemented by a Sender that counts the keepalive PDUs from its
+// destination whose Sequence Number it could not act on — see Client.KeepaliveMismatches. Client
+// and AsyncSender implement it, so a caller holding the Sender that Pool.For returns can read the
+// count through a type assertion, as it reads Reachability.
+type KeepaliveMismatchCounter interface {
+	KeepaliveMismatches() uint64
+}
+
 // attemptReporter is a sender that can say whether a delivery has been attempted through it.
 type attemptReporter interface {
 	attempted() bool
@@ -208,6 +216,16 @@ func (a *AsyncSender) attempted() bool {
 	}
 
 	return true
+}
+
+// KeepaliveMismatches reports the inner sender's count of keepalive PDUs it could not act on
+// (see Client.KeepaliveMismatches), or 0 for a sender that keeps no such count.
+func (a *AsyncSender) KeepaliveMismatches() uint64 {
+	if inner, ok := a.inner.(KeepaliveMismatchCounter); ok {
+		return inner.KeepaliveMismatches()
+	}
+
+	return 0
 }
 
 // Send enqueues pdu for asynchronous delivery and returns immediately. It never

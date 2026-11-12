@@ -284,3 +284,47 @@ func TestARefusalClosedWithAResetIsReportedOnce(t *testing.T) {
 		t.Errorf("one refusal was reported %d times, want once: %v", n, faults.all())
 	}
 }
+
+// TestANilTLSConfigIsRefusedBeforeAnyDial: crypto/tls reads a nil config as the zero one, which
+// presents no client certificate and trusts the system roots. The client refuses it before any
+// I/O, and the delivery's error names the cause.
+func TestANilTLSConfigIsRefusedBeforeAnyDial(t *testing.T) {
+	t.Parallel()
+
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
+
+	var dialled atomic.Bool
+	go func() {
+		for {
+			conn, acceptErr := ln.Accept()
+			if acceptErr != nil {
+				return
+			}
+			dialled.Store(true)
+			conn.Close() //nolint:errcheck // test peer
+		}
+	}()
+
+	c := NewClient(ln.Addr().String(), nil, KeepaliveConfig{})
+	t.Cleanup(func() { c.Close() }) //nolint:errcheck // test cleanup
+
+	err = c.Send(product())
+	if !errors.Is(err, errNilTLSConfig) {
+		t.Fatalf("Send() with a nil *tls.Config: error = %v, want one naming the missing TLS configuration", err)
+	}
+	if n := LostUnits(err); n != 1 {
+		t.Errorf("LostUnits = %d, want 1: the unit was not delivered", n)
+	}
+	if !c.Unreachable() {
+		t.Error("the destination reads reachable after a delivery that could not be made")
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	if dialled.Load() {
+		t.Error("a client with no TLS configuration connected to the mediation function")
+	}
+}

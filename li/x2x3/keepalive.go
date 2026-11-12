@@ -207,6 +207,19 @@ type KeepaliveConfig struct {
 	// with is such a peer. Turning the mechanism off is a deployment's answer to a
 	// non-conformant peer; it is not the shipped default.
 	//
+	// Leaving it on against such a peer costs more than the disconnects. A refusal at the TLS
+	// layer stands until a valid Keepalive acknowledgement arrives — one whose Sequence Number
+	// answers a Keepalive this connection sent and had not yet seen answered; one that does not
+	// is counted (see Client.KeepaliveMismatches) and lifts nothing. So once a peer that never
+	// gives one has refused this element, the refusal stands for the life of the client: every
+	// delivery to it fails and is counted as lost, even after the peer has begun to accept this
+	// element's certificate, and it is redialled once per second throughout. That is not
+	// bounded, on purpose. The acknowledgement is the only evidence that a refusal has ended,
+	// and lifting it on a timer would write product into a peer that may still be refusing it,
+	// where the loss raises no error. Disabling the mechanism avoids the standing refusal, at the
+	// cost described next. The setting is read when the client is built, so changing it means
+	// building a new client or pool.
+	//
 	// What is lost with it is the evidence a refusal needs. A mediation function refusing
 	// this element at the TLS layer is reported each time the refusal is met, nothing stands
 	// between refusals, and the next delivery after the one-second backoff dials and writes:
@@ -319,13 +332,17 @@ type connState struct {
 	// stop is closed when this connection is dropped, whoever drops it.
 	stop chan struct{}
 	wg   sync.WaitGroup
+}
 
-	// mismatches counts acknowledgements carrying a Sequence Number this connection
-	// never sent. Clause 6.2.4 requires the MDF to echo the number, so a mismatch is
-	// a peer defect worth noticing — but not worth disconnecting a working connection
-	// over, which is why it is counted rather than acted on. Counted rather than
-	// logged because this package takes no logger; a test asserts it was seen.
-	mismatches atomic.Uint64
+// KeepaliveMismatches reports how many keepalive PDUs from this destination carried a
+// Sequence Number this element could not act on, over the life of the client: an
+// acknowledgement with no usable number, one for a Keepalive the connection never sent, or one
+// already answered, and a Keepalive whose number could not be echoed. Clause 6.2.4 requires
+// the number to be echoed, so each is a peer defect worth noticing, but none ends a connection
+// that is carrying product: it is counted, and TIME_P2 decides. Counted rather than logged
+// because this package takes no logger, so a POI that wants it in its metrics reads it here.
+func (c *Client) KeepaliveMismatches() uint64 {
+	return c.mismatches.Load()
 }
 
 // startKeepaliveLocked starts the mechanism on a freshly dialled connection. The
@@ -912,7 +929,7 @@ func (c *Client) handleInbound(st *connState, p *PDU) bool {
 			// not end a connection that is demonstrably carrying product — so the reader
 			// continues and TIME_P2 decides, which is the fail-safe doing its job rather
 			// than a protocol error.
-			st.mismatches.Add(1)
+			c.mismatches.Add(1)
 
 			return true
 		}
@@ -920,16 +937,24 @@ func (c *Client) handleInbound(st *connState, p *PDU) bool {
 		// A valid acknowledgement of something this connection sent: the exchange
 		// succeeded, which is the whole question TIME_P2 asks.
 		//
-		// Only while this is still the connection the client holds. The reader runs on
-		// its own goroutine, so an acknowledgement decoded from a connection that has since
-		// been dropped and replaced would otherwise clear a reachability conclusion the
-		// replacement has already reached — a store of false landing after expire's or
+		// The timer hears it first, before mu is taken. mu is held across a delivery's dial
+		// and write — up to the dial and write timeouts — so signalling after the lock would
+		// let an acknowledgement that has arrived wait behind a delivery while TIME_P2 runs
+		// out, and the expiry would then tear down a connection whose peer had answered in
+		// time. The deadline belongs to st, so refreshing it needs nothing mu guards: a stale
+		// connection's watchdog has nothing left to postpone.
+		select {
+		case st.acks <- struct{}{}:
+		default:
+		}
+
+		// The reachability conclusion is recorded only while this is still the connection
+		// the client holds. The reader runs on its own goroutine, so an acknowledgement
+		// decoded from a connection that has since been dropped and replaced would
+		// otherwise clear a reachability conclusion the replacement has already reached — a store of false landing after expire's or
 		// protocolError's store of true, over a destination that is now failing. The two
 		// paths order themselves this way already (`if c.live == st`), and this is the
 		// third writer of the same flag taking the same rule.
-		//
-		// The deadline itself is still refreshed, because that channel belongs to st: a
-		// stale connection's watchdog has nothing left to postpone.
 		//
 		// It also ends a refusal standing from an earlier connection (see refused): a
 		// mediation function that answers a Keepalive has accepted this element.
@@ -940,11 +965,6 @@ func (c *Client) handleInbound(st *connState, p *PDU) bool {
 			c.outage = false
 		}
 		c.mu.Unlock()
-
-		select {
-		case st.acks <- struct{}{}:
-		default:
-		}
 
 		return true
 
@@ -972,7 +992,7 @@ func (c *Client) answerKeepalive(st *connState, p *PDU) bool {
 		// Clause 6.2.4 requires the acknowledgement to carry the same number, and a
 		// number that was not sent cannot be echoed. Counted and ignored — refusing
 		// the connection over it would punish a peer defect with lost product.
-		st.mismatches.Add(1)
+		c.mismatches.Add(1)
 
 		return true
 	}
