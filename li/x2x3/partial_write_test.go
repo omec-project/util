@@ -183,6 +183,10 @@ func stallCapacity(t *testing.T) int {
 	if !errors.Is(err, os.ErrDeadlineExceeded) {
 		t.Fatalf("measuring a stalled connection: wrote %d bytes, err = %v; want a timeout", n, err)
 	}
+	// Dropped as a delivery drops a connection whose write failed. Left held, the client's Close
+	// at cleanup would end it in order, with a close_notify that waits out crypto/tls's
+	// five-second deadline behind the buffers this filled.
+	c.dropLocked()
 
 	return n
 }

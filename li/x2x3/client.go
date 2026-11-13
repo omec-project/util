@@ -632,11 +632,28 @@ func (c *Client) dropLocked() {
 	if c.live == nil {
 		return
 	}
-	// The connection is being abandoned; its close error describes a connection this
-	// element has already decided not to use, and the caller acts on its own error.
-	_ = c.live.conn.Close()
+	abandon(c.live.conn)
 	close(c.live.stop)
 	c.live = nil
+}
+
+// abandon closes a connection being given up on after a failure without the TLS close_notify
+// alert that closing a *tls.Conn sends first. Every caller of dropLocked is such a failure — a
+// write that failed or timed out, an expiry, a refusal, a peer's close — and the alert is no use
+// to any of them: after a failed write the stream may end inside a record, so an alert appended
+// to it is garbage to the peer, and a peer that has stopped reading never reads it. Writing it
+// is not free either. crypto/tls gives that write a fixed five-second deadline, and against a
+// peer that has stopped reading, with the send buffer full, it waits all of it, under mu, so
+// every delivery to the destination waited too, and a partial write whose resend also failed
+// waited twice. Close, the orderly end of a client, still sends it.
+//
+// The close error is not returned: it describes a connection this element has already decided
+// not to use, and the caller acts on its own error.
+func abandon(conn net.Conn) {
+	if tc, ok := conn.(*tls.Conn); ok {
+		conn = tc.NetConn()
+	}
+	_ = conn.Close()
 }
 
 // Close closes the held connection, if any, and waits for its keepalive timer and reader
