@@ -92,11 +92,15 @@ func TestAStaleProtocolErrorDoesNotMarkTheDestination(t *testing.T) {
 // the waiting acknowledgement taken, or the loop gone without it — not after a fixed time. What
 // follows the decision is TIME_P2 running again, which a starved runner may legitimately let
 // expire, and is not what this asks.
+//
+// For the same reason it runs in parallel: load can delay a round, not change its outcome.
 func TestAnAcknowledgementPendingAtTheDeadlineIsHonoured(t *testing.T) {
+	t.Parallel()
+
 	for i := range 20 {
 		var faults atomic.Int64
 		c := NewClient("mdf.example:1", nil, KeepaliveConfig{
-			TimeP1: 5 * time.Millisecond, TimeP2: 40 * time.Millisecond,
+			TimeP1: 5 * time.Millisecond, TimeP2: 20 * time.Millisecond,
 			OnFault: func(error) { faults.Add(1) },
 		})
 		c.dialConn = func(context.Context) (net.Conn, error) { return nil, errors.New("connection refused") }
@@ -126,7 +130,7 @@ func TestAnAcknowledgementPendingAtTheDeadlineIsHonoured(t *testing.T) {
 			t.Fatalf("round %d: the loop never wrote its first Keepalive", i)
 		}
 		// The deadline was armed before the first tick, so it has passed once this has.
-		time.Sleep(60 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 		st.acks <- struct{}{}
 		close(release)
 

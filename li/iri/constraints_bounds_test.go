@@ -4,6 +4,7 @@
 package iri
 
 import (
+	"bytes"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -44,12 +45,12 @@ var reBounds = regexp.MustCompile(`\((?:SIZE\()?\s*(\d+)\s*(?:\.\.\s*(\d+))?\s*\
 func moduleBounds(t *testing.T, src []byte, name string) (int64, int64) {
 	t.Helper()
 
-	line := regexp.MustCompile(`(?m)^` + name + ` ::= .*$`)
+	literal, line := name+" ::= ", regexp.MustCompile(`^`+name+` ::= .*$`)
 	if member, ok := inlineMembers[name]; ok {
-		line = regexp.MustCompile(`(?m)^\s*` + member + `\s+\[\d+\][^\n]*$`)
+		literal, line = member, memberLine(member)
 	}
 	if outside, ok := boundsOutsideTheModule[name]; ok {
-		def := regexp.MustCompile(`(?m)^\s*` + outside.member + `\s+\[\d+\][^\n]*$`).Find(src)
+		def := lineWith(src, outside.member, memberLine(outside.member))
 		if def == nil {
 			t.Fatalf("%s: the module has no member %s", name, outside.member)
 		}
@@ -60,7 +61,7 @@ func moduleBounds(t *testing.T, src []byte, name string) (int64, int64) {
 
 		return outside.lo, outside.hi
 	}
-	def := line.Find(src)
+	def := lineWith(src, literal, line)
 	if def == nil {
 		t.Fatalf("%s: no definition in %s", name, modulePath)
 	}
@@ -81,6 +82,34 @@ func moduleBounds(t *testing.T, src []byte, name string) (int64, int64) {
 	}
 
 	return lo, hi
+}
+
+// memberLine matches a line declaring member with its tag: `member [n] ...`.
+func memberLine(member string) *regexp.Regexp {
+	return regexp.MustCompile(`^\s*` + member + `\s+\[\d+\].*$`)
+}
+
+// lineWith returns the first line of src that holds literal and matches re, without its newline.
+// re is matched against that line alone, so its ^ and $ are the line's. Searching for the literal
+// first is what keeps this cheap: a multi-line regexp run over the whole module once per type
+// was most of TestEveryConstraintBoundIsEnforced's time under -race.
+func lineWith(src []byte, literal string, re *regexp.Regexp) []byte {
+	for from := 0; ; {
+		i := bytes.Index(src[from:], []byte(literal))
+		if i < 0 {
+			return nil
+		}
+		i += from
+		start := bytes.LastIndexByte(src[:i], '\n') + 1
+		end := len(src)
+		if n := bytes.IndexByte(src[i:], '\n'); n >= 0 {
+			end = i + n
+		}
+		if line := src[start:end]; re.Match(line) {
+			return line
+		}
+		from = end
+	}
 }
 
 // TestEveryConstraintBoundIsEnforced holds every entry of the size and range tables to the

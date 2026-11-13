@@ -131,6 +131,9 @@ func TestClosingABlackholedDestinationIsBounded(t *testing.T) {
 
 	p := mustPool(t, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // test peer
 		KeepaliveConfig{Disabled: true}, nil, nil)
+	// Shortened so the test does not wait out the production deadline. The bound is asserted
+	// against whatever the pool holds, so it is still the one under test.
+	p.closeTimeout = 200 * time.Millisecond
 
 	s := p.For(mdf.addr)
 	// Comfortably more than one write can carry, so the worker is still draining when Close
@@ -145,16 +148,21 @@ func TestClosingABlackholedDestinationIsBounded(t *testing.T) {
 		})
 	}
 
+	// Closed once the worker is past the handshake and in the write: with a deadline this short,
+	// a close that came first could be bounded while the worker was still dialling, which is not
+	// the case under test.
+	eventually(t, "the worker's connection to complete its handshake", func() bool { return mdf.handshaken() > 0 })
+
 	done := make(chan error, 1)
 	go func() { done <- p.Close() }()
 
 	select {
 	case <-done:
 		// Either outcome is acceptable: what is asserted is the bound, not the verdict.
-	case <-time.After(closeTimeout + 5*time.Second):
+	case <-time.After(p.closeTimeout + 5*time.Second):
 		t.Fatalf("Close did not return within %s of its own deadline: a blackholed mediation "+
 			"function decides how long this element takes to stop, and a teardown that overruns a "+
-			"grace period is SIGKILLed with its X1 tasking never withdrawn", closeTimeout)
+			"grace period is SIGKILLed with its X1 tasking never withdrawn", p.closeTimeout)
 	}
 
 	// The case under test is a write to a connected peer that does not read, not a stalled

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -84,9 +85,34 @@ var (
 	reEnumerator = regexp.MustCompile(`([A-Za-z][\w-]*)\s*\((\d+)\)`)
 )
 
-// parseModule reads the module once into its three kinds of definition. It fails rather than
-// returning an empty kind, since an audit over an empty map passes against anything.
+var (
+	parsedMu sync.Mutex
+	parsed   *asn1Module
+)
+
+// parseModule is the module read into its three kinds of definition, read once per test binary
+// and shared: a dozen audits take it, and under -race each read cost more than most of the tests
+// that asked for it. The result is shared, so a caller reads it and never changes it.
+//
+// Only a read that succeeded is kept. One that failed fails its test, and the next caller reads
+// again and fails too, rather than being handed an empty module an audit would pass against.
 func parseModule(t *testing.T) asn1Module {
+	t.Helper()
+
+	parsedMu.Lock()
+	defer parsedMu.Unlock()
+
+	if parsed == nil {
+		m := readModule(t)
+		parsed = &m
+	}
+
+	return *parsed
+}
+
+// readModule reads the module into its three kinds of definition. It fails rather than
+// returning an empty kind, since an audit over an empty map passes against anything.
+func readModule(t *testing.T) asn1Module {
 	t.Helper()
 
 	m := asn1Module{

@@ -69,6 +69,31 @@ jobs:
     uses: omec-project/.github/.github/workflows/unit-test.yml@31eaa229af3f5e73c45cc7f165f614716f6b96f6 # v0.1.2
     with:
       branch_name: ${{ github.ref }}
+  # li's conformance checks validate its output against the ETSI and 3GPP definitions
+  # vendored under li/*/testdata. The schema checks shell out to xmllint, which the
+  # shared unit-test runner does not install, so there they skip, and a skipped check
+  # reports success while validating nothing. This job installs the validator and sets
+  # LI_REQUIRE_SCHEMA_VALIDATION, which turns that skip into a failure. It runs every li
+  # package rather than a selection, so a schema check added later cannot fall outside it.
+  li-conformance:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install the XML schema validator
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+      - name: Confirm the validator is present
+        run: xmllint --version
+      - name: Run the li tests with schema validation required
+        env:
+          LI_REQUIRE_SCHEMA_VALIDATION: '1'
+        run: go test -v ./li/...
   analysis:
     if: github.repository_owner == 'omec-project'
     permissions:

@@ -215,21 +215,24 @@ func TestAPeerThatHangsUpAtOnceIsNotRedialledInALoop(t *testing.T) {
 	m := newProbeMDF(t, true, false)
 
 	c := clientTo(t, m.addr, KeepaliveConfig{})
-	c.redialInterval = 200 * time.Millisecond
+	c.redialInterval = 100 * time.Millisecond
 
 	if err := c.Send(product()); err != nil {
 		t.Fatalf("the first delivery failed: %v", err)
 	}
 	m.waitFirstClosed(t)
 
-	const watch = 1500 * time.Millisecond
-	time.Sleep(watch)
+	start := time.Now()
+	time.Sleep(750 * time.Millisecond)
+	watched := time.Since(start)
 
-	// One probe straight after the first close, then at most one per interval.
-	limit := int64(watch/c.redialInterval) + 3
+	// One probe straight after the first close, then at most one per interval. Measured against
+	// the time that actually passed, as in TestDeliveriesBetweenProbesDoNotMultiplyThem: a sleep
+	// that overran on a loaded runner allows the probes the overrun legitimately made.
+	limit := int64(watched/c.redialInterval) + 3
 	if n := m.accepted.Load(); n > limit {
 		t.Errorf("%d connections in %s against a peer that hangs up at once, want at most %d: "+
-			"the redial after a close is not spaced", n, watch, limit)
+			"the redial after a close is not spaced", n, watched.Round(time.Millisecond), limit)
 	}
 	if m.accepted.Load() < 3 {
 		t.Errorf("only %d connections: the peer's closes were not followed by probes, so this "+
@@ -297,15 +300,15 @@ func TestDeliveriesBetweenProbesDoNotMultiplyThem(t *testing.T) {
 	m := newProbeMDF(t, true, false)
 
 	c := clientTo(t, m.addr, KeepaliveConfig{})
-	c.redialInterval = 500 * time.Millisecond
+	c.redialInterval = 250 * time.Millisecond
 
 	for range 20 {
 		_ = c.Send(product()) //nolint:errcheck // a peer that hangs up may refuse some of these
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	before, start := m.accepted.Load(), time.Now()
-	time.Sleep(1200 * time.Millisecond)
+	time.Sleep(600 * time.Millisecond)
 	n, watched := m.accepted.Load()-before, time.Since(start)
 
 	// With no deliveries in the window, only probes dial: at most one per interval, plus one

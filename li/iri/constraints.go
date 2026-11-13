@@ -188,6 +188,19 @@ var (
 		// Container. Refusing it would drop a handover record the module accepts.
 	}
 
+	// tableMandatoryFields are the record members the module marks OPTIONAL and the payload
+	// tables of clause 6.2 mark M, keyed by record and field, each with what the field carries.
+	// A record leaving one unset is schema-valid and would decode cleanly, and is still not the
+	// record the table describes, so it is refused rather than emitted without it.
+	tableMandatoryFields = map[string]string{
+		// Tables 6.2.3-1, 6.2.3-2 and 6.2.3-4: M, cardinality 1. The SMF sets it from the
+		// session's UL NG-U F-TEID, which exists once the UPF has answered the PFCP Session
+		// Establishment Request.
+		"SMFPDUSessionEstablishment.GTPTunnelInfo":                      gtpTunnelInfoCarries,
+		"SMFPDUSessionModification.GTPTunnelInfo":                       gtpTunnelInfoCarries,
+		"SMFStartOfInterceptionWithEstablishedPDUSession.GTPTunnelInfo": gtpTunnelInfoCarries,
+	}
+
 	// listMinimums are the SEQUENCE OF members with a SIZE lower bound, keyed by record and
 	// field. A present list shorter than this is schema-invalid however well-formed its
 	// elements are.
@@ -428,6 +441,9 @@ func alternative(name, path string, v reflect.Value) error {
 	return notAnAlternative(c.name, path, v.Interface())
 }
 
+// gtpTunnelInfoCarries is what tableMandatoryFields says gTPTunnelInfo carries.
+const gtpTunnelInfoCarries = "the user plane GTP tunnels of the PDU session"
+
 // validateConstraints walks a record and refuses any value that violates the restriction its
 // own type carries.
 //
@@ -546,6 +562,10 @@ func walkConstrained(v reflect.Value, path string, zeroForbidden, mandatory bool
 				!field.IsNil() && field.Len() < least {
 				return fmt.Errorf("iri: %s.%s has %d entries, and is defined as SEQUENCE SIZE(%d..MAX)",
 					path, sf.Name, field.Len(), least)
+			}
+			if carries, ok := tableMandatoryFields[key]; ok && field.IsZero() {
+				return fmt.Errorf("iri: %s.%s is unset, and the payload tables make it mandatory: %s",
+					path, sf.Name, carries)
 			}
 			if err := walkConstrained(field, path+"."+sf.Name,
 				mandatoryEnumFields[key], !isOptional(sf), choiceOf(sf)); err != nil {
