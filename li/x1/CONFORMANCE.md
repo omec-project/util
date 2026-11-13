@@ -125,8 +125,21 @@ generates a conformant identifier.
 **A request body is one XML document.** Anything after the root element other than
 whitespace, comments and processing instructions — a second `X1Request` included — and any
 text before it make the body not well-formed, and it is answered with a `TopLevelError`. A
-leading UTF-8 byte order mark is accepted. An answer this element receives as a requester is
-held to the same.
+leading UTF-8 byte order mark is accepted. A document type declaration before the root is
+refused the same way: X1 defines none, and its internal subset can declare default attributes —
+a namespace declaration among them — that a validating reader applies and this decoder does
+not, so the two would read the same body as different elements. One inside the root element,
+which XML does not allow at all, is not refused; see *Known gaps*. An answer this element
+receives as a requester is held to the same.
+
+**A container carries at most 256 messages.** Every message is answered, and a message refused
+before it is authenticated is answered as fully as one applied, so without a bound a container
+of the smallest messages a 1 MiB body holds drew an answer of about 30 MB; with it, a full
+container of refused messages is answered with about 160 KB. A container over the bound is
+answered with a `TopLevelError` although it parses. That is an implementation limit below the
+schema's unbounded `maxOccurs`, and a departure from clause 6.1, which reserves the top-level
+error for a request that "could not be parsed". It is refused whole rather than in part,
+because answering a prefix would apply part of what the ADMF sent.
 
 **Every element of a request is read in the namespace the schema puts it in.** The X1 schema
 is `elementFormDefault="qualified"`, so an element with the local name `xId` in another
@@ -136,9 +149,11 @@ schema defines, is refused — with 1010, or for a header element with the code 
 draws (1020 for `version`, 1030 for `admfIdentifier`, 1060 for `neIdentifier`). The elements
 whose content another schema defines are the extension placeholders, the elements typed by a
 complex type of TS 103 280 or the hashed-identifier schema, and the Generic Object elements,
-whose subtype another schema defines; a test derives the list from the vendored schema. A
-request container carrying a foreign element beside its messages, an XML signature included,
-is answered with a `TopLevelError`, since there is no message to refuse it against.
+whose subtype another schema defines; a test derives the list from the vendored schema. Each
+name is resolved against the declarations in scope where it appears, and not again, so a
+namespace spelled like a declared prefix is not taken for that prefix's namespace. A request
+container carrying a foreign element beside its messages, an XML signature included, is
+answered with a `TopLevelError`, since there is no message to refuse it against.
 
 **At most 16 requests are decoded and applied at once.** A request whose body has been read
 while 16 are being decoded, applied or rendered waits up to two seconds for one to finish, and
@@ -646,6 +661,24 @@ message with 1030 rather than binding to whatever the peer presented.
 
 **One responsible ADMF per network element.** A second identity is refused.
 
+**Without a configured ADMF, any certified peer is accepted as the ADMF.** `WithADMF` names the
+responsible ADMF. Without it, a message is accepted when the peer's certificate binds the
+`admfIdentifier` the message sends, and the Subject UID form of that binding carries no role
+(the annex G URN form does), so a certificate that binds its identifier by Subject UID
+qualifies under its own identifier, another network element's included. Such a peer can
+activate, read and deactivate every task and keep the keepalive watchdog from lapsing. The AMF
+and SMF document an empty `admfId` as accepting any certified ADMF, and the UPF refuses to
+start without `li.tf_id`; a deployment should set one.
+
+**What a peer learns before it is authenticated.** A `TopLevelError` carries the configured
+ADMF identifier and this element's identifier to any peer that sends an unparseable body, as
+clause 6.1 requires — with no certificate at all where the listener serves plain HTTP. And the
+checks run in the order the codes are listed, the expected ADMF (1040) and NE (1060) before the
+certificate binding (1030), so a peer holding any LI-CA certificate can tell a right guess at
+either identifier from a wrong one by the code it is refused with. Since the `TopLevelError`
+already discloses both identifiers, the ordering tells such a peer nothing it could not learn
+from an unparseable body.
+
 ## This element as an X1 client
 
 The SMF acts as a CC Triggering Function over LI_T3, which makes it an X1 *requester* against
@@ -814,11 +847,17 @@ In order of consequence:
    choice or an extension is read.** An element outside the namespace is refused wherever it
    is (see *Message envelope*). An unknown arm of either target-identifier choice, unknown
    content in an extension placeholder or the LI_T3 container, and a second deliveryAddress arm
-   are refused. An unknown element anywhere else — a stray child of `taskDetails`, `destinationDetails` or an F-SEID — is
-   dropped by the decoder, as the schema validator a strict ADMF runs would not. No narrowing of a
-   task can arrive that way, since every element that narrows one is modelled and the drift test
-   holds it so. The same is true of attributes: an attribute the schema does not define is
-   dropped, and only one sent twice — which is not XML at all — is refused.
+   are refused. An unknown element anywhere else — a stray child of `taskDetails`,
+   `destinationDetails` or an F-SEID — is dropped by the decoder, as the schema validator a
+   strict ADMF runs would not. No narrowing of a task can arrive that way, since every element
+   that narrows one is modelled and the drift test holds it so. The same is true of attributes:
+   an attribute the schema does not define is dropped, and only one sent twice — which is not
+   XML at all — is refused. Other leniencies of the same kind: a child element inside a
+   simple-typed field such as `xId` is skipped and the text around it joined; stray text between
+   elements, and elements out of their sequence, are accepted; a body element belonging to
+   another request type is ignored; only the local name of `xsi:type` is read, its prefix
+   unresolved; and a directive inside the root element is passed over. Each is a message a
+   schema validator refuses and this element reads as the message its text spells.
 4. **A provisioned `correlationID` of 0 is not reported back** in a task answer: the task holds
    the value and not whether one was sent, and 0 is also what a task without one holds.
 5. **The fault channel is best-effort.** A report the ADMF does not acknowledge is discarded,
