@@ -115,3 +115,32 @@ func TestARetractionDecidedForAnEndedTaskIsNotSent(t *testing.T) {
 		t.Errorf("%d AllClear once the new task's fault stayed absent an interval, want 1", n)
 	}
 }
+
+// TestATaskReplacedBetweenSamplesDoesNotInheritItsHold: the replacement falls between two
+// completed samples rather than inside one. The old task's fault has been absent since 10 s,
+// and its task is deactivated and activated again identically, with the new task's own fault
+// recorded. At 71 s the old hold would have run its interval; the new task's must begin there
+// instead, so its retraction comes an interval later.
+func TestATaskReplacedBetweenSamplesDoesNotInheritItsHold(t *testing.T) {
+	rig := newTaskRig(t)
+
+	rig.set(TaskFault(TaskIssueDuplicationNotProgrammed, "0 of 1 rules"))
+	rig.sampleAt(0)
+	rig.set()
+	rig.sampleAt(10 * time.Second)
+
+	if _, err := rig.srv.deactivate(taskID); err != nil {
+		t.Fatalf("deactivate: %v", err)
+	}
+	rig.st.Activate(types.InterceptTask{XID: testXID, Targets: []types.TargetIdentifier{supiTarget("1")}})
+	rig.reporter.NotifyTaskFault(taskID, TaskIssueDuplicationNotProgrammed, "0 of 1 rules")
+
+	rig.sampleAt(71 * time.Second)
+	if n := rig.admf.counting(allClear)[allClear]; n != 0 {
+		t.Fatal("the new task's fault was retracted on its first absent sample, on the old task's hold")
+	}
+	rig.sampleAt(71*time.Second + time.Minute)
+	if n := rig.admf.counting(allClear)[allClear]; n != 1 {
+		t.Errorf("%d AllClear once the new task's fault stayed absent an interval, want 1", n)
+	}
+}

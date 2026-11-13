@@ -36,6 +36,7 @@ func (s *Server) WatchTaskFaults(r *Reporter, interval time.Duration, stop <-cha
 		return
 	}
 	w := newTaskWatch(s, r, interval)
+	defer r.endSamples()
 
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
@@ -121,8 +122,6 @@ func (w *taskWatch) sampleUntil(stop <-chan struct{}) {
 // elsewhere — would otherwise have that fault retracted on the strength of an absence observed
 // on the old one.
 func (w *taskWatch) report(plan []taskReport, stop <-chan struct{}) {
-	defer w.reporter.endSample()
-
 	for _, p := range plan {
 		select {
 		case <-stop:
@@ -149,9 +148,10 @@ func (w *taskWatch) report(plan []taskReport, stop <-chan struct{}) {
 }
 
 // plan decides what this sample reports. It begins the sample before it looks at the tasks, so
-// a removal after the look is one report sees (removedInSample).
+// a removal after the look is one report sees (removedInSample), and it drops the recovery
+// holds of the XIDs removed since the previous sample began.
 func (w *taskWatch) plan(now time.Time) []taskReport {
-	w.reporter.beginSample()
+	removed := w.reporter.beginSample()
 
 	held := make(map[string]bool)
 	present := make(map[reportKey]string)
@@ -173,6 +173,15 @@ func (w *taskWatch) plan(now time.Time) []taskReport {
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	// A hold measures one task's absence. Its task removed, the XID's next task — the same
+	// fault recorded again for it — starts a hold of its own rather than inheriting one that
+	// may already have run its interval.
+	for k := range w.healthy {
+		if removed[k.id] {
+			delete(w.healthy, k)
+		}
+	}
 
 	var plan []taskReport
 	for k, details := range present {
@@ -212,11 +221,10 @@ func (w *taskWatch) plan(now time.Time) []taskReport {
 }
 
 // settled forgets the hold of a fault whose retraction arrived. One that did not arrive keeps
-// its hold, so the next sample asks again — unless its task was removed since the sample
-// began: the hold measured the old task's absence, and a fault the XID's new task holds starts
-// its own.
+// its hold, so the next sample asks again; if its task was removed meanwhile, the next sample
+// drops the hold instead (removedInSample).
 func (w *taskWatch) settled(k reportKey) {
-	if w.reporter.holds(k) && !w.reporter.removedSinceSample(k.id) {
+	if w.reporter.holds(k) {
 		return
 	}
 

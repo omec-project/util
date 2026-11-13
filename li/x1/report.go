@@ -372,14 +372,19 @@ type Reporter struct {
 	// the same XID, which the watcher would then send an AllClear for a fault it never had.
 	forgotten map[reportKey]bool
 
-	// removedInSample is the XIDs removed since the task watcher's current sample began, and
-	// nil outside one. A sample's reports are decided first and sent after, and an XID can be
-	// deactivated and activated again in between, for a task identical to the one that ended.
-	// Comparing the task held at the send with the one sampled cannot tell those two apart, and
-	// a report not yet begun has no record forgetTask could mark. So a sample's report or
-	// retraction about an XID removed since it began is not sent: the fault was observed on, or
-	// the retraction decided for, a task that has ended. It is bounded by the removals during
-	// one sample, and emptied as the next begins.
+	// removedInSample is the XIDs removed since the task watcher's current sample began: nil
+	// until its first sample, and after that every removal is recorded until the next sample
+	// takes the set and starts another.
+	//
+	// It serves the watcher twice. A sample's reports are decided first and sent after, and an
+	// XID can be deactivated and activated again in between, for a task identical to the one
+	// that ended. Comparing the task held at the send with the one sampled cannot tell those two
+	// apart, and a report not yet begun has no record forgetTask could mark. So a sample's report
+	// or retraction about an XID removed since it began is not sent: the fault was observed on,
+	// or the retraction decided for, a task that has ended. And the next sample drops the
+	// recovery holds of every XID in the set it takes, whenever in the interval the removal
+	// fell: a hold measures one task's absence, and a successor under the same XID starts its
+	// own. It is bounded by the removals in one interval, and stops when the watcher does.
 	removedInSample map[string]bool
 }
 
@@ -1008,20 +1013,24 @@ func (r *Reporter) notifyTaskClearWhile(xid, condition string, held func() bool)
 	r.settleClear(k, r.ReportTaskIssue(xid, TaskReportAllClear, condition+": resolved"))
 }
 
-// beginSample starts recording the XIDs removed from now on, for the task watcher's sample
-// about to be taken (removedInSample), and endSample stops it.
-func (r *Reporter) beginSample() {
+// beginSample starts a new set of the XIDs removed from now on, for the task watcher's sample
+// about to be taken, and returns the set it replaces: the XIDs removed since the previous sample
+// began (removedInSample). endSamples stops the recording when the watcher stops.
+func (r *Reporter) beginSample() map[string]bool {
 	if r == nil {
-		return
+		return nil
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	previous := r.removedInSample
 	r.removedInSample = make(map[string]bool)
+
+	return previous
 }
 
-func (r *Reporter) endSample() {
+func (r *Reporter) endSamples() {
 	if r == nil {
 		return
 	}
