@@ -292,7 +292,7 @@ func (d *Drsm) addChunk(full *fullStream) {
 		pod = d.addPodLocked(full)
 	}
 	pod.podChunks[cid] = c
-	logger.DrsmLog.Debugf("chunk id %v, podChunks %v", cid, pod.podChunks)
+	logger.DrsmLog.Debugf("chunk id %v, pod %v now owns %d chunks", cid, full.PodId, len(pod.podChunks))
 	// Released before globalChunkTblMutex is taken: no path holds both locks at once.
 	d.podMapMutex.Unlock()
 
@@ -306,7 +306,7 @@ func (d *Drsm) ensurePod(full *fullStream) {
 	d.podMapMutex.Lock()
 	defer d.podMapMutex.Unlock()
 	if pod, found := d.podMap[full.PodId]; found {
-		logger.DrsmLog.Debugln("keepalive insert document: found existing podId", pod)
+		logger.DrsmLog.Debugln("keepalive insert document: found existing podId", pod.PodId)
 		return
 	}
 	d.addPodLocked(full)
@@ -324,7 +324,7 @@ func (d *Drsm) recordChunkOwner(owner string, chunkId int32, cp *chunk) bool {
 	// Defensive: should never happen if the pod went through addPodLocked, but prevents panic
 	d.ensurePodChunksInitialized(podD)
 	podD.podChunks[chunkId] = cp // add chunk to pod
-	logger.DrsmLog.Infof("stream(Update): pod to chunk map %v", podD.podChunks)
+	logger.DrsmLog.Infof("stream(Update): chunk %d added to pod %v, which now owns %d chunks", chunkId, owner, len(podD.podChunks))
 	return true
 }
 
@@ -336,7 +336,7 @@ func (d *Drsm) podDownCandidate(podName string) bool {
 	defer d.podMapMutex.Unlock()
 	pod, found := d.podMap[podName]
 	if found {
-		logger.DrsmLog.Infof("Stream(Delete): Pod %v and found %v. Chunks owned by crashed pod = %v", pod, found, pod.podChunks)
+		logger.DrsmLog.Infof("Stream(Delete): Pod %v and found %v. Number of chunks owned by crashed pod = %d", pod.PodId, found, len(pod.podChunks))
 	}
 	return found
 }
@@ -363,6 +363,6 @@ func (d *Drsm) addPodLocked(full *fullStream) *podData {
 	pod := &podData{PodId: podI}
 	d.ensurePodChunksInitialized(pod)
 	d.podMap[full.PodId] = pod
-	logger.DrsmLog.Infof("keepalive insert d.podMaps %v", d.podMap)
+	logger.DrsmLog.Infof("keepalive insert pod %v, podMap now holds %d pods", full.PodId, len(d.podMap))
 	return pod
 }

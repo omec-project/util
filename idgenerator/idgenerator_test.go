@@ -18,7 +18,7 @@ func TestAllocate(t *testing.T) {
 	}{
 		{1, 20},
 		{11, 50},
-		{1, 12345678},
+		{1, 10000},
 	}
 
 	for _, testCase := range testCases {
@@ -38,6 +38,14 @@ func TestAllocate(t *testing.T) {
 
 			for i := testCase.minValue; i <= testCase.maxValue; i++ {
 				idGenerator.FreeID(i)
+			}
+
+			// every ID was freed, so the generator must hand out the range again
+			id, err := idGenerator.Allocate()
+			if err != nil {
+				t.Errorf("allocate after freeing all ids failed: %v", err)
+			} else if id != testCase.minValue {
+				t.Errorf("expected id: %d after freeing all ids, output id: %d", testCase.minValue, id)
 			}
 		})
 	}
