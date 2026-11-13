@@ -96,6 +96,103 @@ func TestAnElementOutsideTheX1NamespaceIsNotRead(t *testing.T) {
 	}
 }
 
+// TestANamespaceSpelledAsAPrefixIsNotReadAsThatPrefixes: a decoder reading tokens resolves each
+// name against the declarations it has seen, so a name already resolved to a namespace spelled
+// like a declared prefix -- xmlns:x="ns1" beside xmlns:ns1 for the X1 namespace -- was resolved
+// again by the next decoder in the chain, and <x:xId> was read as the X1 xId although a
+// namespace-aware reader puts it in "ns1".
+func TestANamespaceSpelledAsAPrefixIsNotReadAsThatPrefixes(t *testing.T) {
+	const decls = `xmlns:x="ns1" xmlns:p="urn:3GPP:ns:li:3GPPX1Extensions:r18:v6" xmlns:y="p" xmlns:xsi=`
+	declare := func(body string) string { return strings.Replace(body, "xmlns:xsi=", decls, 1) }
+
+	t.Run("a DeactivateTask's xId", func(t *testing.T) {
+		st := store.New()
+		st.Activate(types.InterceptTask{XID: testXID, Targets: []types.TargetIdentifier{{Type: types.TargetGPSI, Value: "2125552368"}}})
+
+		m := serve(t, testServer(st), declare(string(request("DeactivateTaskRequest", `
+    <x:xId>`+string(testXID)+`</x:xId>`))))
+
+		if m.ErrorInformation == nil || m.ErrorInformation.ErrorCode != errCodeSchemaError {
+			t.Errorf("want a %d refusal, got %+v", errCodeSchemaError, m.ErrorInformation)
+		}
+		if _, ok := st.Get(testXID); !ok {
+			t.Error("the task was deactivated")
+		}
+	})
+
+	// The same respelling by other routes: a default namespace, a declaration on the element
+	// itself, and an attribute's prefix.
+	for name, body := range map[string]string{
+		"a default namespace spelled as a prefix": string(request("DeactivateTaskRequest", `
+    <xId xmlns="ns1">`+string(testXID)+`</xId>`)),
+		"an alias declared on the element": string(request("DeactivateTaskRequest", `
+    <x:xId xmlns:x="ns1">`+string(testXID)+`</x:xId>`)),
+		"an alias for the xsi namespace": strings.Replace(strings.Replace(string(request("DeactivateTaskRequest", `
+    <ns1:xId>`+string(testXID)+`</ns1:xId>`)),
+			`xmlns:xsi=`, `xmlns:q="xsi" xmlns:xsi=`, 1), `xsi:type=`, `q:type=`, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			st := store.New()
+			st.Activate(types.InterceptTask{XID: testXID, Targets: []types.TargetIdentifier{{Type: types.TargetGPSI, Value: "2125552368"}}})
+
+			m := serve(t, testServer(st), body)
+
+			if m.OK != "" {
+				t.Errorf("acknowledged: %+v", m)
+			}
+			if _, ok := st.Get(testXID); !ok {
+				t.Error("the task was deactivated")
+			}
+		})
+	}
+
+	t.Run("an ActivateTask's details", func(t *testing.T) {
+		body := declare(activateXML)
+		body = strings.ReplaceAll(body, "<ns1:taskDetails>", "<x:taskDetails>")
+		body = strings.ReplaceAll(body, "</ns1:taskDetails>", "</x:taskDetails>")
+		st := store.New()
+
+		m := serve(t, testServer(st), body)
+
+		if m.OK != "" {
+			t.Errorf("acknowledged: %+v", m)
+		}
+		if _, ok := st.Get(testXID); ok {
+			t.Error("the task was activated")
+		}
+	})
+
+	t.Run("an extension's 3GPP element", func(t *testing.T) {
+		// Inside an extension placeholder the namespace check stops, so what is under test is
+		// that the pinned tag does not bind the element: it is unknown extension content.
+		var ext MessageExtension
+		body := `<taskDetailsExtensions xmlns="http://uri.etsi.org/03221/X1/2017/10" ` + decls + `"http://www.w3.org/2001/XMLSchema-instance">` +
+			`<Owner>3GPP</Owner><y:IdentifierAssociationExtensions><y:IdentifierAssociationEventsGenerated>true</y:IdentifierAssociationEventsGenerated></y:IdentifierAssociationExtensions>` +
+			`</taskDetailsExtensions>`
+
+		if err := decodeDocument([]byte(body), &ext); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if ext.IdentifierAssociation != nil {
+			t.Error("an element in namespace p was read as the 3GPP IdentifierAssociationExtensions")
+		}
+	})
+
+	t.Run("the root element", func(t *testing.T) {
+		body := declare(activateXML)
+		body = strings.Replace(body, "<ns1:X1Request", "<x:X1Request", 1)
+		body = strings.Replace(body, "</ns1:X1Request>", "</x:X1Request>", 1)
+		st := store.New()
+
+		if _, err := testServer(st).Process([]byte(body), admfPeer(t)); err == nil {
+			t.Error("processed: the root is not the X1 X1Request")
+		}
+		if _, ok := st.Get(testXID); ok {
+			t.Error("the task was activated")
+		}
+	})
+}
+
 // TestContentAnotherSchemaDefinesIsNotChecked: the check stops below the X1 elements whose
 // content is another namespace's, so an LI_T3 criterion in the 3GPP extension still activates.
 func TestContentAnotherSchemaDefinesIsNotChecked(t *testing.T) {

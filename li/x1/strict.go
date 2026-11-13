@@ -152,8 +152,9 @@ func (w wireShape) choiceErr(where string) error {
 // the order they first appeared.
 //
 // The element's tokens are passed through to a second decoder as they are read, and counted on
-// the way. The names they carry are already resolved to their namespaces, which a second decoder
-// leaves as they are, so the result is the decode the first decoder would have produced.
+// the way. The names they carry are already resolved to their namespaces, and are passed without
+// the namespace declarations (resolved), so the second decoder leaves them as they are and the
+// result is the decode the first decoder would have produced.
 //
 // Passed through rather than collected first: this runs before the request is authenticated,
 // once per element whose decode calls it, nested as deep as those elements are. Collecting each
@@ -274,7 +275,7 @@ func (s *subtree) Token() (xml.Token, error) {
 		s.started = true
 		s.depth = 1
 
-		return s.start, nil
+		return resolved(s.start), nil
 	}
 	if s.depth == 0 {
 		return nil, io.EOF
@@ -305,7 +306,34 @@ func (s *subtree) Token() (xml.Token, error) {
 	}
 
 	// Copied because the decoder reading it may reuse the bytes behind it on its next call.
-	return xml.CopyToken(tok), nil
+	tok = xml.CopyToken(tok)
+	if el, ok := tok.(xml.StartElement); ok {
+		return resolved(el), nil
+	}
+
+	return tok, nil
+}
+
+// resolved returns a start element whose names this decoder has already resolved, without the
+// namespace declarations it carried, for the next decoder in the chain.
+//
+// A decoder reading tokens resolves each name against the declarations it has seen, and a name
+// already resolved is resolved again: its namespace is looked up as though it were a prefix. So
+// a document declaring xmlns:x="ns1" beside xmlns:ns1 for the X1 namespace had <x:xId> resolved
+// to "ns1" by the first decoder and to the X1 namespace by the next, which read it as the X1
+// xId although a namespace-aware reader puts it in "ns1". Without the declarations the next
+// decoder has nothing to resolve against, and leaves the names as they are.
+func resolved(el xml.StartElement) xml.StartElement {
+	attrs := el.Attr[:0:0]
+	for _, a := range el.Attr {
+		if a.Name.Space == "xmlns" || (a.Name.Space == "" && a.Name.Local == "xmlns") {
+			continue
+		}
+		attrs = append(attrs, a)
+	}
+	el.Attr = attrs
+
+	return el
 }
 
 // uniqueAttributes refuses an element carrying the same attribute twice. A set rather than a
