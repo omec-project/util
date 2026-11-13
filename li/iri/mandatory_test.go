@@ -153,7 +153,7 @@ func TestUTF8StringsAreValidAndMandatoryOnesNonEmpty(t *testing.T) {
 	establishment := func(dnn DNN) SMFPDUSessionEstablishment {
 		return SMFPDUSessionEstablishment{
 			SUPI: IMSI("262019876543210"), PDUSessionID: 5, PDUSessionType: PDUSessionTypeIPv4,
-			DNN: dnn, RequestType: SMRequestInitial,
+			DNN: dnn, RequestType: SMRequestInitial, GTPTunnelInfo: someTunnelInfo,
 		}
 	}
 	registration := func(supi any) AMFRegistration {
@@ -262,7 +262,7 @@ func TestRATTypeIsBoundedByTheModule(t *testing.T) {
 // structures a conformant decoder refuses.
 func TestTheModificationEndpointIsOneAddress(t *testing.T) {
 	rec := func(ep any) SMFPDUSessionModification {
-		return SMFPDUSessionModification{RequestType: SMRequestModification, UEEndpoint: ep}
+		return SMFPDUSessionModification{RequestType: SMRequestModification, UEEndpoint: ep, GTPTunnelInfo: someTunnelInfo}
 	}
 
 	der, err := EncodeXIRI(rec(UEEndpointAddress(net.ParseIP("10.45.0.2"))))
@@ -334,13 +334,13 @@ func TestAnAllZeroAMFIDIsSent(t *testing.T) {
 		"SMFPDUSessionEstablishment": func(a *AMFID) any {
 			return SMFPDUSessionEstablishment{
 				PDUSessionID: 5, GTPTunnelID: FTEID{TEID: 1}, PDUSessionType: PDUSessionTypeIPv4,
-				DNN: "internet", RequestType: SMRequestInitial, AMFID: a,
+				DNN: "internet", RequestType: SMRequestInitial, AMFID: a, GTPTunnelInfo: someTunnelInfo,
 			}
 		},
 		"SMFStartOfInterceptionWithEstablishedPDUSession": func(a *AMFID) any {
 			return SMFStartOfInterceptionWithEstablishedPDUSession{
 				PDUSessionID: 5, GTPTunnelID: FTEID{TEID: 1}, PDUSessionType: PDUSessionTypeIPv4,
-				DNN: "internet", RequestType: SMRequestExisting, AMFID: a,
+				DNN: "internet", RequestType: SMRequestExisting, AMFID: a, GTPTunnelInfo: someTunnelInfo,
 			}
 		},
 		"SMFUnsuccessfulProcedure": func(a *AMFID) any {

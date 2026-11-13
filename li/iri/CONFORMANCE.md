@@ -22,7 +22,7 @@ and value bounds are audited against the text of the published module (`emit_tag
   fields TS 33.128 says it carries: the M/C/O markers live in the payload tables of clause 6.2,
   and they do not always agree with the module's `OPTIONAL` markers. `gTPTunnelInfo` is
   `OPTIONAL` in the module and **M** in three payload tables, so a record omitting it would
-  decode cleanly and still be non-conformant.
+  decode cleanly and still be non-conformant. `EncodeXIRI` refuses such a record.
 
 So this document compares against the **payload tables**, not only the ASN.1.
 
@@ -144,6 +144,9 @@ do, and what this package enforces.
 `gTPTunnelID`, which is what table 6.2.3-1C asks for. `additionalULNGUUPTunnelInformation` and
 `dLRANTunnelInformation` are not modelled — the SMF holds neither for the single default path it
 manages — and neither is `ePSGTPTunnels`, which reports PDN connection events at an SGW/PGW.
+`EncodeXIRI` refuses any of the three records with the field unset (`tableMandatoryFields` in
+`constraints.go`), so a builder that has no tunnel to report gets an error rather than a record
+that omits it.
 
 **`sUPIUnauthenticated`.** Table 6.2.3-1 says it "shall be present if a SUPI is present in the
 message": `true` when the SUPI has not been authenticated and `false` when it has. `false` is the
@@ -342,7 +345,8 @@ rule that happens to hold for the values seen so far.
 ## Where the module and the tables disagree
 
 - **`gTPTunnelInfo`** is `OPTIONAL` in the module and **M** in tables 6.2.3-1, 6.2.3-2 and
-  6.2.3-4. This package follows the tables and populates it.
+  6.2.3-4. This package follows the tables: the field is modelled, and a record leaving it unset
+  is refused.
 - **`SMFStartOfInterceptionWithEstablishedPDUSession/uEEndpoint`** has no `OPTIONAL` in the
   module, while table 6.2.3-4 marks it **C**, 0..N, "if available". A session with no endpoint
   address (Unstructured, or Ethernet before a MAC is learned) is reported with the field

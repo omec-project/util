@@ -186,7 +186,8 @@ type FiveGSGTPTunnels struct {
 // SMFPDUSessionEstablishment, SMFPDUSessionModification and
 // SMFStartOfInterceptionWithEstablishedPDUSession, while the published ASN.1
 // module marks it OPTIONAL — so a record omitting it would decode cleanly and still
-// be non-conformant. It is modelled, and the SMF populates it; see CONFORMANCE.md.
+// be non-conformant. It is modelled, EncodeXIRI refuses those three records without it
+// (tableMandatoryFields), and the SMF populates it; see CONFORMANCE.md.
 //
 // ePSGTPTunnels [2] is not modelled: it reports PDN connection events at an
 // SGW/PGW, which this project does not implement.
@@ -583,7 +584,9 @@ type AMFStartOfInterceptionWithRegisteredUE struct {
 }
 
 // SMFPDUSessionEstablishment is a slice of the same-named TS 33.128 record.
-// Mandatory: pDUSessionID, gTPTunnelID, pDUSessionType, dNN, requestType.
+// Mandatory: pDUSessionID, gTPTunnelID, pDUSessionType, dNN, requestType, and
+// gTPTunnelInfo, which the module marks OPTIONAL and table 6.2.3-1 mandatory, so
+// EncodeXIRI refuses the record without it.
 // uEEndpoint [9] is OPTIONAL here and carries the address assigned to the UE —
 // distinct from gTPTunnelID, which is the serving UPF's tunnel endpoint. Table 6.2.3-1
 // makes it conditional, "if available": an empty list is omitted.
@@ -607,8 +610,9 @@ type SMFPDUSessionEstablishment struct {
 	GTPTunnelInfo       GTPTunnelInfo                  `asn1:"tag:25,optional"`
 }
 
-// SMFPDUSessionModification is a slice of the same-named record. Only
-// requestType is mandatory.
+// SMFPDUSessionModification is a slice of the same-named record. The module makes
+// only requestType mandatory; table 6.2.3-2 makes gTPTunnelInfo mandatory, and
+// EncodeXIRI refuses the record without it.
 type SMFPDUSessionModification struct {
 	SUPI                any                            `asn1:"tag:1,explicit,choice:supi,optional"`
 	SUPIUnauthenticated *SUPIUnauthenticatedIndication `asn1:"tag:2,optional"`
@@ -757,8 +761,10 @@ func UEEndpointAddress(ip net.IP) any {
 // SMFStartOfInterceptionWithEstablishedPDUSession is a slice of the same-named
 // TS 33.128 record (XIRIEvent [9]), generated when interception is activated for
 // a UE that already has an active PDU session. Mandatory: pDUSessionID,
-// gTPTunnelID, pDUSessionType, dNN, requestType. servingNetwork and gTPTunnelInfo
-// are modelled; location and the EPS tail are not, as for SMFPDUSessionEstablishment.
+// gTPTunnelID, pDUSessionType, dNN, requestType, and gTPTunnelInfo, which the module
+// marks OPTIONAL and table 6.2.3-4 mandatory, so EncodeXIRI refuses the record without
+// it. servingNetwork is modelled; location and the EPS tail are not, as for
+// SMFPDUSessionEstablishment.
 //
 // uEEndpoint is not OPTIONAL in the module, but table 6.2.3-4 makes it conditional
 // (0..N, "if available"). The field is therefore always written, and a session with no
@@ -905,8 +911,9 @@ func EncodeXIRI(event any) ([]byte, error) {
 	// Every constrained leaf, on the one path every record crosses: the restrictions the
 	// type definitions carry. A record violating its own definition would otherwise go out:
 	// this element would believe it delivered, a conformant mediation function would discard
-	// what it cannot validate, and no fault would be raised on either side. See
-	// constraints.go.
+	// what it cannot validate, and no fault would be raised on either side. The same walk
+	// refuses a member the payload tables make mandatory where the module does not
+	// (tableMandatoryFields). See constraints.go.
 	if err := validateEvent(event); err != nil {
 		return nil, err
 	}

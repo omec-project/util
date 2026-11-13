@@ -313,8 +313,9 @@ func TestAnAbsentOptionalLeafIsNotTooShort(t *testing.T) {
 		event any
 	}{
 		{"an S-NSSAI with no slice differentiator", SMFPDUSessionModification{
-			SNSSAI:      SNSSAI{SliceServiceType: 1},
-			RequestType: SMRequestModification,
+			SNSSAI:        SNSSAI{SliceServiceType: 1},
+			RequestType:   SMRequestModification,
+			GTPTunnelInfo: someTunnelInfo,
 		}},
 		{"a tracking area with no network identifier", AMFRegistration{
 			RegistrationType: RegTypeInitial, RegistrationResult: RegResult3GPPAccess,
