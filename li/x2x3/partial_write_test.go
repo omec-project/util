@@ -149,7 +149,10 @@ func stallingClient(t *testing.T, addr string) *Client {
 
 	cfg := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12} //nolint:gosec // test peer
 	c := NewClient(addr, cfg, KeepaliveConfig{Disabled: true})
-	c.writeTimeout = time.Second
+	// Every stalled write waits this out, and some tests stall twice, so it is kept short. It is
+	// longer than stallCapacity's own deadline, so a stalled write takes at least what was
+	// measured, and ample for a connection that reads to take the rest of a batch.
+	c.writeTimeout = 500 * time.Millisecond
 	c.dialConn = func(ctx context.Context) (net.Conn, error) {
 		d := tls.Dialer{NetDialer: &net.Dialer{Control: capBuffer(true)}, Config: cfg}
 
@@ -247,7 +250,10 @@ func TestARetryDoesNotRedeliverWhatThePeerAlreadyHas(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	time.Sleep(500 * time.Millisecond)
+	// SendBatch has returned, and with capped buffers its write to the second connection could
+	// only complete once the peer had read all but the few hundred kilobytes the buffers hold.
+	// Draining those is what this waits for.
+	time.Sleep(200 * time.Millisecond)
 
 	mdf.mu.Lock()
 	retried := mdf.accepted >= 2
@@ -393,11 +399,12 @@ func TestAPartiallyWrittenUnitIsResentWhole(t *testing.T) {
 
 	// The peer reads a little, pauses for twice the write deadline so the write trips it
 	// however late it started, and then drains.
-	mdf := newPausingMDF(t, cert, 32*1024, 2*time.Second)
+	const writeTimeout = 500 * time.Millisecond
+	mdf := newPausingMDF(t, cert, 32*1024, 2*writeTimeout)
 
 	c := NewClient(mdf.addr, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // test peer
 		KeepaliveConfig{Disabled: true})
-	c.writeTimeout = time.Second
+	c.writeTimeout = writeTimeout
 	t.Cleanup(func() { c.Close() }) //nolint:errcheck // test cleanup
 
 	if err := c.SendBatch(pdus); err != nil {

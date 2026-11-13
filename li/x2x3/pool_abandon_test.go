@@ -42,6 +42,9 @@ func TestAPoolCloseThatGivesUpCountsWhatItAbandons(t *testing.T) {
 	a := NewAsyncSender(inner, 64, nil, func() { drops.Add(1) })
 
 	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, func() { drops.Add(1) })
+	// The blocked sender never answers, so Close always waits out the whole deadline; its
+	// length is not what this asks.
+	p.closeTimeout = 100 * time.Millisecond
 	p.senders["mdf.example:1"] = a
 
 	if err := a.Send(product()); err != nil {
@@ -94,6 +97,8 @@ func TestAPoolCloseWaitsForEverySenderAmongSeveral(t *testing.T) {
 	blocked := NewAsyncSender(inner, 64, nil, func() { drops.Add(1) })
 
 	p := mustPool(t, &tls.Config{MinVersion: tls.VersionTLS12}, KeepaliveConfig{}, nil, func() { drops.Add(1) })
+	// As above: the deadline is waited out whole, and its length is not what this asks.
+	p.closeTimeout = 100 * time.Millisecond
 	p.senders["blocked.example:1"] = blocked
 	for _, addr := range []string{"a.example:1", "b.example:1", "c.example:1"} {
 		p.senders[addr] = &recordingSender{}

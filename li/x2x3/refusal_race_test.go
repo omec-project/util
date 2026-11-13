@@ -144,6 +144,9 @@ func TestARefusalReadAfterAWriterDroppedTheConnectionStands(t *testing.T) {
 	var faults faultLog
 	c := NewClient("mdf.example:1", nil, idleKeepalive(faults.record))
 	c.dialConn = d.dial
+	// The refusal backs the probe off by one interval before it dials, and that wait is not
+	// what this asks.
+	c.redialInterval = 10 * time.Millisecond
 	t.Cleanup(func() { _ = c.Close() })
 
 	st := heldConn(c, newScriptedConn(func(b []byte) (int, error) { return len(b), nil }))
