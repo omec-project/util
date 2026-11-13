@@ -52,16 +52,16 @@ func tasked(n int) *store.Store {
 	return st
 }
 
-// TestAContainerOfInterrogationsIsBounded: one authenticated container of three thousand
-// GetAllDetails against an element holding two thousand tasks asks for six million task
-// entries — gigabytes, built before a byte is written. The answers stop projecting state once
+// TestAContainerOfInterrogationsIsBounded: one authenticated container of GetAllDetails, as many
+// as maxMessagesPerRequest allows, against an element holding two thousand tasks asks for half a
+// million task entries, built before a byte is written. The answers stop projecting state once
 // the container has projected maxProjectedEntries, and every message after that is refused
 // with 1000 rather than dropped, so the ADMF still has an answer per request.
 func TestAContainerOfInterrogationsIsBounded(t *testing.T) {
-	// Parallel: it answers thousands of interrogations from a server of its own.
+	// Parallel: it answers a full container of interrogations from a server of its own.
 	t.Parallel()
 
-	const tasks, messages = 2000, 3000
+	const tasks, messages = 2000, maxMessagesPerRequest
 
 	srv := testServer(tasked(tasks))
 	resp, err := srv.Process(containerOf(repeated("GetAllDetailsRequest", messages)...), admfPeer(t))

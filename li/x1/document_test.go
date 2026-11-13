@@ -99,3 +99,33 @@ func TestAnAnswerThatIsNotOneDocumentIsRefused(t *testing.T) {
 		t.Error("an answer followed by another was accepted")
 	}
 }
+
+// TestAContainerOfTooManyMessagesIsATopLevelError: every message is answered, so the number in
+// one container bounds the answer. Over maxMessagesPerRequest the container is refused whole.
+func TestAContainerOfTooManyMessagesIsATopLevelError(t *testing.T) {
+	keepalive := `
+  <ns1:x1RequestMessage xsi:type="ns1:KeepaliveRequest">
+    <ns1:admfIdentifier>admfID</ns1:admfIdentifier>
+    <ns1:neIdentifier>neID</ns1:neIdentifier>
+    <ns1:messageTimestamp>2026-01-01T00:00:00.000000Z</ns1:messageTimestamp>
+    <ns1:version>v1.6.1</ns1:version>
+    <ns1:x1TransactionId>aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa</ns1:x1TransactionId>
+  </ns1:x1RequestMessage>`
+	container := func(n int) []byte {
+		return []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<ns1:X1Request xmlns:ns1="http://uri.etsi.org/03221/X1/2017/10" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+			strings.Repeat(keepalive, n) + "\n</ns1:X1Request>")
+	}
+
+	resp, err := testServer(store.New()).Process(container(maxMessagesPerRequest), admfPeer(t))
+	if err != nil {
+		t.Fatalf("a container of %d messages: %v", maxMessagesPerRequest, err)
+	}
+	if len(resp.Messages) != maxMessagesPerRequest {
+		t.Errorf("%d answers, want %d", len(resp.Messages), maxMessagesPerRequest)
+	}
+
+	if _, err := testServer(store.New()).Process(container(maxMessagesPerRequest+1), admfPeer(t)); err == nil {
+		t.Errorf("a container of %d messages was processed", maxMessagesPerRequest+1)
+	}
+}

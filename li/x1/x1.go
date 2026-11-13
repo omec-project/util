@@ -924,7 +924,8 @@ func (s *Server) topLevelError(peer *x509.Certificate) []byte {
 // clause 6.1 top-level error is the only well-formed reply.
 //
 // So is a request that is not well-formed XML: an element carrying one attribute twice, or a
-// body that is not one document (decodeDocument). A typed field outside its type is not that:
+// body that is not one document (decodeDocument). So, too, is a container of more messages than
+// maxMessagesPerRequest, although it parses. A typed field outside its type is not that:
 // the integers and booleans are decoded as text and refused with 1010 against the one message
 // that carried them (see strict.go).
 func (s *Server) Process(body []byte, peer *x509.Certificate) (*X1Response, error) {
@@ -934,6 +935,10 @@ func (s *Server) Process(body []byte, peer *x509.Certificate) (*X1Response, erro
 	}
 	if len(req.Messages) == 0 {
 		return nil, errors.New("x1: request carries no message")
+	}
+	if len(req.Messages) > maxMessagesPerRequest {
+		return nil, fmt.Errorf("x1: request carries %d messages, more than the %d this element answers in one",
+			len(req.Messages), maxMessagesPerRequest)
 	}
 	resp := &X1Response{}
 	projected := 0
@@ -947,14 +952,31 @@ func (s *Server) Process(body []byte, peer *x509.Certificate) (*X1Response, erro
 	return resp, nil
 }
 
+// maxMessagesPerRequest bounds the messages one container may carry.
+//
+// Every message is answered, and a message refused before it is authenticated is answered as
+// fully as one applied, so a container of the smallest messages a body of maxRequestBytes holds
+// -- each failing authentication -- was answered with about 30 MB. The answer is written outside
+// the admission slot, at the peer's pace, so maxConcurrentRequests does not bound how many such
+// answers are held. 256 messages cap the answer to a container of refused messages at about
+// 160 KB, and are far more than an ADMF sends in one: it tasks an element a few messages at a
+// time.
+//
+// A container over the bound is answered with a top-level error rather than in part: answering
+// the first 256 would apply a prefix of what the ADMF sent and leave it to work out which. That
+// is a departure: the container parses, the schema leaves x1RequestMessage unbounded, and clause
+// 6.1 reserves the top-level error for a request that could not be parsed. The bound is this
+// element's limit, and the top-level error is the one answer that refuses a container whole.
+const maxMessagesPerRequest = 256
+
 // maxProjectedEntries bounds what the answers in one container may project of this element's
 // state: the tasks, destinations and faults they list, counted across every message in it.
 //
 // maxRequestBytes bounds a request, and that is not a bound on its answer. An interrogation is
 // a few hundred bytes and its answer is the whole of what the element holds, so one container
-// of a few thousand GetAllDetails against an element holding a few thousand tasks asks for
-// gigabytes — built in memory, every task's faults computed once per message, before a byte
-// is written. Any authenticated peer can send one.
+// of maxMessagesPerRequest GetAllDetails against an element holding a few thousand tasks asks
+// for about a million task entries — built in memory, every task's faults computed once per
+// message, before a byte is written. Any authenticated peer can send one.
 //
 // So interrogations are answered until the container's answers have projected this many
 // entries, and each one after that is refused with 1000, naming the reason. The first is
