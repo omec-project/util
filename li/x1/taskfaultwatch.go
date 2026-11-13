@@ -109,8 +109,20 @@ func (w *taskWatch) sampleUntil(stop <-chan struct{}) {
 // removal after that point mark the send as forgotten — and sends nothing if the task is gone
 // or is no longer the one the fault was seen on.
 //
-// A retraction needs no such check: one for a removed task finds its record already forgotten.
+// "No longer the one" is asked two ways, because the task can be replaced two ways. A
+// ModifyTask changes the task held under the XID, which comparing it with the sampled task
+// finds. A deactivation followed by an activation can replace it with an identical one, which
+// no comparison finds, so the reporter is asked whether the XID was removed since the sample
+// began (removedInSample).
+//
+// A retraction is asked the second: one for a task removed since the sample was decided on
+// a task that has ended. Its record is normally forgotten with the task, but anything that
+// records a fault for the XID's new task in the meantime — NotifyTaskFault called from
+// elsewhere — would otherwise have that fault retracted on the strength of an absence observed
+// on the old one.
 func (w *taskWatch) report(plan []taskReport, stop <-chan struct{}) {
+	defer w.reporter.endSample()
+
 	for _, p := range plan {
 		select {
 		case <-stop:
@@ -118,12 +130,17 @@ func (w *taskWatch) report(plan []taskReport, stop <-chan struct{}) {
 		default:
 		}
 		if p.clear {
-			w.reporter.NotifyTaskClear(p.key.id, p.key.condition)
+			w.reporter.notifyTaskClearWhile(p.key.id, p.key.condition, func() bool {
+				return !w.reporter.removedSinceSample(p.key.id)
+			})
 			w.settled(p.key)
 
 			continue
 		}
 		w.reporter.notifyTaskFaultWhile(p.key.id, p.key.condition, p.details, func() bool {
+			if w.reporter.removedSinceSample(p.key.id) {
+				return false
+			}
 			held, ok := w.srv.store.Get(p.task.XID)
 
 			return ok && sameTask(held, p.task)
@@ -131,8 +148,11 @@ func (w *taskWatch) report(plan []taskReport, stop <-chan struct{}) {
 	}
 }
 
-// plan decides what this sample reports.
+// plan decides what this sample reports. It begins the sample before it looks at the tasks, so
+// a removal after the look is one report sees (removedInSample).
 func (w *taskWatch) plan(now time.Time) []taskReport {
+	w.reporter.beginSample()
+
 	held := make(map[string]bool)
 	present := make(map[reportKey]string)
 
@@ -192,9 +212,11 @@ func (w *taskWatch) plan(now time.Time) []taskReport {
 }
 
 // settled forgets the hold of a fault whose retraction arrived. One that did not arrive keeps
-// its hold, so the next sample asks again.
+// its hold, so the next sample asks again — unless its task was removed since the sample
+// began: the hold measured the old task's absence, and a fault the XID's new task holds starts
+// its own.
 func (w *taskWatch) settled(k reportKey) {
-	if w.reporter.holds(k) {
+	if w.reporter.holds(k) && !w.reporter.removedSinceSample(k.id) {
 		return
 	}
 

@@ -371,6 +371,16 @@ type Reporter struct {
 	// deactivated, and a record left behind would be inherited by a task re-activated under
 	// the same XID, which the watcher would then send an AllClear for a fault it never had.
 	forgotten map[reportKey]bool
+
+	// removedInSample is the XIDs removed since the task watcher's current sample began, and
+	// nil outside one. A sample's reports are decided first and sent after, and an XID can be
+	// deactivated and activated again in between, for a task identical to the one that ended.
+	// Comparing the task held at the send with the one sampled cannot tell those two apart, and
+	// a report not yet begun has no record forgetTask could mark. So a sample's report or
+	// retraction about an XID removed since it began is not sent: the fault was observed on, or
+	// the retraction decided for, a task that has ended. It is bounded by the removals during
+	// one sample, and emptied as the next begins.
+	removedInSample map[string]bool
 }
 
 // reportScope is which of the three scopes clause 6.5.1 defines a report carries.
@@ -976,11 +986,62 @@ func (r *Reporter) NotifyTaskClear(xid, condition string) {
 	if r == nil || xid == "" {
 		return
 	}
+	r.notifyTaskClearWhile(xid, condition, nil)
+}
+
+// notifyTaskClearWhile is NotifyTaskClear that sends only if held, asked once the key is
+// reserved, still reports true — asked then for the reason notifyTaskFaultWhile gives. A nil
+// held always holds.
+func (r *Reporter) notifyTaskClearWhile(xid, condition string, held func() bool) {
+	if r == nil || xid == "" {
+		return
+	}
 	k := reportKey{scope: scopeTask, id: xid, condition: condition}
 	if !r.clearing(k) {
 		return
 	}
+	if held != nil && !held() {
+		r.release(k)
+
+		return
+	}
 	r.settleClear(k, r.ReportTaskIssue(xid, TaskReportAllClear, condition+": resolved"))
+}
+
+// beginSample starts recording the XIDs removed from now on, for the task watcher's sample
+// about to be taken (removedInSample), and endSample stops it.
+func (r *Reporter) beginSample() {
+	if r == nil {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.removedInSample = make(map[string]bool)
+}
+
+func (r *Reporter) endSample() {
+	if r == nil {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.removedInSample = nil
+}
+
+// removedSinceSample reports whether xid has been removed since the current sample began.
+func (r *Reporter) removedSinceSample(xid string) bool {
+	if r == nil {
+		return false
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.removedInSample[xid]
 }
 
 // standingTaskFaults returns the task-scoped faults reported and not yet retracted.
@@ -1021,6 +1082,9 @@ func (r *Reporter) forgetTask(xid string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.removedInSample != nil {
+		r.removedInSample[xid] = true
+	}
 	ofTask := func(k reportKey) bool { return k.scope == scopeTask && k.id == xid }
 	for k := range r.sending {
 		if ofTask(k) {

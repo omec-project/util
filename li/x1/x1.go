@@ -1086,7 +1086,8 @@ func (s *Server) notifyChanged(prevTask types.InterceptTask, hadPrev bool, task 
 // sameTask reports whether two tasks are the same in every field a POI could act
 // on. Used to recognise a replay, where anything else is a transition and is the
 // POI's to interpret, and by the task watcher to tell the task a fault was observed
-// on from one activated since under the same XID.
+// on from what a ModifyTask has made of it since. A task deactivated and activated
+// again identically compares equal; the watcher asks the reporter about that.
 func sameTask(a, b types.InterceptTask) bool {
 	return reflect.DeepEqual(a, b)
 }
