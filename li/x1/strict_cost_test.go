@@ -56,8 +56,9 @@ func TestTheShapeCheckIsLinearInAnExtensionsContent(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			// The best of a few runs, so a pause on a loaded machine does not count; fewer
-			// for the larger body, which is most of the test's time.
+			// The best of three runs, so a pause on a loaded machine does not count. The larger
+			// body is most of the test's time, but with the best of two its ratio still passed
+			// the bound now and then on an idle machine, from one pause in both runs.
 			cost := func(n, runs int) time.Duration {
 				body := []byte(c.open + siblings(n) + c.close)
 				best := time.Duration(math.MaxInt64)
@@ -72,7 +73,7 @@ func TestTheShapeCheckIsLinearInAnExtensionsContent(t *testing.T) {
 				return best
 			}
 
-			small, large := cost(5000, 3), cost(40000, 2)
+			small, large := cost(5000, 3), cost(40000, 3)
 			t.Logf("5000 pairs %s, 40000 pairs %s", small, large)
 			if large > 20*small {
 				t.Errorf("40000 repeated pairs took %s against %s for 5000: %.1fx for 8x the content",
