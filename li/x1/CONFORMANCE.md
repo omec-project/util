@@ -122,6 +122,12 @@ non-conformant identifier, a conformant server is *required* to answer with a di
 A strict equality check on the echo is therefore sound only for a requester that always
 generates a conformant identifier.
 
+**A request body is one XML document.** Anything after the root element other than
+whitespace, comments and processing instructions — a second `X1Request` included — and any
+text before it make the body not well-formed, and it is answered with a `TopLevelError`. A
+leading UTF-8 byte order mark is accepted. An answer this element receives as a requester is
+held to the same.
+
 ## Tasks — clause 6.2
 
 | Message | Disposition |

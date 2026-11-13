@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/hex"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -860,12 +859,13 @@ func (s *Server) topLevelError(peer *x509.Certificate) []byte {
 // one, and so does an answer: an X1Response with no message would not validate, so the
 // clause 6.1 top-level error is the only well-formed reply.
 //
-// So is a request that is not well-formed XML — an element carrying one attribute twice
-// included. A typed field outside its type is not that: the integers and booleans are decoded
-// as text and refused with 1010 against the one message that carried them (see strict.go).
+// So is a request that is not well-formed XML: an element carrying one attribute twice, or a
+// body that is not one document (decodeDocument). A typed field outside its type is not that:
+// the integers and booleans are decoded as text and refused with 1010 against the one message
+// that carried them (see strict.go).
 func (s *Server) Process(body []byte, peer *x509.Certificate) (*X1Response, error) {
 	var req X1Request
-	if err := xml.Unmarshal(body, &req); err != nil {
+	if err := decodeDocument(body, &req); err != nil {
 		return nil, fmt.Errorf("x1: malformed request: %w", err)
 	}
 	if len(req.Messages) == 0 {

@@ -4,7 +4,9 @@
 package x1
 
 import (
+	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -32,6 +34,63 @@ import (
 // Each decoded structure records what it saw in a wireShape. The refusals are decided where the
 // message is validated, not here: an UnmarshalXML that returned an error would fail the whole
 // container, which is the second leniency's defect in another form.
+
+// decodeDocument decodes body into v, which must be the whole of body: one root element, with
+// nothing around it but what XML allows a document to carry outside its root -- whitespace,
+// comments, processing instructions, and before the root a document type declaration.
+//
+// xml.Unmarshal stops at the end of the first element and skips anything before it, so a body
+// carrying a second X1Request after the first, or text either side of it, was read as though it
+// carried only the first. Such a body is not a well-formed XML document, so there is no
+// request in it to answer.
+//
+// A UTF-8 byte order mark is not part of the document, and may precede it.
+func decodeDocument(body []byte, v any) error {
+	d := xml.NewDecoder(bytes.NewReader(bytes.TrimPrefix(body, []byte("\xef\xbb\xbf"))))
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		if start, ok := tok.(xml.StartElement); ok {
+			if err := d.DecodeElement(v, &start); err != nil {
+				return err
+			}
+
+			break
+		}
+		if !outsideRoot(tok, true) {
+			return errors.New("content before the root element")
+		}
+	}
+	for {
+		tok, err := d.Token()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if !outsideRoot(tok, false) {
+			return errors.New("content after the root element")
+		}
+	}
+}
+
+// outsideRoot reports whether a token may appear outside a document's root element (XML 1.0
+// productions 22 and 27). A document type declaration may only precede it.
+func outsideRoot(tok xml.Token, beforeRoot bool) bool {
+	switch t := tok.(type) {
+	case xml.CharData:
+		return len(bytes.Trim(t, " \t\r\n")) == 0
+	case xml.Comment, xml.ProcInst:
+		return true
+	case xml.Directive:
+		return beforeRoot
+	}
+
+	return false
+}
 
 // wireShape is what decoding saw of an element beyond what its fields hold. It is the zero value
 // for a structure built in Go rather than decoded, so it constrains only what arrived on the wire.

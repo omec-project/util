@@ -451,7 +451,7 @@ func readBoundResponse(
 	}
 
 	var out X1Response
-	if err := xml.Unmarshal(body, &out); err != nil {
+	if err := decodeDocument(body, &out); err != nil {
 		// A TopLevelErrorResponse is a different root element, so it lands here rather
 		// than decoding into an empty X1Response. It means the peer could not parse
 		// what we sent (clause 6.1) — an element-level condition, and one whose cause
