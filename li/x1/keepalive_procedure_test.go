@@ -379,6 +379,9 @@ func TestATimerBelowTheMinimumIsRefused(t *testing.T) {
 // allows: with no reporter the report is unanswered, so tasking goes once P2 and P1 have
 // expired, and closing stop ends the watchdog.
 func TestWatchKeepaliveRunsTheProcedureAndStops(t *testing.T) {
+	// Parallel: it waits out two real one-second windows, and shares nothing with another test.
+	t.Parallel()
+
 	st := store.New()
 	st.Activate(types.InterceptTask{XID: testXID, Targets: []types.TargetIdentifier{supiTarget("1")}})
 	srv := testServer(st)

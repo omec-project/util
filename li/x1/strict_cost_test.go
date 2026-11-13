@@ -25,7 +25,14 @@ import (
 // 1000 and 4000 pairs it cost under 10x for 4x the content, which a bound loose enough to absorb
 // a loaded machine's noise could not tell from linear. At 5000 and 40000 pairs it costs about
 // 40x for 8x, and the linear form about 7x.
+//
+// Not under the race detector. What it measures is the decoder's growth, which the detector's
+// instrumentation slows several times over and makes noisier, and it was most of the package's
+// time in a -race run. The CI test jobs run without -race, so it runs there on every change.
 func TestTheShapeCheckIsLinearInAnExtensionsContent(t *testing.T) {
+	if raceDetector {
+		t.Skip("a cost ratio is not measured under the race detector; the CI test jobs run it without -race")
+	}
 	siblings := func(n int) string {
 		var b strings.Builder
 		for i := range n {

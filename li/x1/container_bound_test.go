@@ -58,6 +58,9 @@ func tasked(n int) *store.Store {
 // the container has projected maxProjectedEntries, and every message after that is refused
 // with 1000 rather than dropped, so the ADMF still has an answer per request.
 func TestAContainerOfInterrogationsIsBounded(t *testing.T) {
+	// Parallel: it answers thousands of interrogations from a server of its own.
+	t.Parallel()
+
 	const tasks, messages = 2000, 3000
 
 	srv := testServer(tasked(tasks))

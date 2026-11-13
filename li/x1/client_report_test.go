@@ -27,6 +27,9 @@ import (
 // reconciliation answer of an element holding more than about 1,200 tasks — on every attempt,
 // with an error that reads like a malformed peer.
 func TestAReconciliationAnswerLargerThanARequestIsRead(t *testing.T) {
+	// Parallel: two thousand tasks are most of a second under -race, and nothing else reads them.
+	t.Parallel()
+
 	const tasks = 2000
 
 	st := store.New()
