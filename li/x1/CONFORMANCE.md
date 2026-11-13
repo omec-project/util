@@ -140,6 +140,16 @@ whose subtype another schema defines; a test derives the list from the vendored 
 request container carrying a foreign element beside its messages, an XML signature included,
 is answered with a `TopLevelError`, since there is no message to refuse it against.
 
+**At most 16 requests are decoded and applied at once.** A request whose body has been read
+while 16 are being decoded, applied or rendered waits up to two seconds for one to finish, and
+is then answered HTTP 503 with a `Retry-After`. Clause 7.2.2.2 reserves HTTP status codes for
+HTTP-level errors, which this is: nothing in the request has been decoded. A slot is not held
+while a body is read or an answer written, which go at the peer's pace, so a peer sending or
+reading slowly does not hold one. The wait is there for a CC triggering function's burst of
+`ActivateTask`s, which a 503 at once would turn into triggers resent and then left possibly
+installed (in the SMF); a burst longer than the wait absorbs is still answered 503. Neither
+the limit nor the wait is configurable.
+
 ## Tasks — clause 6.2
 
 | Message | Disposition |

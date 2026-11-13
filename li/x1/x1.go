@@ -5,6 +5,7 @@ package x1
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"encoding/hex"
 	"errors"
@@ -31,6 +32,27 @@ import (
 // each a few kilobytes; a megabyte holds hundreds of them, which is far more than an ADMF
 // sends in one container, while keeping one request's memory bounded.
 const maxRequestBytes = 1 << 20
+
+// maxConcurrentRequests bounds the requests the server decodes and applies at once.
+//
+// maxRequestBytes bounds one request, not how many arrive together, and every one is decoded
+// before it is authenticated -- a decode that peaks at tens of times the body's size.
+// NewListener admits only peers holding a certificate from the LI CA, so this is a second line
+// rather than the first: an X1 peer sends its requests one after another or a few at a time,
+// and this is several times that. The bodies themselves are read before a slot is taken, so
+// what they hold is bounded by maxRequestBytes and the connections the listener accepts.
+const maxConcurrentRequests = 16
+
+// defaultAdmissionWait is how long a request waits for one in progress to finish before it is
+// answered 503.
+//
+// It waits at all because a burst is not an attack. A CC triggering function tasks this element
+// once per intercepted session, and this package's Requester reports a 503 as no answer rather
+// than a refusal, so its caller cannot tell whether the trigger was applied. The SMF resends it
+// once and then treats it as possibly installed, so a burst answered 503 at once would leave
+// sessions' content uncollected. Two seconds is well inside the Requester's x1RequestTimeout
+// and the listener's read deadline.
+const defaultAdmissionWait = 2 * time.Second
 
 // The TS 103 221-1 deliveryType values, which appear both as something this
 // element parses from a request and as something it emits in a details answer.
@@ -110,6 +132,10 @@ type Server struct {
 	neID   string
 	admfID string // responsible ADMF; empty disables the "expected ADMF" check
 	now    func() time.Time
+	// admission holds a slot for each request being served; see maxConcurrentRequests.
+	admission chan struct{}
+	// admissionWait is defaultAdmissionWait; replaced only by tests.
+	admissionWait time.Duration
 	// onTaskChange is this element's one lifecycle callback. See OnTaskChange for
 	// why one event carrying both sides beats two events under one XID.
 	onTaskChange func(prev, next *types.InterceptTask)
@@ -733,6 +759,9 @@ func NewServer(s *store.Store, neID string, opts ...Option) *Server {
 		now:          monotonicNow,
 		destinations: make(map[string]heldDestination),
 		configured:   make(map[string]heldDestination),
+
+		admission:     make(chan struct{}, maxConcurrentRequests),
+		admissionWait: defaultAdmissionWait,
 	}
 	for _, opt := range opts {
 		opt(srv)
@@ -743,8 +772,8 @@ func NewServer(s *store.Store, neID string, opts ...Option) *Server {
 // ServeHTTP serves the X1 interface over HTTP, as TS 103 221-1 clause 7.2 binds it: one
 // X1Request per POST, answered with an X1Response, or with an X1TopLevelErrorResponse when
 // the request cannot be parsed. HTTP status codes report HTTP-level errors only (clause
-// 7.2.2.2): a method other than POST, a body larger than maxRequestBytes, or a body that
-// cannot be read.
+// 7.2.2.2): a method other than POST, a server already serving maxConcurrentRequests, a body
+// larger than maxRequestBytes, or a body that cannot be read.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -773,6 +802,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 && len(r.TLS.VerifiedChains) > 0 {
 		peer = r.TLS.PeerCertificates[0]
 	}
+	// A slot is held for the decode, the processing and the rendering of the answer, and not
+	// while the body is read or the answer written: those go at the peer's pace, and a peer
+	// sending or reading slowly would otherwise hold a slot for the listener's whole read or
+	// write timeout. The decode is the cost being bounded; see maxConcurrentRequests.
+	if !s.admit(r.Context()) {
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "X1 server busy", http.StatusServiceUnavailable)
+		return
+	}
+	out, err := func() ([]byte, error) {
+		defer func() { <-s.admission }()
+
+		return s.respond(body, peer)
+	}()
+	if err != nil {
+		http.Error(w, "encode error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml")
+	//nolint:errcheck // a peer that hung up mid-response is not actionable, and must not be logged
+	_, _ = w.Write(out)
+}
+
+// respond processes a request body and renders its answer.
+func (s *Server) respond(body []byte, peer *x509.Certificate) ([]byte, error) {
 	resp, err := s.Process(body, peer)
 	if err != nil {
 		// TS 103 221-1 clause 6.1: "If the X1 Request could not be parsed, then the
@@ -786,20 +840,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// responses themselves." A request that arrived intact and could not be parsed is
 		// an X1-level error, so it is a 200 carrying the defined response, and the
 		// decoder's own message never reaches the wire.
-		w.Header().Set("Content-Type", "application/xml")
-		//nolint:errcheck // a peer that hung up mid-response is not actionable, and must not be logged
-		_, _ = w.Write(s.topLevelError(peer))
+		return s.topLevelError(peer), nil
+	}
 
-		return
+	return marshalResponse(resp)
+}
+
+// admit takes a request slot, waiting up to admissionWait for one to come free. It reports false
+// if none did, or if the peer gave up first.
+func (s *Server) admit(ctx context.Context) bool {
+	select {
+	case s.admission <- struct{}{}:
+		return true
+	default:
 	}
-	out, err := marshalResponse(resp)
-	if err != nil {
-		http.Error(w, "encode error", http.StatusInternalServerError)
-		return
+	wait := time.NewTimer(s.admissionWait)
+	defer wait.Stop()
+	select {
+	case s.admission <- struct{}{}:
+		return true
+	case <-wait.C:
+		return false
+	case <-ctx.Done():
+		return false
 	}
-	w.Header().Set("Content-Type", "application/xml")
-	//nolint:errcheck // a peer that hung up mid-response is not actionable, and must not be logged
-	_, _ = w.Write(out)
 }
 
 // topLevelErrorTemplate is the clause 6.1 answer to a request that could not be
