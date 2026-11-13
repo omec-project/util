@@ -128,6 +128,18 @@ text before it make the body not well-formed, and it is answered with a `TopLeve
 leading UTF-8 byte order mark is accepted. An answer this element receives as a requester is
 held to the same.
 
+**Every element of a request is read in the namespace the schema puts it in.** The X1 schema
+is `elementFormDefault="qualified"`, so an element with the local name `xId` in another
+namespace is not the X1 `xId`, and is not read as one. Nor is it dropped: a message carrying
+an element outside the X1 namespace, other than inside the elements whose content another
+schema defines, is refused — with 1010, or for a header element with the code its absence
+draws (1020 for `version`, 1030 for `admfIdentifier`, 1060 for `neIdentifier`). The elements
+whose content another schema defines are the extension placeholders, the elements typed by a
+complex type of TS 103 280 or the hashed-identifier schema, and the Generic Object elements,
+whose subtype another schema defines; a test derives the list from the vendored schema. A
+request container carrying a foreign element beside its messages, an XML signature included,
+is answered with a `TopLevelError`, since there is no message to refuse it against.
+
 ## Tasks — clause 6.2
 
 | Message | Disposition |
@@ -571,7 +583,7 @@ does. The codes it emits, and what each means here:
 | Code | Meaning | Where |
 |---|---|---|
 | 1000 | Generic error | The fallback for a refusal no more specific code fits. One path uses it: an interrogation past the container's answer bound (see *Interrogation*), for which table 6.7-3 has nothing more specific |
-| 1010 | Syntax/schema error | A message violating its own schema: a missing mandatory element (`xId`, `dId`, `taskDetails`, `destinationDetails`) or an empty `targetIdentifiers`; an identifier or target value outside the format the schema defines, and a plain arm other than `supinai` sent empty; an empty `productID`; a `correlationID` that is not a non-negative integer; an `implicitDeactivationAllowed` that is not an `xs:boolean`; a choice carrying no child, a mandatory child missing (an F-SEID's SEID, an F-TEID's TEID, a `deliveryAddress`), an F-SEID or F-TEID address sent empty, and a `GTPTunnelDirection` outside its enumeration; a `deliveryType` outside its enumeration; an IPv6 destination address with a zone or in IPv4-mapped form; an LI_T3 criterion value outside its type (an F-TEID or F-SEID address that is not one, a `NetworkInstance` or `PDR` that is not hexBinary, an integer past its width); a destination port that is not a number or past 65535; a `targetIdentifier`, or an LI_T3 criterion, populating more than one arm of the schema's choice, an arm this element does not model included; an element the schema allows once, sent twice; a request carrying no message (answered as a `TopLevelError`) |
+| 1010 | Syntax/schema error | A message violating its own schema: a missing mandatory element (`xId`, `dId`, `taskDetails`, `destinationDetails`) or an empty `targetIdentifiers`; an identifier or target value outside the format the schema defines, and a plain arm other than `supinai` sent empty; an empty `productID`; a `correlationID` that is not a non-negative integer; an `implicitDeactivationAllowed` that is not an `xs:boolean`; a choice carrying no child, a mandatory child missing (an F-SEID's SEID, an F-TEID's TEID, a `deliveryAddress`), an F-SEID or F-TEID address sent empty, and a `GTPTunnelDirection` outside its enumeration; a `deliveryType` outside its enumeration; an IPv6 destination address with a zone or in IPv4-mapped form; an LI_T3 criterion value outside its type (an F-TEID or F-SEID address that is not one, a `NetworkInstance` or `PDR` that is not hexBinary, an integer past its width); a destination port that is not a number or past 65535; a `targetIdentifier`, or an LI_T3 criterion, populating more than one arm of the schema's choice, an arm this element does not model included; an element the schema allows once, sent twice; an element outside the namespace the schema puts it in, other than a header element, which draws the code of its absence; a request carrying no message (answered as a `TopLevelError`) |
 | 1020 | Unsupported version | A message whose version is not a `v1.x.y`: another major version, or a value outside the schema's pattern. The description names the version this element supports |
 | 1030 | ADMF Identifier does not match certificate details | Clause 8.2.4 binding, and any message arriving without a client certificate |
 | 1040 | Unexpected ADMF Identifier | A peer in the LI domain that is not this element's responsible ADMF |
@@ -788,10 +800,11 @@ In order of consequence:
    is referenced by a task, and which a deployment may disable. Until then a destination
    provisioned wrongly stays held, and reported; the ADMF provisions the corrected one under a
    new DID and re-tasks.
-3. **Elements the schema does not define are refused only where a choice or an extension is
-   read.** An unknown arm of either target-identifier choice, unknown content in an extension
-   placeholder or the LI_T3 container, and a second deliveryAddress arm are refused. An unknown
-   element anywhere else — a stray child of `taskDetails`, `destinationDetails` or an F-SEID — is
+3. **Elements in the X1 namespace that the schema does not define are refused only where a
+   choice or an extension is read.** An element outside the namespace is refused wherever it
+   is (see *Message envelope*). An unknown arm of either target-identifier choice, unknown
+   content in an extension placeholder or the LI_T3 container, and a second deliveryAddress arm
+   are refused. An unknown element anywhere else — a stray child of `taskDetails`, `destinationDetails` or an F-SEID — is
    dropped by the decoder, as the schema validator a strict ADMF runs would not. No narrowing of a
    task can arrive that way, since every element that narrows one is modelled and the drift test
    holds it so. The same is true of attributes: an attribute the schema does not define is

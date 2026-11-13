@@ -31,7 +31,7 @@ const Namespace = "http://uri.etsi.org/03221/X1/2017/10"
 // messages (TS 103 221-1 allows a batch); the common case is a single message.
 type X1Request struct {
 	XMLName  xml.Name           `xml:"http://uri.etsi.org/03221/X1/2017/10 X1Request"`
-	Messages []X1RequestMessage `xml:"x1RequestMessage"`
+	Messages []X1RequestMessage `xml:"http://uri.etsi.org/03221/X1/2017/10 x1RequestMessage"`
 }
 
 // X1RequestMessage is one request. The xsi:type attribute selects the action
@@ -40,22 +40,22 @@ type X1Request struct {
 // (deactivate). The header fields are common to every message type.
 type X1RequestMessage struct {
 	Type             string       `xml:"http://www.w3.org/2001/XMLSchema-instance type,attr"`
-	AdmfIdentifier   string       `xml:"admfIdentifier"`
-	NeIdentifier     string       `xml:"neIdentifier"`
-	MessageTimestamp string       `xml:"messageTimestamp"`
-	Version          string       `xml:"version"`
-	X1TransactionID  string       `xml:"x1TransactionId"`
-	TaskDetails      *TaskDetails `xml:"taskDetails,omitempty"` // ActivateTask / ModifyTask
-	XID              string       `xml:"xId,omitempty"`         // DeactivateTask
+	AdmfIdentifier   string       `xml:"http://uri.etsi.org/03221/X1/2017/10 admfIdentifier"`
+	NeIdentifier     string       `xml:"http://uri.etsi.org/03221/X1/2017/10 neIdentifier"`
+	MessageTimestamp string       `xml:"http://uri.etsi.org/03221/X1/2017/10 messageTimestamp"`
+	Version          string       `xml:"http://uri.etsi.org/03221/X1/2017/10 version"`
+	X1TransactionID  string       `xml:"http://uri.etsi.org/03221/X1/2017/10 x1TransactionId"`
+	TaskDetails      *TaskDetails `xml:"http://uri.etsi.org/03221/X1/2017/10 taskDetails,omitempty"` // ActivateTask / ModifyTask
+	XID              string       `xml:"http://uri.etsi.org/03221/X1/2017/10 xId,omitempty"`         // DeactivateTask
 	// DestinationDetails carries a delivery destination being provisioned
 	// (CreateDestination). A task references destinations by DID, so they must be
 	// installed before the first task that names them.
-	DestinationDetails *DestinationDetails `xml:"destinationDetails,omitempty"`
+	DestinationDetails *DestinationDetails `xml:"http://uri.etsi.org/03221/X1/2017/10 destinationDetails,omitempty"`
 	// DID is a bare destination identifier, as GetDestinationDetails carries it --
 	// distinct from the DID inside DestinationDetails, which is part of a destination
 	// being provisioned. (RemoveDestination carries one too; this element refuses that
 	// message, see CONFORMANCE.md.)
-	DID string `xml:"dId,omitempty"`
+	DID string `xml:"http://uri.etsi.org/03221/X1/2017/10 dId,omitempty"`
 
 	shape wireShape // what decoding saw; see strict.go
 }
@@ -114,14 +114,14 @@ func collapseToken(s string) string {
 // DestinationDetails is a delivery destination (TS 103 221-1 clause 6.3.1.2).
 // Field order follows its xs:sequence.
 type DestinationDetails struct {
-	DID          string          `xml:"dId"`
-	FriendlyName string          `xml:"friendlyName,omitempty"`
-	DeliveryType string          `xml:"deliveryType"`
-	Address      DeliveryAddress `xml:"deliveryAddress"`
+	DID          string          `xml:"http://uri.etsi.org/03221/X1/2017/10 dId"`
+	FriendlyName string          `xml:"http://uri.etsi.org/03221/X1/2017/10 friendlyName,omitempty"`
+	DeliveryType string          `xml:"http://uri.etsi.org/03221/X1/2017/10 deliveryType"`
+	Address      DeliveryAddress `xml:"http://uri.etsi.org/03221/X1/2017/10 deliveryAddress"`
 	// Extensions is the destination's own extension placeholder. Bound for the same
 	// reason ListOfServiceTypes is: an extension exists to change the meaning of the
 	// message carrying it, and encoding/xml discards what a struct does not declare.
-	Extensions []MessageExtension `xml:"destinationDetailsExtensions,omitempty"`
+	Extensions []MessageExtension `xml:"http://uri.etsi.org/03221/X1/2017/10 destinationDetailsExtensions,omitempty"`
 
 	shape wireShape
 }
@@ -134,7 +134,7 @@ type DestinationDetails struct {
 // point of binding it is to be able to *refuse* one, and a refusal needs the owner and
 // the names of what was sent, not their meaning.
 type MessageExtension struct {
-	Owner string `xml:"Owner"`
+	Owner string `xml:"http://uri.etsi.org/03221/X1/2017/10 Owner"`
 	// IdentifierAssociation is the one task extension this element acts on. TS 33.128
 	// table 6.2.2.1-1 makes it conditional on the AMF IRI-POI's ActivateTask and gives
 	// it real force: absent, the identifier-association records "shall not be
@@ -171,7 +171,7 @@ type ExtensionItem struct {
 // given as a URI, E.164 number or email address is rejected rather than
 // silently accepted and never delivered to.
 type DeliveryAddress struct {
-	IPAddressAndPort *IPAddressPort `xml:"ipAddressAndPort,omitempty"`
+	IPAddressAndPort *IPAddressPort `xml:"http://uri.etsi.org/03221/X1/2017/10 ipAddressAndPort,omitempty"`
 
 	shape wireShape
 }
@@ -360,24 +360,24 @@ func (p Port) Valid() error {
 // form; the element names do. Note the schema spells correlationID and productID with a
 // capitalised "ID", not the "xId"/"dId" pattern its other identifiers use.
 type TaskDetails struct {
-	XID               string             `xml:"xId"`
-	TargetIdentifiers []TargetIdentifier `xml:"targetIdentifiers>targetIdentifier"`
-	DeliveryType      string             `xml:"deliveryType"` // X2Only | X3Only | X2andX3
-	ListOfDIDs        []string           `xml:"listOfDIDs>dId"`
+	XID               string             `xml:"http://uri.etsi.org/03221/X1/2017/10 xId"`
+	TargetIdentifiers []TargetIdentifier `xml:"http://uri.etsi.org/03221/X1/2017/10 targetIdentifiers>targetIdentifier"`
+	DeliveryType      string             `xml:"http://uri.etsi.org/03221/X1/2017/10 deliveryType"` // X2Only | X3Only | X2andX3
+	ListOfDIDs        []string           `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfDIDs>dId"`
 	// DSIDs are destination *set* identifiers, the other arm of listOfDIDs. A set is a
 	// Generic Object (annex E: the ADMF creates a DestinationSetDetails object, then
 	// names its object id here), and this element implements no Generic Objects — so a
 	// dSId can never name anything it holds. Bound in order to refuse a task whose
 	// destinations are named only this way; see the refusal in taskFromDetails.
-	DSIDs         []string `xml:"listOfDIDs>dSId,omitempty"`
-	CorrelationID string   `xml:"correlationID,omitempty"` // xs:nonNegativeInteger
-	ProductID     string   `xml:"productID,omitempty"`     // UUIDv4; overrides XID in X2/X3 headers
+	DSIDs         []string `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfDIDs>dSId,omitempty"`
+	CorrelationID string   `xml:"http://uri.etsi.org/03221/X1/2017/10 correlationID,omitempty"` // xs:nonNegativeInteger
+	ProductID     string   `xml:"http://uri.etsi.org/03221/X1/2017/10 productID,omitempty"`     // UUIDv4; overrides XID in X2/X3 headers
 	// ListOfServiceTypes narrows a task to particular CSP service types. Bound so
 	// that it can be *refused*: encoding/xml drops elements a struct does not
 	// declare, so without it an instruction to intercept less would be silently
 	// discarded and everything delivered instead. Element names per
 	// TS_103_221_01.xsd (listOfServiceTypes containing serviceType).
-	ListOfServiceTypes []string `xml:"listOfServiceTypes>serviceType,omitempty"`
+	ListOfServiceTypes []string `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfServiceTypes>serviceType,omitempty"`
 	// ListOfMediationDetails is accepted and disregarded, which is what TS 103 221-1
 	// asks of a POI. The field is "for use by an NE that is performing mediation (i.e.
 	// a mediation and delivery function). This shall be included between the ADMF and
@@ -386,7 +386,7 @@ type TaskDetails struct {
 	//
 	// Bound all the same, so the disregard is a decision recorded here rather than an
 	// element encoding/xml happened to drop.
-	ListOfMediationDetails []MediationDetails `xml:"listOfMediationDetails>mediationDetails,omitempty"`
+	ListOfMediationDetails []MediationDetails `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfMediationDetails>mediationDetails,omitempty"`
 	// ImplicitDeactivationAllowed is likewise accepted and disregarded: "Indication
 	// that a Task may implicitly deactivate itself once the NE has determined that it
 	// has completed." This element never concludes that a task has completed, so it
@@ -396,18 +396,18 @@ type TaskDetails struct {
 	//
 	// A pointer so that "absent" and "present and false" stay distinguishable, which
 	// the drift audit needs even though the behaviour does not.
-	ImplicitDeactivationAllowed *bool `xml:"implicitDeactivationAllowed,omitempty"`
+	ImplicitDeactivationAllowed *bool `xml:"http://uri.etsi.org/03221/X1/2017/10 implicitDeactivationAllowed,omitempty"`
 	// TaskDetailsExtensions is refused unless recognised. An extension exists in order
 	// to change the meaning of the message that carries it — the LI_T3 detection
 	// criteria arrive through exactly such a placeholder — so ignoring an unknown one
 	// is the opposite of safe.
-	TaskDetailsExtensions []MessageExtension `xml:"taskDetailsExtensions,omitempty"`
+	TaskDetailsExtensions []MessageExtension `xml:"http://uri.etsi.org/03221/X1/2017/10 taskDetailsExtensions,omitempty"`
 	// ListOfTrafficPolicyReferences is refused. It is an "Ordered list  of
 	// TrafficPolicyReferences to be applied to the LITaskObject", defined in
 	// TS 103 120 clause 8.2.13, which these packages do not implement. A policy that
 	// is meant to shape what a task collects, silently unapplied, would be the same
 	// failure as an unapplied listOfServiceTypes.
-	ListOfTrafficPolicyReferences []string `xml:"listOfTrafficPolicyReferences>trafficPolicyReference,omitempty"`
+	ListOfTrafficPolicyReferences []string `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfTrafficPolicyReferences>trafficPolicyReference,omitempty"`
 
 	shape wireShape
 	// sentCorrelationID and sentProductID record that the element was present, however
@@ -420,26 +420,26 @@ type TaskDetails struct {
 // nothing here reads these values, because the structure is addressed to a mediation
 // function and this element is not one.
 type MediationDetails struct {
-	LIID         string `xml:"LIID"`
-	DeliveryType string `xml:"deliveryType"`
+	LIID         string `xml:"http://uri.etsi.org/03221/X1/2017/10 LIID"`
+	DeliveryType string `xml:"http://uri.etsi.org/03221/X1/2017/10 deliveryType"`
 }
 
 // TargetIdentifier is a CHOICE of target-identifier kinds. Only the subset the
 // 5G POIs match on is modelled; the rest of the TS 103 221-1 set is unmodelled
 // (an unknown identifier yields an empty match and is rejected).
 type TargetIdentifier struct {
-	IMSI      string `xml:"imsi,omitempty"`
-	SUPIIMSI  string `xml:"supiimsi,omitempty"`
-	SUPINAI   string `xml:"supinai,omitempty"`
-	PEIIMEI   string `xml:"peiImei,omitempty"`
-	PEIIMEISV string `xml:"peiImeisv,omitempty"`
+	IMSI      string `xml:"http://uri.etsi.org/03221/X1/2017/10 imsi,omitempty"`
+	SUPIIMSI  string `xml:"http://uri.etsi.org/03221/X1/2017/10 supiimsi,omitempty"`
+	SUPINAI   string `xml:"http://uri.etsi.org/03221/X1/2017/10 supinai,omitempty"`
+	PEIIMEI   string `xml:"http://uri.etsi.org/03221/X1/2017/10 peiImei,omitempty"`
+	PEIIMEISV string `xml:"http://uri.etsi.org/03221/X1/2017/10 peiImeisv,omitempty"`
 	// IMEI and PEIIMEICheckDigit name the same device as PEIIMEI: the 14-digit IMEI, and
 	// the 15-digit form that appends its TS 23.003 check digit. Both are matched as the
 	// 14-digit PEI the network functions present.
-	IMEI              string `xml:"imei,omitempty"`
-	PEIIMEICheckDigit string `xml:"peiImeiCheckDigit,omitempty"`
-	GPSIMSISDN        string `xml:"gpsiMsisdn,omitempty"`
-	E164Number        string `xml:"e164Number,omitempty"`
+	IMEI              string `xml:"http://uri.etsi.org/03221/X1/2017/10 imei,omitempty"`
+	PEIIMEICheckDigit string `xml:"http://uri.etsi.org/03221/X1/2017/10 peiImeiCheckDigit,omitempty"`
+	GPSIMSISDN        string `xml:"http://uri.etsi.org/03221/X1/2017/10 gpsiMsisdn,omitempty"`
+	E164Number        string `xml:"http://uri.etsi.org/03221/X1/2017/10 e164Number,omitempty"`
 	// The plain TS 103 221-1 arms that TS 33.128 table 6.2.3-7 lists as LI_T3
 	// packet-detection criteria. Element names are the schema's, which are
 	// lowercase-initial — the table names the *types* (IPv4Address, TCPPort), not
@@ -447,15 +447,15 @@ type TargetIdentifier struct {
 	//
 	// GTPUTunnelID is an integer in the schema (GtpTunnelId is an xs:integer, not a
 	// structure), so it carries a TEID with no address alongside it.
-	GTPUTunnelID string `xml:"gtpuTunnelId,omitempty"`
-	IPv4Address  string `xml:"ipv4Address,omitempty"`
-	IPv6Address  string `xml:"ipv6Address,omitempty"`
-	TCPPort      string `xml:"tcpPort,omitempty"`
-	UDPPort      string `xml:"udpPort,omitempty"`
+	GTPUTunnelID string `xml:"http://uri.etsi.org/03221/X1/2017/10 gtpuTunnelId,omitempty"`
+	IPv4Address  string `xml:"http://uri.etsi.org/03221/X1/2017/10 ipv4Address,omitempty"`
+	IPv6Address  string `xml:"http://uri.etsi.org/03221/X1/2017/10 ipv6Address,omitempty"`
+	TCPPort      string `xml:"http://uri.etsi.org/03221/X1/2017/10 tcpPort,omitempty"`
+	UDPPort      string `xml:"http://uri.etsi.org/03221/X1/2017/10 udpPort,omitempty"`
 	// Extension carries identifier types defined outside TS 103 221-1. The only
 	// one modelled is the 3GPP LI_T3 packet-detection criteria a CC Triggering
 	// Function sends a triggered CC-POI.
-	Extension *TargetIdentifierExtension `xml:"targetIdentifierExtension,omitempty"`
+	Extension *TargetIdentifierExtension `xml:"http://uri.etsi.org/03221/X1/2017/10 targetIdentifierExtension,omitempty"`
 	// Unmodelled collects every child element no field above claims — an arm TS 103
 	// 221-1 defines that this element does not model, such as macAddress. encoding/xml
 	// otherwise drops such an element silently, and a choice carrying one modelled and
@@ -485,7 +485,7 @@ const NamespaceX1Ext3GPP = "urn:3GPP:ns:li:3GPPX1Extensions:r18:v6"
 // TargetIdentifierExtension is the TS 103 221-1 Extension placeholder: an Owner
 // naming the specification that defines the content, then that content.
 type TargetIdentifierExtension struct {
-	Owner string             `xml:"Owner"`
+	Owner string             `xml:"http://uri.etsi.org/03221/X1/2017/10 Owner"`
 	UPFT3 *UPFLIT3Extensions `xml:"urn:3GPP:ns:li:3GPPX1Extensions:r18:v6 UPFLIT3TargetIdentifierExtensions,omitempty"`
 	// Unmodelled collects every other element the extension carries -- an identifier 3GPP
 	// defines that this element does not model, such as an AKMA one. Without it encoding/xml
@@ -571,19 +571,19 @@ type FSEID struct {
 // X1Response is the top-level X1 response envelope.
 type X1Response struct {
 	XMLName  xml.Name            `xml:"http://uri.etsi.org/03221/X1/2017/10 X1Response"`
-	Messages []X1ResponseMessage `xml:"x1ResponseMessage"`
+	Messages []X1ResponseMessage `xml:"http://uri.etsi.org/03221/X1/2017/10 x1ResponseMessage"`
 }
 
 // X1ResponseMessage acknowledges one request message.
 type X1ResponseMessage struct {
 	Type             string   `xml:"http://www.w3.org/2001/XMLSchema-instance type,attr"`
-	AdmfIdentifier   string   `xml:"admfIdentifier"`
-	NeIdentifier     string   `xml:"neIdentifier"`
-	MessageTimestamp string   `xml:"messageTimestamp"`
-	Version          string   `xml:"version"`
-	X1TransactionID  string   `xml:"x1TransactionId"`
-	OK               string   `xml:"oK,omitempty"`
-	ErrorInformation *X1Error `xml:"errorInformation,omitempty"`
+	AdmfIdentifier   string   `xml:"http://uri.etsi.org/03221/X1/2017/10 admfIdentifier"`
+	NeIdentifier     string   `xml:"http://uri.etsi.org/03221/X1/2017/10 neIdentifier"`
+	MessageTimestamp string   `xml:"http://uri.etsi.org/03221/X1/2017/10 messageTimestamp"`
+	Version          string   `xml:"http://uri.etsi.org/03221/X1/2017/10 version"`
+	X1TransactionID  string   `xml:"http://uri.etsi.org/03221/X1/2017/10 x1TransactionId"`
+	OK               string   `xml:"http://uri.etsi.org/03221/X1/2017/10 oK,omitempty"`
+	ErrorInformation *X1Error `xml:"http://uri.etsi.org/03221/X1/2017/10 errorInformation,omitempty"`
 	// Tasks carries the answer to a details query on the way *out*: the server
 	// renders one taskResponseDetails per task, so a requester can see what this
 	// element actually holds rather than what it believes it provisioned.
@@ -593,7 +593,7 @@ type X1ResponseMessage struct {
 	// form is built from the domain model and the incoming form is whatever the peer
 	// sent, which may include tasks this requester knows nothing about — the point
 	// of asking.
-	TaskResponses []TaskResponseDetails `xml:"taskResponseDetails"`
+	TaskResponses []TaskResponseDetails `xml:"http://uri.etsi.org/03221/X1/2017/10 taskResponseDetails"`
 	// AllTaskResponses is the same, nested, as GetAllDetailsResponse defines it. The two
 	// answers put a task in different places — GetTaskDetails directly, GetAllDetails inside
 	// listOfTaskResponseDetails — and encoding/xml matches one tag per field, so a requester
@@ -602,7 +602,7 @@ type X1ResponseMessage struct {
 	//
 	// A pointer, so an answer that omits the list — which GetAllDetailsResponse makes
 	// mandatory — can be told from one that lists no task.
-	AllTaskResponses *TaskResponseList `xml:"listOfTaskResponseDetails"`
+	AllTaskResponses *TaskResponseList `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfTaskResponseDetails"`
 	// RequestType is the type of the request being answered. It is only rendered on an
 	// ErrorResponse, where the schema makes requestMessageType mandatory — omitting it made
 	// every refusal this element sent invalid.
@@ -632,7 +632,7 @@ func (m X1ResponseMessage) ReportedTasks() []TaskResponseDetails {
 
 // TaskResponseList is GetAllDetailsResponse's listOfTaskResponseDetails.
 type TaskResponseList struct {
-	Tasks []TaskResponseDetails `xml:"taskResponseDetails"`
+	Tasks []TaskResponseDetails `xml:"http://uri.etsi.org/03221/X1/2017/10 taskResponseDetails"`
 }
 
 // ReportedDestination is one destination as an element reports it: the identifier it is
@@ -668,8 +668,8 @@ type ReportedDestination struct {
 // TaskResponseDetails is one task as reported by an element (TS 103 221-1
 // clause 6.2.5).
 type TaskResponseDetails struct {
-	TaskDetails TaskDetails `xml:"taskDetails"`
-	TaskStatus  TaskStatus  `xml:"taskStatus"`
+	TaskDetails TaskDetails `xml:"http://uri.etsi.org/03221/X1/2017/10 taskDetails"`
+	TaskStatus  TaskStatus  `xml:"http://uri.etsi.org/03221/X1/2017/10 taskStatus"`
 }
 
 // TaskStatus is how a peer reports the state of a task it holds. It is a complex
@@ -689,10 +689,10 @@ type TaskStatus struct {
 	// ProvisioningStatus is whether the peer has provisioned the task. Anything
 	// other than "complete" means the interception a triggering function believes
 	// it installed is not running.
-	ProvisioningStatus string `xml:"provisioningStatus"`
+	ProvisioningStatus string `xml:"http://uri.etsi.org/03221/X1/2017/10 provisioningStatus"`
 	// Faults are the peer's unresolved faults for this task. Mandatory in the
 	// schema and may be empty, so an empty list is the healthy answer.
-	Faults []X1Error `xml:"listOfFaults>unresolvedFault"`
+	Faults []X1Error `xml:"http://uri.etsi.org/03221/X1/2017/10 listOfFaults>unresolvedFault"`
 }
 
 // Healthy reports whether a peer's account of a task says the interception is
@@ -728,6 +728,6 @@ func (t TaskStatus) Describe() string {
 
 // X1Error carries an error response (subset).
 type X1Error struct {
-	ErrorCode        int    `xml:"errorCode"`
-	ErrorDescription string `xml:"errorDescription"`
+	ErrorCode        int    `xml:"http://uri.etsi.org/03221/X1/2017/10 errorCode"`
+	ErrorDescription string `xml:"http://uri.etsi.org/03221/X1/2017/10 errorDescription"`
 }

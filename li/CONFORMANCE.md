@@ -62,9 +62,9 @@ named with enough detail that a reader can tell whether it matters to them.
    strict validator would reject has not been exercised. A limit of the evidence rather than
    of the implementation.
 9. **Four smaller ones**, each in `x1/CONFORMANCE.md` under *Known gaps*: a destination cannot
-   be corrected or removed over X1 while a task references one; an element the schema does not
-   define is refused only where a choice or an extension is read; a provisioned
-   `correlationID` of 0 is not reported back; the fault channel is best-effort.
+   be corrected or removed over X1 while a task references one; an element in the X1 namespace
+   that the schema does not define is refused only where a choice or an extension is read; a
+   provisioned `correlationID` of 0 is not reported back; the fault channel is best-effort.
 
 ## Deliberate deviations
 

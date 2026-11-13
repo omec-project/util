@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -110,12 +111,17 @@ type wireShape struct {
 	// decoded is set for a structure that arrived on the wire, so a choice with no child can
 	// be told from one built in Go, whose shape is the zero value.
 	decoded bool
+	// foreign names the first element of a request message that is outside the namespace the
+	// schema puts it in; see x1Namespaced.
+	foreign string
 }
 
 // err returns the 1010 refusal this shape calls for, or nil. where names the structure, so the
 // refusal says which part of the message is wrong. No value is quoted: see refuse.
 func (w wireShape) err(where string) error {
 	switch {
+	case w.foreign != "":
+		return refuse(errCodeSchemaError, "%s carries %s outside the X1 namespace", where, w.foreign)
 	case w.repeated != "":
 		return refuse(errCodeSchemaError, "%s carries more than one %s; the schema allows one", where, w.repeated)
 	case w.malformed != "":
@@ -160,22 +166,89 @@ func (w wireShape) choiceErr(where string) error {
 // came second -- but XML's own "Unique Att Spec" makes such a document not well-formed, so it is
 // not a message with a schema error but no message at all, and the container is unparseable.
 func decodeChildren(d *xml.Decoder, start xml.StartElement, v any) (map[string]int, []string, error) {
-	if err := uniqueAttributes(start); err != nil {
+	sub, err := decodeSubtree(d, start, v, 0)
+	if err != nil {
 		return nil, nil, err
 	}
-	sub := &subtree{d: d, start: start.Copy(), counts: make(map[string]int)}
+
+	return sub.counts, sub.order, nil
+}
+
+// decodeSubtree is decodeChildren, also checking the namespace of the elements down to x1Depth
+// levels below start (see x1Namespaced). The first one outside it is the subtree's foreign.
+func decodeSubtree(d *xml.Decoder, start xml.StartElement, v any, x1Depth int) (*subtree, error) {
+	if err := uniqueAttributes(start); err != nil {
+		return nil, err
+	}
+	sub := &subtree{d: d, start: start.Copy(), counts: make(map[string]int), x1Depth: x1Depth}
 	if err := xml.NewTokenDecoder(sub).Decode(v); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// Decode returns at the element's end, but a decode that returned early must not leave the
 	// rest of the element for the caller's decoder to read as its own.
 	for sub.depth > 0 {
 		if _, err := sub.Token(); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	return sub.counts, sub.order, nil
+	return sub, nil
+}
+
+// x1Namespaced is the check decodeSubtree makes.
+//
+// The struct tags name the X1 namespace, so an element outside it is not read as the X1 element
+// of the same local name: without the namespace, encoding/xml matches the local name in any
+// namespace, and <x:xId xmlns:x="urn:evil"> was the task's xId. But an element no field matches
+// is dropped silently, and a dropped element can change what a message asks for -- a
+// listOfDIDs outside the namespace leaves the task naming no destination, which is valid and
+// routes its products by this element's configuration. So the element is also recorded, and
+// its message refused with 1010 as an element in a position the schema does not allow.
+//
+// The X1 schema is elementFormDefault="qualified", so every element of a request message is in
+// the X1 namespace except the content of those whose type another schema defines: the
+// extension placeholders, whose content is an xs:any of other namespaces, the elements typed by
+// a complex type of ETSI TS 103 280 or the hashed-identifier schema, and the Generic Object
+// elements, whose subtype another schema defines. Below those the check stops; their own
+// decoders bind the namespaces they expect. TestOtherSchemaContentFollowsTheSchema derives the
+// list from the vendored schema.
+func (s *subtree) x1Namespaced(el xml.StartElement) {
+	// depth counts start as 1, so el is depth-1 levels below it.
+	if s.x1Depth == 0 || s.skipFrom != 0 || s.depth-1 > s.x1Depth {
+		return
+	}
+	switch {
+	case el.Name.Space != Namespace:
+		if s.foreign == "" {
+			s.foreign = el.Name.Local
+		}
+		s.skipFrom = s.depth
+	case otherSchemaContent[el.Name.Local]:
+		s.skipFrom = s.depth
+	}
+}
+
+// otherSchemaContent names the X1 elements whose content another schema defines.
+var otherSchemaContent = map[string]bool{
+	"taskDetailsExtensions":        true,
+	"targetIdentifierExtension":    true,
+	"mediationDetailsExtensions":   true,
+	"destinationDetailsExtensions": true,
+	"taskStatusExtensions":         true,
+	"taskIssueExtensions":          true,
+	"nEIssueExtensions":            true,
+	"ipAddressAndPort":             true,
+	"tcpPortRange":                 true,
+	"udpPortRange":                 true,
+	"ipv4Cidr":                     true,
+	"hashedIdentifier":             true,
+	// Typed GenericObject, which is abstract: an instance is a subtype named by xsi:type, and
+	// its elements are in that subtype's namespace (annex E's DestinationSetDetails, for one).
+	// object is in a GetObject answer, which this element sends rather than reads; it is
+	// listed so that the list is the schema's.
+	"createObject": true,
+	"modifyObject": true,
+	"object":       true,
 }
 
 // subtree hands a second decoder the tokens of one element from the decoder reading it, ending
@@ -187,6 +260,13 @@ type subtree struct {
 	depth   int
 	counts  map[string]int
 	order   []string
+
+	// x1Depth is how many levels below start x1Namespaced checks; 0 checks none.
+	x1Depth int
+	// skipFrom is the depth of the element below which the check has stopped, or 0.
+	skipFrom int
+	// foreign is the first element the check found outside the X1 namespace.
+	foreign string
 }
 
 func (s *subtree) Token() (xml.Token, error) {
@@ -216,7 +296,11 @@ func (s *subtree) Token() (xml.Token, error) {
 			s.counts[t.Name.Local]++
 		}
 		s.depth++
+		s.x1Namespaced(t)
 	case xml.EndElement:
+		if s.depth == s.skipFrom {
+			s.skipFrom = 0
+		}
 		s.depth--
 	}
 
@@ -342,14 +426,34 @@ func unsignedField(raw *string, bits int, name string, shape *wireShape) uint64 
 func (m *X1RequestMessage) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	type fields X1RequestMessage
 	var f fields
-	counts, order, err := decodeChildren(d, start, &f)
+	sub, err := decodeSubtree(d, start, &f, math.MaxInt)
 	if err != nil {
 		return err
 	}
 	*m = X1RequestMessage(f)
 	// Every child of every request this element receives is single; the two placeholders
 	// named are on the issue reports an element sends, never on what it is sent.
-	m.shape = shapeOf(counts, order, "taskIssueExtensions", "nEIssueExtensions")
+	m.shape = shapeOf(sub.counts, sub.order, "taskIssueExtensions", "nEIssueExtensions")
+	m.shape.foreign = sub.foreign
+
+	return nil
+}
+
+// UnmarshalXML decodes a request container, refusing one that carries an element other than an
+// X1 request message. The pinned tag does not read such an element as a message, and dropped
+// it would go unanswered; there is no message to attribute it to, so the container is
+// unparseable.
+func (r *X1Request) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	type fields X1Request
+	var f fields
+	sub, err := decodeSubtree(d, start, &f, 1)
+	if err != nil {
+		return err
+	}
+	if sub.foreign != "" {
+		return fmt.Errorf("the request carries %s outside the X1 namespace", sub.foreign)
+	}
+	*r = X1Request(f)
 
 	return nil
 }
@@ -363,7 +467,7 @@ func (td *TaskDetails) UnmarshalXML(d *xml.Decoder, start xml.StartElement) erro
 	// failure fails the whole container. The shallower field hides the embedded one.
 	var f struct {
 		fields
-		ImplicitDeactivationAllowed *string `xml:"implicitDeactivationAllowed"`
+		ImplicitDeactivationAllowed *string `xml:"http://uri.etsi.org/03221/X1/2017/10 implicitDeactivationAllowed"`
 	}
 	counts, order, err := decodeChildren(d, start, &f)
 	if err != nil {
