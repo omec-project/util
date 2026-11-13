@@ -37,15 +37,17 @@ import (
 // container, which is the second leniency's defect in another form.
 
 // decodeDocument decodes body into v, which must be the whole of body: one root element, with
-// nothing around it but what XML allows a document to carry outside its root -- whitespace,
-// comments, processing instructions, and before the root a document type declaration.
+// nothing around it but whitespace, comments and processing instructions.
 //
 // xml.Unmarshal stops at the end of the first element and skips anything before it, so a body
 // carrying a second X1Request after the first, or text either side of it, was read as though it
 // carried only the first. Such a body is not a well-formed XML document, so there is no
 // request in it to answer.
 //
-// A UTF-8 byte order mark is not part of the document, and may precede it.
+// A UTF-8 byte order mark is not part of the document, and may precede it. A document type
+// declaration is refused. X1 defines none, and its internal subset can declare default
+// attributes -- a namespace declaration among them -- which a validating reader applies and
+// encoding/xml does not, so the two would read the same body as different elements.
 func decodeDocument(body []byte, v any) error {
 	d := xml.NewDecoder(bytes.NewReader(bytes.TrimPrefix(body, []byte("\xef\xbb\xbf"))))
 	for {
@@ -60,7 +62,7 @@ func decodeDocument(body []byte, v any) error {
 
 			break
 		}
-		if !outsideRoot(tok, true) {
+		if !outsideRoot(tok) {
 			return errors.New("content before the root element")
 		}
 	}
@@ -72,22 +74,21 @@ func decodeDocument(body []byte, v any) error {
 		if err != nil {
 			return err
 		}
-		if !outsideRoot(tok, false) {
+		if !outsideRoot(tok) {
 			return errors.New("content after the root element")
 		}
 	}
 }
 
-// outsideRoot reports whether a token may appear outside a document's root element (XML 1.0
-// productions 22 and 27). A document type declaration may only precede it.
-func outsideRoot(tok xml.Token, beforeRoot bool) bool {
+// outsideRoot reports whether a token is one decodeDocument accepts outside the root element:
+// whitespace, a comment or a processing instruction (XML 1.0 productions 22 and 27, less the
+// document type declaration).
+func outsideRoot(tok xml.Token) bool {
 	switch t := tok.(type) {
 	case xml.CharData:
 		return len(bytes.Trim(t, " \t\r\n")) == 0
 	case xml.Comment, xml.ProcInst:
 		return true
-	case xml.Directive:
-		return beforeRoot
 	}
 
 	return false

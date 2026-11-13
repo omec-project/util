@@ -23,6 +23,11 @@ func TestABodyThatIsNotOneDocumentIsATopLevelError(t *testing.T) {
 		"text after the root":              activateXML + "\nx",
 		"an element after the root":        activateXML + "<x/>",
 		"text before the root":             strings.Replace(activateXML, "<ns1:X1Request", "x<ns1:X1Request", 1),
+		// X1 defines no DTD, and an internal subset can declare a default namespace attribute
+		// that a validating reader applies and encoding/xml does not.
+		"a document type declaration": strings.Replace(activateXML, "<ns1:X1Request", "<!DOCTYPE X1Request>\n<ns1:X1Request", 1),
+		"a DTD declaring a default namespace": strings.Replace(activateXML, "<ns1:X1Request",
+			`<!DOCTYPE ns1:X1Request [<!ATTLIST ns1:xId xmlns CDATA #FIXED "urn:evil">]>`+"\n<ns1:X1Request", 1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			st := store.New()
@@ -38,9 +43,9 @@ func TestABodyThatIsNotOneDocumentIsATopLevelError(t *testing.T) {
 }
 
 // TestWhatXMLAllowsAroundTheRootIsAccepted: whitespace, comments and processing instructions
-// may follow the root element, and a document type declaration may precede it.
+// may precede and follow the root element.
 func TestWhatXMLAllowsAroundTheRootIsAccepted(t *testing.T) {
-	body := strings.Replace(activateXML, "<ns1:X1Request", "<!DOCTYPE X1Request>\n<!-- c -->\n<ns1:X1Request", 1) +
+	body := strings.Replace(activateXML, "<ns1:X1Request", "<!-- c -->\n<?pi data?>\n<ns1:X1Request", 1) +
 		"\n<!-- trailing -->\n<?pi data?>\n\t "
 	st := store.New()
 
