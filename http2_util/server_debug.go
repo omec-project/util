@@ -28,6 +28,9 @@ func (zeroSource) Read(b []byte) (n int, err error) {
 // traffic can be decrypted, and optionally configures TLS key logging.
 //
 // If tlskeylog is empty, key logging is disabled and the server still starts.
+// The key log file is opened in append mode, so servers sharing one path (or a restart)
+// keep earlier secrets.
+//
 // If tlskeylog cannot be opened, NewServer still returns a usable server without
 // KeyLogWriter configured, along with the corresponding error so the caller can
 // decide whether to continue.
@@ -47,7 +50,7 @@ func NewServer(bindAddr string, tlskeylog string, handler http.Handler) (server 
 
 	if tlskeylog != "" {
 		var keylogFile *os.File
-		keylogFile, err = os.OpenFile(tlskeylog, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+		keylogFile, err = os.OpenFile(tlskeylog, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 		if err != nil {
 			return server, fmt.Errorf("create pre-master-secret log [%s] fail: %w", tlskeylog, err)
 		}

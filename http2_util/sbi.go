@@ -6,9 +6,11 @@ package http2_util
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
+	"sync"
 )
 
 // KeyLogFileEnv names the environment variable that enables TLS key logging. Key logging is a
@@ -48,10 +50,12 @@ func NewSBIServer(bindAddr string, handler http.Handler, log Logger) (*http.Serv
 // Serve runs server for the given scheme and blocks until it fails or is shut down. The scheme is
 // "http", or "https" with the certificate and private key in the pem and key files. Any other scheme
 // is an error. The error is that of the underlying ListenAndServe, so a graceful shutdown returns
-// http.ErrServerClosed. Serve takes ownership of the TLS key log file, if any, and closes it when it
-// returns, so the server must not be served again. log may be nil.
+// http.ErrServerClosed. Serve takes ownership of the TLS key log file, if any, so the server must not
+// be served again. The file is closed once Serve has returned and every connection accepted by the
+// server has finished, because Serve returns as soon as Shutdown closes the listener while in-flight
+// TLS handshakes still need to write their keys. log may be nil.
 func Serve(server *http.Server, scheme, pem, key string, log Logger) error {
-	defer closeKeyLog(server)
+	defer trackKeyLog(server).serveReturned()
 
 	switch scheme {
 	case "http":
@@ -75,14 +79,64 @@ func keyLogName(w io.Writer) string {
 	return "unnamed writer"
 }
 
-// closeKeyLog closes the TLS key log writer of server if it is closable.
-func closeKeyLog(server *http.Server) {
+// keyLogCloser closes the TLS key log writer of a server after the server has stopped accepting
+// connections and the last connection it accepted has finished.
+type keyLogCloser struct {
+	closer io.Closer
+
+	mu       sync.Mutex
+	conns    int
+	returned bool
+	closed   bool
+}
+
+// trackKeyLog returns a keyLogCloser for server and hooks server.ConnState to count its connections,
+// keeping any hook already set. The result is a no-op if server has no closable key log writer.
+func trackKeyLog(server *http.Server) *keyLogCloser {
+	k := &keyLogCloser{}
 	if server.TLSConfig == nil {
+		return k
+	}
+	c, ok := server.TLSConfig.KeyLogWriter.(io.Closer)
+	if !ok {
+		return k
+	}
+	k.closer = c
+
+	prev := server.ConnState
+	server.ConnState = func(conn net.Conn, state http.ConnState) {
+		switch state {
+		case http.StateNew:
+			k.mu.Lock()
+			k.conns++
+			k.mu.Unlock()
+		case http.StateHijacked, http.StateClosed:
+			k.mu.Lock()
+			k.conns--
+			k.closeIfDoneLocked()
+			k.mu.Unlock()
+		}
+		if prev != nil {
+			prev(conn, state)
+		}
+	}
+	return k
+}
+
+// serveReturned records that the server no longer accepts connections.
+func (k *keyLogCloser) serveReturned() {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.returned = true
+	k.closeIfDoneLocked()
+}
+
+func (k *keyLogCloser) closeIfDoneLocked() {
+	if k.closer == nil || k.closed || !k.returned || k.conns > 0 {
 		return
 	}
-	if c, ok := server.TLSConfig.KeyLogWriter.(io.Closer); ok {
-		_ = c.Close()
-	}
+	k.closed = true
+	_ = k.closer.Close()
 }
 
 // ListenAndServeSBI builds the server with NewSBIServer and runs it with Serve.

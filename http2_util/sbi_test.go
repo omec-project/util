@@ -14,6 +14,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -287,5 +288,79 @@ func TestServe_ClosesKeyLogFileOnReturn(t *testing.T) {
 	}
 	if _, err := f.Write([]byte("x")); !errors.Is(err, os.ErrClosed) {
 		t.Errorf("write after Serve returned: err = %v, want os.ErrClosed", err)
+	}
+}
+
+func TestServe_KeepsKeyLogOpenUntilInFlightConnectionsFinish(t *testing.T) {
+	t.Setenv(KeyLogFileEnv, filepath.Join(t.TempDir(), "keys.log"))
+	addr := freeAddr(t)
+	server, err := NewSBIServer(addr, okHandler, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := server.TLSConfig.KeyLogWriter.(*os.File)
+	pemPath, keyPath, client := selfSigned(t, t.TempDir())
+	result, _ := serveInBackground(t, server, "https", pemPath, keyPath, nil)
+	waitUntilServing(t, client, "https://"+addr)
+
+	// A connection whose TLS handshake has not started yet, like one still draining at shutdown.
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	// Times out: the pending connection is not idle yet.
+	if err := server.Shutdown(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Shutdown = %v, want context.DeadlineExceeded", err)
+	}
+	if err := <-result; !errors.Is(err, http.ErrServerClosed) {
+		t.Fatalf("Serve = %v, want http.ErrServerClosed", err)
+	}
+	if _, err := f.Write([]byte("x")); err != nil {
+		t.Fatalf("key log closed while a connection was in flight: %v", err)
+	}
+
+	_ = conn.Close()
+	_ = server.Close()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := f.Write([]byte("x")); errors.Is(err, os.ErrClosed) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Error("key log not closed after the last connection finished")
+}
+
+func TestNewSBIServer_KeyLogIsAppendedNotTruncated(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "keys.log")
+	if err := os.WriteFile(path, []byte("earlier secrets\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(KeyLogFileEnv, path)
+	server, err := NewSBIServer(freeAddr(t), okHandler, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeKeyLogWriter(server)
+	if _, err = server.TLSConfig.KeyLogWriter.Write([]byte("new secrets\n")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "earlier secrets\nnew secrets\n"; string(got) != want {
+		t.Errorf("key log = %q, want %q", got, want)
+	}
+}
+
+func closeKeyLogWriter(server *http.Server) {
+	if c, ok := server.TLSConfig.KeyLogWriter.(io.Closer); ok {
+		_ = c.Close()
 	}
 }
