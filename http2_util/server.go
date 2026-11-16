@@ -20,6 +20,9 @@ import (
 // keeps the shared idle-timeout behavior, routes the server's error log to the util
 // logger (see newServerErrorLog), and optionally configures TLS key logging.
 //
+// The key log file is opened in append mode, so servers sharing one path (or a restart)
+// keep earlier secrets.
+//
 // If preMasterSecretLogPath cannot be opened, NewServer still returns a usable server
 // without KeyLogWriter configured, along with the corresponding error so the caller can
 // decide whether to continue.
@@ -43,7 +46,7 @@ func NewServer(bindAddr string, preMasterSecretLogPath string, handler http.Hand
 
 	if preMasterSecretLogPath != "" {
 		var preMasterSecretFile *os.File
-		preMasterSecretFile, err = os.OpenFile(preMasterSecretLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+		preMasterSecretFile, err = os.OpenFile(preMasterSecretLogPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 		if err != nil {
 			return server, fmt.Errorf("create pre-master-secret log [%s] fail: %w", preMasterSecretLogPath, err)
 		}
