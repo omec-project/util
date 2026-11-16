@@ -283,6 +283,9 @@ const bareSuffix = "/bare"
 func goldenBareSamples() map[string]any {
 	guti := FiveGGUTI{MCC: "262", MNC: "01", AMFRegionID: 200, AMFSetID: 1, AMFPointer: 0, FiveGTMSI: 3735928559}
 	fteid := FTEID{TEID: 0x01020304}
+	// Mandatory by the tables in the three session records, though OPTIONAL in the module
+	// (tableMandatoryFields); requiredByTheTables records that.
+	tunnelInfo := GTPTunnelInfo{FiveGSGTPTunnels: FiveGSGTPTunnels{ULNGUUPTunnelInformation: fteid}}
 	policy := UEPolicy{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
@@ -334,9 +337,11 @@ func goldenBareSamples() map[string]any {
 			PDUSessionType: PDUSessionTypeIPv4,
 			DNN:            DNN("internet"),
 			RequestType:    SMRequestInitial,
+			GTPTunnelInfo:  tunnelInfo,
 		},
 		"SMFPDUSessionModification": SMFPDUSessionModification{
-			RequestType: SMRequestModification,
+			RequestType:   SMRequestModification,
+			GTPTunnelInfo: tunnelInfo,
 		},
 		"SMFPDUSessionRelease": SMFPDUSessionRelease{
 			SUPI:         IMSI("262019876543210"),
@@ -349,6 +354,7 @@ func goldenBareSamples() map[string]any {
 			UEEndpoint:     UEEndpoint(net.ParseIP("2001:db8::7")),
 			DNN:            DNN("internet"),
 			RequestType:    SMRequestExisting,
+			GTPTunnelInfo:  tunnelInfo,
 		},
 		"SMFUnsuccessfulProcedure": SMFUnsuccessfulProcedure{
 			FailedProcedureType: SMFFailedPDUSessionRelease,
@@ -421,6 +427,7 @@ func goldenSparseSamples() map[string]any {
 			DNN:            DNN("ims"),
 			RequestType:    SMRequestInitial,
 			ServingNetwork: SMFServingNetwork{PLMNID: plmn},
+			GTPTunnelInfo:  GTPTunnelInfo{FiveGSGTPTunnels: FiveGSGTPTunnels{ULNGUUPTunnelInformation: FTEID{TEID: 7}}},
 		},
 	}
 }
@@ -890,6 +897,13 @@ var requiredByTheTables = map[string]bool{
 	// third.
 	"Location.LocationInfo":        true,
 	"LocationInfo.CurrentLocation": true,
+	// Refused when unset in the three session records (tableMandatoryFields), and the least it
+	// may carry is its one modelled member, and that member's.
+	"GTPTunnelInfo.FiveGSGTPTunnels":                                true,
+	"FiveGSGTPTunnels.ULNGUUPTunnelInformation":                     true,
+	"SMFPDUSessionEstablishment.GTPTunnelInfo":                      true,
+	"SMFPDUSessionModification.GTPTunnelInfo":                       true,
+	"SMFStartOfInterceptionWithEstablishedPDUSession.GTPTunnelInfo": true,
 }
 
 // TestGoldenMeasuresBothPathsOfEveryOptional is the property the fixture forms exist

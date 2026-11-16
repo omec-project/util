@@ -105,7 +105,7 @@ func TestEventDiscrimination(t *testing.T) {
 		{"registration", sampleRegistration(), "306381050413120f01a25aa158810101820101a411810f323632303139383736353433323130a610810e3335333432353030303030303031a70f810d34393135313233343536373839a81a810332363282023031830200c8840101850100860500deadbeef"},
 		{"deregistration", AMFDeregistration{DeregistrationDirection: DirNetworkInitiated, AccessType: AccessBoth}, "301181050413120f01a208a206810101820103"},
 		{"startOfInterception", AMFStartOfInterceptionWithRegisteredUE{RegistrationResult: RegResult3GPPAccess, SUPI: IMSI("262011"), GUTI: FiveGGUTI{MCC: "262", MNC: "01"}}, "302f81050413120f01a226a424810101a4088106323632303131a815810332363282023031830100840100850100860100"},
-		{"smfStartOfInterception", SMFStartOfInterceptionWithEstablishedPDUSession{SUPI: IMSI("262011"), PDUSessionID: 5, PDUSessionType: PDUSessionTypeIPv4, UEEndpoint: UEEndpoint(net.ParseIP("10.45.0.2")), DNN: "internet", RequestType: SMRequestExisting}, "303581050413120f01a22ca92aa1088106323632303131850105a603810100870101a90681040a2d00028c08696e7465726e65748f0102"},
+		{"smfStartOfInterception", SMFStartOfInterceptionWithEstablishedPDUSession{SUPI: IMSI("262011"), PDUSessionID: 5, PDUSessionType: PDUSessionTypeIPv4, UEEndpoint: UEEndpoint(net.ParseIP("10.45.0.2")), DNN: "internet", RequestType: SMRequestExisting, GTPTunnelInfo: someTunnelInfo}, "303e81050413120f01a235a933a1088106323632303131850105a603810100870101a90681040a2d00028c08696e7465726e65748f0102b707a105a103810101"},
 		{"identifierAssociation", AMFIdentifierAssociation{SUPI: IMSI("262011"), GUTI: FiveGGUTI{MCC: "262", MNC: "01"}, Location: Location{LocationInfo: LocationInfo{CurrentLocation: true}}}, "303481050413120f01a22bbf3e28a1088106323632303131a515810332363282023031830100840100850100860100a605a1038201ff"},
 		{"identifierDeassociation", AMFIdentifierDeassociation{SUPI: IMSI("262011"), GUTI: FiveGGUTI{MCC: "262", MNC: "01"}}, "302e81050413120f01a225bf813a21a1088106323632303131a515810332363282023031830100840100850100860100"},
 	}
@@ -154,6 +154,7 @@ func sampleEstablishment() SMFPDUSessionEstablishment {
 		DNN:            "internet",
 		RequestType:    SMRequestInitial,
 		AccessType:     AccessThreeGPP,
+		GTPTunnelInfo:  someTunnelInfo,
 	}
 }
 
@@ -212,13 +213,14 @@ func TestIdentifierRecordMandatoryTags(t *testing.T) {
 }
 
 func TestSMFEstablishmentEncoding(t *testing.T) {
-	assertEncodes(t, sampleEstablishment(), "304d81050413120f01a244a642a111810f323632303139383736353433323130850105a60d810500deadbeef82040a000001870101a808810101820300007b8c08696e7465726e65748f0101900101")
+	assertEncodes(t, sampleEstablishment(), "305681050413120f01a24da64ba111810f323632303139383736353433323130850105a60d810500deadbeef82040a000001870101a808810101820300007b8c08696e7465726e65748f0101900101b907a105a103810101")
 }
 
 func TestSMFModificationAndReleaseEncoding(t *testing.T) {
 	assertEncodes(t, SMFPDUSessionModification{
 		SUPI: IMSI("262019876543210"), RequestType: SMRequestModification, PDUSessionID: 5,
-	}, "302481050413120f01a21ba719a111810f3236323031393837363534333231308801058b0105")
+		GTPTunnelInfo: someTunnelInfo,
+	}, "302d81050413120f01a224a722a111810f3236323031393837363534333231308801058b0105b007a105a103810101")
 	assertEncodes(t, SMFPDUSessionRelease{
 		SUPI: IMSI("262019876543210"), PDUSessionID: 5, UplinkVolume: new(int64(1024)), DownlinkVolume: new(int64(8192)),
 	}, "302981050413120f01a220a81ea111810f3236323031393837363534333231308401058702040088022000")

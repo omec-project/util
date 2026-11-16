@@ -84,9 +84,9 @@ func TestUEEndpointCarriesEveryAlternative(t *testing.T) {
 		body []byte
 		fix  string
 	}{
-		{"ipv4", IPv4Address{10, 45, 0, 2}, "a9068104", []byte{10, 45, 0, 2}, "304481050413120f01a23ba939a111810f323632303139383736353433323130850105a60981010182040a141e28870101a90681040a2d00028c08696e7465726e65748f0102"},
-		{"ipv6", v6, "a9128210", v6, "305081050413120f01a247a945a111810f323632303139383736353433323130850105a60981010182040a141e28870101a912821020010db80000000000000000000000018c08696e7465726e65748f0102"},
-		{"mac", MACAddress{0x02, 0x42, 0xac, 0x11, 0x00, 0x02}, "a9088306", []byte{0x02, 0x42, 0xac, 0x11, 0x00, 0x02}, "304681050413120f01a23da93ba111810f323632303139383736353433323130850105a60981010182040a141e28870101a90883060242ac1100028c08696e7465726e65748f0102"},
+		{"ipv4", IPv4Address{10, 45, 0, 2}, "a9068104", []byte{10, 45, 0, 2}, "304d81050413120f01a244a942a111810f323632303139383736353433323130850105a60981010182040a141e28870101a90681040a2d00028c08696e7465726e65748f0102b707a105a103810101"},
+		{"ipv6", v6, "a9128210", v6, "305981050413120f01a250a94ea111810f323632303139383736353433323130850105a60981010182040a141e28870101a912821020010db80000000000000000000000018c08696e7465726e65748f0102b707a105a103810101"},
+		{"mac", MACAddress{0x02, 0x42, 0xac, 0x11, 0x00, 0x02}, "a9088306", []byte{0x02, 0x42, 0xac, 0x11, 0x00, 0x02}, "304f81050413120f01a246a944a111810f323632303139383736353433323130850105a60981010182040a141e28870101a90883060242ac1100028c08696e7465726e65748f0102b707a105a103810101"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -98,6 +98,7 @@ func TestUEEndpointCarriesEveryAlternative(t *testing.T) {
 				UEEndpoint:     []any{tc.addr},
 				DNN:            DNN("internet"),
 				RequestType:    SMRequestExisting,
+				GTPTunnelInfo:  someTunnelInfo,
 			}, tc.fix)
 			if !containsTLV(der, tc.want, tc.body) {
 				t.Errorf("uEEndpoint does not carry %s as %s: % x", tc.name, tc.want, der)
@@ -118,7 +119,8 @@ func TestUEEndpointCarriesMultipleAddresses(t *testing.T) {
 		UEEndpoint:     []any{IPv4Address{10, 45, 0, 2}, v6},
 		DNN:            DNN("internet"),
 		RequestType:    SMRequestExisting,
-	}, "305081050413120f01a247a945a111810f323632303139383736353433323130850105a603810100870103a91881040a2d0002821020010db80000000000000000000000018c08696e7465726e65748f0102")
+		GTPTunnelInfo:  someTunnelInfo,
+	}, "305981050413120f01a250a94ea111810f323632303139383736353433323130850105a603810100870103a91881040a2d0002821020010db80000000000000000000000018c08696e7465726e65748f0102b707a105a103810101")
 	// [9] of 24 octets: the IPv4 arm (6), then the IPv6 arm (18), in the order given.
 	if !containsTLV(der, "a918"+"81040a2d0002"+"8210", v6) {
 		t.Errorf("uEEndpoint does not carry both families in order: % x", der)
@@ -139,6 +141,7 @@ func TestStartOfInterceptionReportsAnEmptyEndpointList(t *testing.T) {
 			UEEndpoint:     ep,
 			DNN:            DNN("internet"),
 			RequestType:    SMRequestExisting,
+			GTPTunnelInfo:  someTunnelInfo,
 		})
 		if err != nil {
 			t.Fatalf("%s: a session with no endpoint address was refused: %v", name, err)
@@ -161,12 +164,13 @@ func TestEstablishmentOmitsAbsentEndpoint(t *testing.T) {
 		PDUSessionType: PDUSessionTypeIPv4,
 		DNN:            DNN("internet"),
 		RequestType:    SMRequestInitial,
+		GTPTunnelInfo:  someTunnelInfo,
 	}
-	without := assertEncodes(t, base, "303c81050413120f01a233a631a111810f323632303139383736353433323130850105a60981010182040a141e288701018c08696e7465726e65748f0101")
+	without := assertEncodes(t, base, "304581050413120f01a23ca63aa111810f323632303139383736353433323130850105a60981010182040a141e288701018c08696e7465726e65748f0101b907a105a103810101")
 
 	withAddr := base
 	withAddr.UEEndpoint = UEEndpoint(net.ParseIP("10.45.0.2"))
-	with := assertEncodes(t, withAddr, "304481050413120f01a23ba639a111810f323632303139383736353433323130850105a60981010182040a141e28870101a90681040a2d00028c08696e7465726e65748f0101")
+	with := assertEncodes(t, withAddr, "304d81050413120f01a244a642a111810f323632303139383736353433323130850105a60981010182040a141e28870101a90681040a2d00028c08696e7465726e65748f0101b907a105a103810101")
 
 	if len(without) >= len(with) {
 		t.Errorf("absent endpoint encoding (%d bytes) is not smaller than present (%d) — "+
@@ -189,7 +193,8 @@ func TestEndpointIsNotTheTunnelEndpoint(t *testing.T) {
 		UEEndpoint:     UEEndpoint(net.ParseIP("10.45.0.2")), // the subject
 		DNN:            DNN("internet"),
 		RequestType:    SMRequestInitial,
-	}, "304481050413120f01a23ba639a111810f323632303139383736353433323130850105a6098101018204c0a8fc03870101a90681040a2d00028c08696e7465726e65748f0101")
+		GTPTunnelInfo:  someTunnelInfo,
+	}, "304d81050413120f01a244a642a111810f323632303139383736353433323130850105a6098101018204c0a8fc03870101a90681040a2d00028c08696e7465726e65748f0101b907a105a103810101")
 	// gTPTunnelID [6] { tEID [1] 1, iPv4Address [2] c0 a8 fc 03 }.
 	if !containsTLV(der, "a609810101"+"8204", []byte{192, 168, 252, 3}) {
 		t.Errorf("gTPTunnelID does not carry the UPF's address: % x", der)
@@ -211,6 +216,7 @@ func TestAnEmptyOptionalEndpointListIsOmitted(t *testing.T) {
 		PDUSessionType: PDUSessionTypeIPv4,
 		DNN:            DNN("internet"),
 		RequestType:    SMRequestInitial,
+		GTPTunnelInfo:  someTunnelInfo,
 	}
 	absent, err := EncodeXIRI(est)
 	if err != nil {

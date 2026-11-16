@@ -42,6 +42,9 @@ type Pool struct {
 	// rather than marking the pool, so without this a late delivery is indistinguishable
 	// from a first one.
 	closed bool
+
+	// closeTimeout is defaultCloseTimeout, held per pool so a test can shorten it.
+	closeTimeout time.Duration
 }
 
 // NewPool returns a pool that dials with tlsConfig, running the clause 6.2.4 keepalive
@@ -72,7 +75,7 @@ type Pool struct {
 // delivery worker, each connection's keepalive and read goroutines, and the probe that
 // follows a peer's close. It must be safe for concurrent use, must not block and must not
 // close the pool — Close waits for those goroutines, so a callback blocked on something the
-// closing goroutine holds would stall the close (bounded here by closeTimeout, and unbounded
+// closing goroutine holds would stall the close (bounded here by defaultCloseTimeout, and unbounded
 // for a caller closing a sender directly).
 func NewPool(tlsConfig *tls.Config, keepalive KeepaliveConfig, onError func(error), onDrop func()) (*Pool, error) {
 	if tlsConfig == nil {
@@ -91,6 +94,8 @@ func NewPool(tlsConfig *tls.Config, keepalive KeepaliveConfig, onError func(erro
 		onError:   onError,
 		onDrop:    onDrop,
 		senders:   make(map[string]Sender),
+
+		closeTimeout: defaultCloseTimeout,
 	}, nil
 }
 
@@ -238,7 +243,7 @@ func (p *Pool) UnreachableAmong(addrs []string) (unreachable, inUse int) {
 	return unreachable, inUse
 }
 
-// closeTimeout bounds how long Close waits for the pool's senders to drain.
+// defaultCloseTimeout bounds how long Close waits for the pool's senders to drain.
 //
 // A blackholed mediation function must not decide how long this element takes to stop.
 // Closing a sender waits for its worker to finish the queue, and each unit is bounded only
@@ -253,13 +258,13 @@ func (p *Pool) UnreachableAmong(addrs []string) (unreachable, inUse int) {
 //
 // Two seconds is far below any grace period a deployment sets and far above the time a
 // working destination needs to drain a queue it is reading.
-const closeTimeout = 2 * time.Second
+const defaultCloseTimeout = 2 * time.Second
 
 // Close drains and closes every client. It returns the first error, having closed the
 // rest regardless: a half-closed pool would leave delivery workers running with nothing
 // left to deliver to.
 //
-// The drain is bounded (see closeTimeout) and the senders are closed concurrently, so the
+// The drain is bounded (see defaultCloseTimeout) and the senders are closed concurrently, so the
 // bound is per pool rather than per destination. A sender still draining when the bound
 // expires is left to its goroutine: this runs at teardown, the process is about to go, and
 // the alternative is being killed part-way through the same work with less of it done. What
@@ -291,7 +296,7 @@ func (p *Pool) Close() error {
 
 	var firstErr error
 
-	deadline := time.After(closeTimeout)
+	deadline := time.After(p.closeTimeout)
 	for range n {
 		select {
 		case r := <-results:

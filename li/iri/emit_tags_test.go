@@ -272,7 +272,7 @@ func tagSamples() map[string]any {
 			IPv6Address(net.ParseIP("2001:db8::7").To16()),
 			MACAddress{0x02, 0x42, 0xac, 0x11, 0x00, 0x02},
 		},
-		DNN: "internet", RequestType: SMRequestExisting,
+		DNN: "internet", RequestType: SMRequestExisting, GTPTunnelInfo: someTunnelInfo,
 	}
 	for i, cause := range []any{CauseTransport(1), CauseNas(2), CauseProtocol(3)} {
 		samples[fmt.Sprintf("extra/handover cause %d", i)] = AMFRANHandoverRequest{
