@@ -484,7 +484,8 @@ func TestKeepaliveToleratesTwoMissedAcknowledgements(t *testing.T) {
 
 	// Keep quiet past TIME_P2 and it must go.
 	select {
-	case <-faults:
+	case err := <-faults:
+		t.Logf("disconnected as expected: %v", err)
 	case <-time.After(3 * time.Second):
 		t.Fatal("silence past TIME_P2 did not disconnect")
 	}

@@ -157,8 +157,9 @@ func TestClosingABlackholedDestinationIsBounded(t *testing.T) {
 	go func() { done <- p.Close() }()
 
 	select {
-	case <-done:
+	case err := <-done:
 		// Either outcome is acceptable: what is asserted is the bound, not the verdict.
+		t.Logf("Close returned: %v", err)
 	case <-time.After(p.closeTimeout + 5*time.Second):
 		t.Fatalf("Close did not return within %s of its own deadline: a blackholed mediation "+
 			"function decides how long this element takes to stop, and a teardown that overruns a "+
