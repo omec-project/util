@@ -101,10 +101,11 @@ And, immediately beneath the same table, two rejection rules:
 > If a Task has a ServiceType not supported by the NE, then the NE shall reject the
 > ActivateTaskRequest with an appropriate error.
 
-The second is implemented: such a task is refused with 3050. The first is enforced in
-part: with `RequireResolvableDIDs`, a task ordering content with no X3 destination is
-refused, and a task naming a destination identifier the element cannot resolve is refused
-with 2040. Other combinations of DeliveryType and destinations are not checked.
+The second is implemented: such a task is refused with 3050. The first is implemented
+too: a task naming a destination identifier the element cannot resolve is refused with
+2040, and a task that names destinations none of which serves a product its DeliveryType
+orders is refused with 3040, at every element. With `RequireResolvableDIDs`, a task
+ordering content that names no destination is refused with 3040 as well.
 
 ## TS 103 221-1 clause 6.3.1 — CreateDestination
 

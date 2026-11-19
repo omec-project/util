@@ -525,8 +525,11 @@ func (t InterceptTask) WantsProduct(p ProductType) bool {
 // same record twice under one warrant has no way to tell a duplicate from a repeat.
 //
 // An empty result is a task this element cannot deliver for from its own tasking alone.
-// What a POI does then is the POI's decision: an IRI-POI may fall back to a configured
-// endpoint, while a triggered CC-POI refuses the task instead.
+// For a task that names no destination, what a POI does then is the POI's decision: an
+// IRI-POI may fall back to a configured endpoint, while a triggered CC-POI refuses the task
+// instead. A task whose named destinations yield none for a product it orders is refused
+// by x1 (2040 or 3040) before it is held, so a POI's configured-endpoint fallback is
+// reached only by a task that names no destination.
 func (t InterceptTask) DeliveryAddresses(dt DeliveryType) []string {
 	var out []string
 	for _, d := range t.Deliveries {
