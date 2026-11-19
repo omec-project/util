@@ -622,10 +622,11 @@ peer sees and is worth agreeing before it is deployed.
 
 `RequireResolvableDIDs` is deliberately *not* configuration, though it looks like a switch
 of the same kind. It follows from the role an element performs rather than from an
-agreement: a triggered CC-POI must refuse a content task whose destination it cannot
-resolve, because that refusal is the only way its triggering function learns the
-destination was lost — and an IRI-POI must not, because an ADMF legitimately names DIDs it
-never provisioned. A deployment able to set it could break the LI_T3 contract from a values
+agreement: a triggered CC-POI must refuse a content task that names no destination,
+because it has no configured X3 endpoint to fall back to and that refusal is the only way
+its triggering function learns the destination was lost — and an IRI-POI must not, because
+an ADMF may legitimately name no destination and rely on `mdf2`. A destination identifier
+neither can resolve is refused at both, with 2040. A deployment able to set it could break the LI_T3 contract from a values
 file, so it is not offered.
 
 ##### What to set
@@ -886,9 +887,10 @@ no block present, LI is inactive. Before enabling, you need:
 3. The **LI-enabled NF images** deployed.
 
 The `mdf2` and `mdf3` addresses configured here are **defaults**, for a task that
-names no destination the element can resolve. Where a task names its own — which
-TS 33.128 requires and which is what an ADMF that calls `CreateDestination` does —
-that is where its product goes, on X3 as on X2. See *[Where a task's product
+names no destination at all. Where a task names its own — which TS 33.128 requires
+and which is what an ADMF that calls `CreateDestination` does — that is where its
+product goes, on X3 as on X2. A task that names a destination this element cannot
+resolve is refused (2040), not delivered to the default. See *[Where a task's product
 goes](#where-a-tasks-product-goes)* for the three sources and their precedence.
 
 The difference between the two interfaces is only *who* provisions the destination
@@ -896,7 +898,7 @@ at the element that delivers. The AMF and SMF resolve their own X2 destinations.
 UPF holds no MDF3 of its own: it is a triggered point of interception,
 so the SMF's triggering function resolves the task's X3 destinations, provisions each
 one at that UPF with `CreateDestination`, and names them on the trigger — falling
-back to its configured `mdf3` only for a task that named nothing resolvable.
+back to its configured `mdf3` only for a task that names no destination at all.
 
 ### AMF and SMF
 
@@ -907,7 +909,8 @@ configuration:
   # ... existing AMF/SMF configuration ...
   li:
     x1Listen: ":8443"                     # address the NF's X1 listener binds (ADMF connects here)
-    mdf2: "mdf2.li.example:9000"          # X2 delivery destination (MDF2 host:port)
+    mdf2: "mdf2.li.example:9000"          # X2 delivery DEFAULT (MDF2 host:port), only for a
+                                          # task that names no destination.
     neId: "amf-1"                         # this network element's identifier (use "smf-1" on the SMF).
                                           # Required: it is both the identity the ADMF tasks on
                                           # X1 and the Network Function ID every delivered
@@ -923,9 +926,9 @@ configuration:
     # that UPF first; the UPF holds none of them in its own configuration. A UPF
     # missing from this list will duplicate traffic that nobody can attribute,
     # which the SMF reports to the ADMF as a fault.
-    mdf3: "mdf3.li.example:9001"          # X3 delivery DEFAULT (MDF3 host:port), for a task
-                                          # that names no X3 destination this element can
-                                          # resolve. A task that names one goes there instead.
+    mdf3: "mdf3.li.example:9001"          # X3 delivery DEFAULT (MDF3 host:port), only for a
+                                          # task that names no destination. A task that names
+                                          # destinations goes to them, or is refused.
     upfTriggers:
       - nodeId: "upf"                     # the UPF's N4 node address — IP or DNS name (resolved as on the PFCP path)
         x1Url: "https://upf-1:8443/X1/NE" # its X1 endpoint; the host must be a name its certificate covers

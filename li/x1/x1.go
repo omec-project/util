@@ -222,8 +222,9 @@ type Server struct {
 	// taskFaultReporter is the reporter the task fault watcher reports through, guarded by
 	// mu. A removed task's records are forgotten in it at once (see notifyRemoved).
 	taskFaultReporter *Reporter
-	// requireDIDs refuses a CC task whose destinations are unknown, rather than
-	// accepting it and delivering nothing.
+	// requireDIDs refuses a CC task that names no destination, rather than accepting it
+	// and delivering nothing (see RequireResolvableDIDs). A named destination this element
+	// cannot resolve is refused whatever its value.
 	requireDIDs bool
 	// honoursCorrelation records that this element acts on a provisioned correlation
 	// value. See HonoursCorrelationID.
