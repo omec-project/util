@@ -756,8 +756,9 @@ type SMFPDUSessionRelease struct {
 	Location       Location `asn1:"tag:9,optional"`
 }
 
-// AMFLocationUpdate is a slice of the same-named record. Mandatory: sUPI,
-// location (a minimal Location for now — see Location).
+// AMFLocationUpdate is a slice of the same-named record. Mandatory: sUPI and location,
+// which is refused empty (nonEmpty in constraints.go): a Location carrying a user location,
+// currentLocation, or both, satisfies it.
 type AMFLocationUpdate struct {
 	SUPI     any       `asn1:"tag:1,explicit,choice:supi"`
 	SUCI     SUCI      `asn1:"tag:2,optional"`
@@ -792,9 +793,10 @@ type AMFIdentifierAssociation struct {
 	PEI  any       `asn1:"tag:3,explicit,choice:pei,optional"`
 	GPSI any       `asn1:"tag:4,explicit,choice:gpsi,optional"`
 	GUTI FiveGGUTI `asn1:"tag:5"`
-	// location [6] is MANDATORY in this record, unlike the other records that carry a
-	// Location: a record without it fails schema validation. The minimal Location the
-	// other records use satisfies the requirement.
+	// location [6] is mandatory here, as in AMFLocationUpdate and unlike the other records
+	// that carry a Location: a record without it fails schema validation, and an empty one
+	// is refused (nonEmpty in constraints.go). A Location carrying a user location,
+	// currentLocation, or both, satisfies it.
 	Location      Location `asn1:"tag:6"`
 	FiveGSTAIList TAIList  `asn1:"tag:7,optional"`
 }

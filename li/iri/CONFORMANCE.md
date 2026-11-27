@@ -128,8 +128,10 @@ The nine `UNTRACED` verdicts are an admission, not a conclusion, and are labelle
 cannot be mistaken for clearance: `pCCRules`, `pCCRuleIDs`, `oldPDUSessionID`,
 `handoverState`, `uEPolicy` and `rRCEstablishmentCause` each have a plausibly corresponding
 field in a network function's context that was not followed through to the point of
-interception. One more sits below the records, outside these counts:
-`FiveGSSubscriberID/sUCI`, a `UserIdentifiers` alternative `iri.Identifiers` does not build.
+interception. Two more sit below the records, outside these counts:
+`FiveGSSubscriberID/sUCI`, a `UserIdentifiers` alternative `iri.Identifiers` does not build, and
+`Location/locationPresenceReport`, the area-of-interest report of the AMF event exposure
+service, which was not followed to the point of interception.
 
 The 26 `N/A` verdicts rest on features this deployment does not implement: EPS/5GS
 interworking over N26 and the SGW/PGW role, non-3GPP access through an N3IWF, TNGF or TWIF,

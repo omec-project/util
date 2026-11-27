@@ -444,16 +444,16 @@ func TestTheDispositionCountsAreTheDocumentedOnes(t *testing.T) {
 // table for a nested type, so none cites one.
 var declaredAbsentNested = map[string]map[string]string{
 	"Location": {
-		"positioningInfo":        "NOT HELD: positioning results come from an LMF, and the AMF here has none",
-		"locationPresenceReport": "NOT HELD: reports an area-of-interest event from the AMF event exposure service, whose location reports are not traced into these records",
+		"positioningInfo":        "NOT HELD: a positioning result, and the AMF here receives no positioning result",
+		"locationPresenceReport": "UNTRACED: reports an area-of-interest event from the AMF event exposure service; whether those location reports reach the point of interception was not traced",
 		"fourGPositioningInfo":   "N/A: an EPS location form; this project implements no EPS access",
 		"fourGLocationInfo":      "N/A: an EPS location form; this project implements no EPS access",
 		"iMSLocation":            "N/A: IMS location; this project implements no IMS element",
 	},
 	"LocationInfo": {
-		"geoInfo":           "NOT HELD: a geographic area is a positioning result, and the AMF here has no LMF",
-		"rATType":           "DEFERRED: the records that report a RAT type carry it at their own rATType member",
-		"timeZone":          "DEFERRED: not modelled; the user location is the subtree the payload tables ask a location to be encoded with",
+		"geoInfo":           "NOT HELD: a geographic area is a positioning result, and the AMF here receives no positioning result",
+		"rATType":           "DEFERRED: the AMF and SMF hold the RAT type and it is not modelled here; the records that report one carry it at their own rATType member",
+		"timeZone":          "DEFERRED: the AMF (AmfUe.TimeZone) and SMF (SMContext.UeTimeZone) hold the UE's time zone, and it is not modelled here; this change models the user location the payload tables ask a location to be encoded with",
 		"additionalCellIDs": "DEFERRED: not modelled; it carries the secondary cells of dual connectivity, which the AMF does not record per UE",
 	},
 	"UserLocation": {
@@ -465,8 +465,8 @@ var declaredAbsentNested = map[string]map[string]string{
 	"NRLocation": {
 		"ageOfLocationInfo":       "NOT HELD: the AMF fills its age-of-location field with NGAP's four-octet Time Stamp read as an integer, which is not an age",
 		"uELocationTimestamp":     "DEFERRED: a GeneralizedTime leaf, which this encoder does not write; the AMF holds the time it received the location",
-		"geographicalInformation": "NOT HELD: a positioning result, and the AMF here has no LMF",
-		"geodeticInformation":     "NOT HELD: a positioning result, and the AMF here has no LMF",
+		"geographicalInformation": "NOT HELD: a positioning result, and the AMF here receives no positioning result",
+		"geodeticInformation":     "NOT HELD: a positioning result, and the AMF here receives no positioning result",
 		"globalGNbID":             "DEFERRED: the AMF holds the serving gNB's identity from NG setup, not from User Location Information; not modelled",
 		"cellSiteInformation":     "NOT HELD: the AMF holds no cell-site description",
 		"ignoreNCGI":              "NOT HELD: NGAP User Location Information carries no such indication",
