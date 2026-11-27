@@ -39,7 +39,20 @@ const goldenPath = "testdata/golden.txt"
 // Values are fixed, never generated, so the encoding is reproducible.
 func goldenSamples() map[string]any {
 	guti := FiveGGUTI{MCC: "262", MNC: "01", AMFRegionID: 200, AMFSetID: 1, AMFPointer: 0, FiveGTMSI: 3735928559}
-	loc := Location{LocationInfo: LocationInfo{CurrentLocation: true}}
+	// A user location in an NR cell, the form the payload tables ask a location to take. The
+	// cell identity sets the first and the last of its 36 bits, so a bit string written short,
+	// unaligned or with its unused bits set moves the vector.
+	loc := Location{LocationInfo: LocationInfo{
+		UserLocation: UserLocation{NRLocation: NRLocation{
+			TAI: TAI{PLMNID: PLMNID{MCC: "262", MNC: "01"}, TAC: TAC{0x00, 0x00, 0x2A}, NID: "0000000000c"},
+			NCGI: NCGI{
+				PLMNID:   PLMNID{MCC: "262", MNC: "01"},
+				NRCellID: NRCellID(0x800000001),
+				NID:      "0000000000d",
+			},
+		}},
+		CurrentLocation: true,
+	}}
 	fteid := FTEID{
 		TEID:        0x01020304,
 		IPv4Address: []byte{10, 20, 30, 40},
@@ -77,18 +90,32 @@ func goldenSamples() map[string]any {
 	// false is the point: it is the ordinary value, and the value the encoder could
 	// not express before optional members could be declared as pointers.
 	supiAuthenticated := SUPIUnauthenticatedIndication(false)
+	// The three NSSAIs of a REGISTRATION ACCEPT. The rejected one carries cause 0, a value
+	// the range admits, so a rejected S-NSSAI whose cause is written as absent moves the vector.
+	// Each S-NSSAI is fully populated, as every nested optional here must be; the three
+	// differ in their SST so they cannot be written in each other's place.
+	withSST := func(sst SliceServiceType) SNSSAI { s := snssai; s.SliceServiceType = sst; return s }
+	slice := Slice{
+		AllowedNSSAI:    NSSAI{snssai, withSST(2)},
+		ConfiguredNSSAI: NSSAI{withSST(3)},
+		RejectedNSSAI:   RejectedNSSAI{{CauseValue: 0, SNSSAI: withSST(4)}},
+	}
+	requested := NSSAI{snssai}
 
 	return map[string]any{
 		"AMFRegistration": AMFRegistration{
 			RegistrationType:   RegTypeInitial,
 			RegistrationResult: RegResult3GPPAccess,
+			Slice:              slice,
 			SUPI:               IMSI("262019876543210"),
 			PEI:                IMEI("35342500000001"),
 			GPSI:               MSISDN("4915123456789"),
 			GUTI:               guti,
+			Location:           loc,
 			SUCI:               suci,
 			FiveGSTAIList:      taiList,
 			RATType:            RATNR,
+			FiveGMMCapability:  FiveGMMCapability{0x07, 0x00},
 		},
 		"AMFDeregistration": AMFDeregistration{
 			DeregistrationDirection: DirUEInitiated,
@@ -98,6 +125,9 @@ func goldenSamples() map[string]any {
 			GPSI:                    MSISDN("4915123456789"),
 			GUTI:                    guti,
 			SUCI:                    suci,
+			Location:                loc,
+			SwitchOffIndicator:      SwitchOffSwitchOff,
+			ReRegRequiredIndicator:  ReRegistrationNotRequired,
 		},
 		"AMFLocationUpdate": AMFLocationUpdate{
 			SUPI:     IMSI("262019876543210"),
@@ -110,16 +140,19 @@ func goldenSamples() map[string]any {
 		"AMFStartOfInterceptionWithRegisteredUE": AMFStartOfInterceptionWithRegisteredUE{
 			RegistrationResult: RegResult3GPPAccess,
 			RegistrationType:   RegTypeInitial,
+			Slice:              slice,
 			SUPI:               IMSI("262019876543210"),
 			PEI:                IMEI("35342500000001"),
 			GPSI:               MSISDN("4915123456789"),
 			GUTI:               guti,
+			Location:           loc,
 			SUCI:               suci,
 			FiveGSTAIList:      taiList,
 		},
 		"AMFUnsuccessfulProcedure": AMFUnsuccessfulProcedure{
 			FailedProcedureType: FailedRegistration,
 			FailureCause:        FiveGMMCause(11),
+			RequestedSlice:      requested,
 			SUPI:                IMSI("262019876543210"),
 			PEI:                 IMEI("35342500000001"),
 			GPSI:                MSISDN("4915123456789"),
@@ -137,11 +170,12 @@ func goldenSamples() map[string]any {
 			FiveGSTAIList: taiList,
 		},
 		"AMFIdentifierDeassociation": AMFIdentifierDeassociation{
-			SUPI: IMSI("262019876543210"),
-			GUTI: guti,
-			SUCI: suci,
-			PEI:  IMEISV("3534250000000151"),
-			GPSI: MSISDN("4915123456789"),
+			SUPI:     IMSI("262019876543210"),
+			GUTI:     guti,
+			SUCI:     suci,
+			PEI:      IMEISV("3534250000000151"),
+			GPSI:     MSISDN("4915123456789"),
+			Location: loc,
 		},
 		// The three records below carry gTPTunnelInfo, which the TS 33.128 payload
 		// tables mark mandatory although the module marks it OPTIONAL.
@@ -162,6 +196,7 @@ func goldenSamples() map[string]any {
 			AMFID:               &amfID,
 			RATType:             RATNR,
 			ServingNetwork:      servingNet,
+			Location:            loc,
 		},
 		"SMFPDUSessionModification": SMFPDUSessionModification{
 			SUPI:                IMSI("262019876543210"),
@@ -176,6 +211,7 @@ func goldenSamples() map[string]any {
 			RATType:             RATNR,
 			UEEndpoint:          UEEndpointAddress(net.IPv4(10, 45, 0, 7)),
 			ServingNetwork:      servingNet,
+			Location:            loc,
 		},
 		"SMFPDUSessionRelease": SMFPDUSessionRelease{
 			SUPI:           IMSI("262019876543210"),
@@ -184,6 +220,7 @@ func goldenSamples() map[string]any {
 			PDUSessionID:   5,
 			UplinkVolume:   new(int64(123456)),
 			DownlinkVolume: new(int64(654321)),
+			Location:       loc,
 		},
 		"SMFStartOfInterceptionWithEstablishedPDUSession": SMFStartOfInterceptionWithEstablishedPDUSession{
 			SUPI:                IMSI("262019876543210"),
@@ -202,6 +239,7 @@ func goldenSamples() map[string]any {
 			AMFID:               &amfID,
 			RATType:             RATNR,
 			ServingNetwork:      servingNet,
+			Location:            loc,
 		},
 		"SMFUnsuccessfulProcedure": SMFUnsuccessfulProcedure{
 			FailedProcedureType: SMFFailedPDUSessionEstablishment,
@@ -218,12 +256,17 @@ func goldenSamples() map[string]any {
 			SUPIUnauthenticated: &supiAuthenticated,
 			AMFID:               &amfID,
 			RATType:             RATNR,
+			RequestedSlice:      requested,
+			Location:            loc,
 		},
 		"AMFUEServiceAccept": AMFUEServiceAccept{
 			UserIdentifiers:        ids,
 			ServiceMessageIdentity: ServiceAcceptIdentity{0x4E},
 			ServiceType:            []byte{0x01},
 			FiveGTMSI:              new(FiveGTMSI(3735928559)),
+			// Two octets each, the lower bound: PSI 5 pending uplink data, PSIs 1 and 5 active.
+			UplinkDataStatus: UplinkDataStatus{0x20, 0x00},
+			PDUSessionStatus: PDUSessionStatus{0x22, 0x00},
 		},
 		"AMFUEPolicyTransfer": AMFUEPolicyTransfer{
 			SUPI: IMSI("262019876543210"),
@@ -404,6 +447,10 @@ const sparseSuffix = "/sparse"
 // only. TestGoldenMeasuresBothPathsOfEveryOptional holds the set to that.
 func goldenSparseSamples() map[string]any {
 	plmn := PLMNID{MCC: "262", MNC: "01"}
+	sparseLocation := Location{LocationInfo: LocationInfo{UserLocation: UserLocation{NRLocation: NRLocation{
+		TAI:  TAI{PLMNID: plmn, TAC: TAC{0x00, 0x01}},
+		NCGI: NCGI{PLMNID: plmn, NRCellID: 1},
+	}}}}
 	return map[string]any{
 		"AMFRegistration": AMFRegistration{
 			RegistrationType:   RegTypeMobility,
@@ -418,6 +465,20 @@ func goldenSparseSamples() map[string]any {
 				SchemeOutput:           []byte{0x01, 0x02},
 			},
 			FiveGSTAIList: TAIList{{PLMNID: plmn, TAC: TAC{0x00, 0x00, 0x01}}},
+			// Only the allowed NSSAI, and a location that is a user location and nothing else:
+			// no currentLoc, and neither network identifier.
+			Slice:    Slice{AllowedNSSAI: NSSAI{{SliceServiceType: 1}}},
+			Location: sparseLocation,
+		},
+		// The other two NSSAIs without the allowed one.
+		"AMFStartOfInterceptionWithRegisteredUE": AMFStartOfInterceptionWithRegisteredUE{
+			RegistrationResult: RegResult3GPPAccess,
+			SUPI:               IMSI("262019876543210"),
+			GUTI:               FiveGGUTI{MCC: "262", MNC: "01", AMFRegionID: 200, AMFSetID: 1, AMFPointer: 2, FiveGTMSI: 1},
+			Slice: Slice{
+				ConfiguredNSSAI: NSSAI{{SliceServiceType: 1}},
+				RejectedNSSAI:   RejectedNSSAI{{CauseValue: 1, SNSSAI: SNSSAI{SliceServiceType: 2}}},
+			},
 		},
 		"SMFPDUSessionEstablishment": SMFPDUSessionEstablishment{
 			PDUSessionID:   6,
@@ -569,8 +630,14 @@ var nestedOptionals = []struct {
 	{reflect.TypeOf(UserIdentifiers{}), "FiveGS"},
 	{reflect.TypeOf(TAI{}), "NID"},
 	{reflect.TypeOf(SMFServingNetwork{}), "NID"},
+	{reflect.TypeOf(LocationInfo{}), "UserLocation"},
 	{reflect.TypeOf(LocationInfo{}), "CurrentLocation"},
 	{reflect.TypeOf(Location{}), "LocationInfo"},
+	{reflect.TypeOf(UserLocation{}), "NRLocation"},
+	{reflect.TypeOf(NCGI{}), "NID"},
+	{reflect.TypeOf(Slice{}), "AllowedNSSAI"},
+	{reflect.TypeOf(Slice{}), "ConfiguredNSSAI"},
+	{reflect.TypeOf(Slice{}), "RejectedNSSAI"},
 	{reflect.TypeOf(GTPTunnelInfo{}), "FiveGSGTPTunnels"},
 	{reflect.TypeOf(FiveGSGTPTunnels{}), "ULNGUUPTunnelInformation"},
 }
@@ -591,7 +658,9 @@ func TestPopulatedCheckReachesNestedOptionals(t *testing.T) {
 		reflect.TypeOf(LocationInfo{}), reflect.TypeOf(Location{}), reflect.TypeOf(GTPTunnelInfo{}),
 		reflect.TypeOf(FiveGSGTPTunnels{}), reflect.TypeOf(FiveGGUTI{}), reflect.TypeOf(PLMNID{}),
 		reflect.TypeOf(AMFID{}), reflect.TypeOf(FiveGSSubscriberIDs{}),
-		reflect.TypeOf(PDUSessionResourceInformation{}),
+		reflect.TypeOf(PDUSessionResourceInformation{}), reflect.TypeOf(UserLocation{}),
+		reflect.TypeOf(NRLocation{}), reflect.TypeOf(NCGI{}), reflect.TypeOf(Slice{}),
+		reflect.TypeOf(RejectedSNSSAI{}),
 	} {
 		for i := range typ.NumField() {
 			if f := typ.Field(i); isOptional(f) && !listed[typ.Name()+"."+f.Name] {
@@ -828,8 +897,20 @@ func TestGoldenBareSamplesAreMandatoryOnly(t *testing.T) {
 	}
 }
 
+// leastOfARequiredStructure are the OPTIONAL members a mandatory-only fixture carries because
+// the structure holding them may not be empty, while the member itself may be omitted when a
+// sibling is present — so, unlike requiredByTheTables, both of its paths are measured.
+//
+// A mandatory Location is refused empty, and its LocationInfo holds two modelled members, either
+// of which makes it non-empty. The mandatory-only fixtures carry currentLoc, the smaller one;
+// a sparse fixture carries the user location without it.
+var leastOfARequiredStructure = map[string]bool{
+	"LocationInfo.CurrentLocation": true,
+}
+
 // populatedOptionals returns the path of every OPTIONAL member reachable from v that
-// carries a value, other than those requiredByTheTables makes present.
+// carries a value, other than those requiredByTheTables or leastOfARequiredStructure makes
+// present.
 func populatedOptionals(v reflect.Value, path string) []string {
 	switch v.Kind() {
 	case reflect.Interface, reflect.Pointer:
@@ -851,7 +932,8 @@ func populatedOptionals(v reflect.Value, path string) []string {
 		for i := range v.NumField() {
 			f := v.Type().Field(i)
 			p := path + "/" + f.Name
-			if isOptional(f) && !v.Field(i).IsZero() && !requiredByTheTables[v.Type().Name()+"."+f.Name] {
+			key := v.Type().Name() + "." + f.Name
+			if isOptional(f) && !v.Field(i).IsZero() && !requiredByTheTables[key] && !leastOfARequiredStructure[key] {
 				out = append(out, p)
 			}
 			out = append(out, populatedOptionals(v.Field(i), p)...)
@@ -879,7 +961,7 @@ func TestGoldenFormsDiffer(t *testing.T) {
 // itself OPTIONAL wherever it appears, so the structure is at its zero — and omitted —
 // exactly when the member is. Their absent path is the structure's, which is measured.
 var onlyMemberOfOptional = map[string]bool{
-	"LocationInfo.CurrentLocation":              true,
+	"UserLocation.NRLocation":                   true,
 	"GTPTunnelInfo.FiveGSGTPTunnels":            true,
 	"FiveGSGTPTunnels.ULNGUUPTunnelInformation": true,
 }
@@ -892,11 +974,9 @@ var onlyMemberOfOptional = map[string]bool{
 var requiredByTheTables = map[string]bool{
 	// UserIdentifiers' only modelled member: an empty UserIdentifiers names nobody.
 	"UserIdentifiers.FiveGS": true,
-	// Location's only modelled member, and LocationInfo's. Location is mandatory in two
-	// records, where an empty one is refused, and optional — so omitted when empty — in the
-	// third.
-	"Location.LocationInfo":        true,
-	"LocationInfo.CurrentLocation": true,
+	// Location's only modelled member. Location is mandatory in two records, where an empty
+	// one is refused, and optional — so omitted when empty — in the others.
+	"Location.LocationInfo": true,
 	// Refused when unset in the three session records (tableMandatoryFields), and the least it
 	// may carry is its one modelled member, and that member's.
 	"GTPTunnelInfo.FiveGSGTPTunnels":                                true,
@@ -992,6 +1072,11 @@ func TestGoldenMeasuresBothPathsOfEveryOptional(t *testing.T) {
 	for key := range onlyMemberOfOptional {
 		if !all[key] {
 			t.Errorf("onlyMemberOfOptional names %s, which is not an OPTIONAL member", key)
+		}
+	}
+	for key := range leastOfARequiredStructure {
+		if !all[key] {
+			t.Errorf("leastOfARequiredStructure names %s, which is not an OPTIONAL member", key)
 		}
 	}
 	for key := range requiredByTheTables {

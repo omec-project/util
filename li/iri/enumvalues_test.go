@@ -71,6 +71,10 @@ func TestNamedEnumeratorsMatchTheModule(t *testing.T) {
 		{"RATType", "nRGEO", int64(RATNRGEO)},
 		{"RATType", "nROTHERSAT", int64(RATNROtherSat)},
 		{"RATType", "nRREDCAP", int64(RATNRRedCap)},
+		{"SwitchOffIndicator", "normalDetach", int64(SwitchOffNormalDetach)},
+		{"SwitchOffIndicator", "switchOff", int64(SwitchOffSwitchOff)},
+		{"ReRegRequiredIndicator", "reRegistrationRequired", int64(ReRegistrationRequired)},
+		{"ReRegRequiredIndicator", "reRegistrationNotRequired", int64(ReRegistrationNotRequired)},
 	}
 
 	types := map[string]bool{}

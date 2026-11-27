@@ -65,6 +65,21 @@ func (b *builder) octets(tag int, v []byte) {
 	b.add(asn1.Marshal(asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: tag, Bytes: v}))
 }
 
+// nrCellIDBits is the length of NRCellID ::= BIT STRING (SIZE(36)).
+const nrCellIDBits = 36
+
+// bitString writes [tag] IMPLICIT BIT STRING of the n low-order bits of v, most significant
+// first, as a bit string of exactly n bits. Its trailing unused bits are zero, as DER requires.
+// That v fits in n bits is constraints.go's to check, before any emitter runs.
+func (b *builder) bitString(tag int, v int64, n int) {
+	octets := make([]byte, (n+7)/8)
+	aligned := uint64(v) << (len(octets)*8 - n)
+	for i := range octets {
+		octets[i] = byte(aligned >> (8 * (len(octets) - 1 - i)))
+	}
+	b.add(asn1.MarshalWithParams(asn1.BitString{Bytes: octets, BitLength: n}, fmt.Sprintf("tag:%d", tag)))
+}
+
 // text writes a string-typed member as its bytes. Validation is not this function's: the
 // module's string types — their sizes, their alphabets and, for a UTF8String, that the
 // content is valid UTF-8 — are checked in constraints.go, which runs before any emitter.
@@ -326,6 +341,14 @@ func (b *builder) taiList(tag int, list TAIList) {
 	})
 }
 
+func (b *builder) nssai(tag int, list NSSAI) {
+	b.constructed(tag, func(c *builder) {
+		for _, s := range list {
+			c.sequence(s.emit)
+		}
+	})
+}
+
 // --- Nested structures ---
 
 func (s SNSSAI) emit(b *builder) {
@@ -370,9 +393,52 @@ func (l Location) emit(b *builder) {
 }
 
 func (l LocationInfo) emit(b *builder) {
+	if !isZero(l.UserLocation) {
+		b.constructed(1, l.UserLocation.emit)
+	}
 	if l.CurrentLocation {
 		b.boolean(2, l.CurrentLocation)
 	}
+}
+
+func (u UserLocation) emit(b *builder) {
+	if !isZero(u.NRLocation) {
+		b.constructed(2, u.NRLocation.emit)
+	}
+}
+
+func (n NRLocation) emit(b *builder) {
+	b.constructed(1, n.TAI.emit)
+	b.constructed(2, n.NCGI.emit)
+}
+
+func (n NCGI) emit(b *builder) {
+	b.constructed(1, n.PLMNID.emit)
+	b.bitString(2, int64(n.NRCellID), nrCellIDBits)
+	if n.NID != "" {
+		b.text(3, string(n.NID))
+	}
+}
+
+func (s Slice) emit(b *builder) {
+	if s.AllowedNSSAI != nil {
+		b.nssai(1, s.AllowedNSSAI)
+	}
+	if s.ConfiguredNSSAI != nil {
+		b.nssai(2, s.ConfiguredNSSAI)
+	}
+	if s.RejectedNSSAI != nil {
+		b.constructed(3, func(c *builder) {
+			for _, r := range s.RejectedNSSAI {
+				c.sequence(r.emit)
+			}
+		})
+	}
+}
+
+func (r RejectedSNSSAI) emit(b *builder) {
+	b.integer(1, int64(r.CauseValue))
+	b.constructed(2, r.SNSSAI.emit)
 }
 
 func (f FiveGSSubscriberIDs) emit(b *builder) {
@@ -447,6 +513,9 @@ func (a AMFID) emit(b *builder) {
 func (r AMFRegistration) emit(b *builder) {
 	b.integer(1, int64(r.RegistrationType))
 	b.integer(2, int64(r.RegistrationResult))
+	if !isZero(r.Slice) {
+		b.constructed(3, r.Slice.emit)
+	}
 	b.explicit(4, "AMFRegistration.SUPI", r.SUPI, supi)
 	if !isZero(r.SUCI) {
 		b.constructed(5, r.SUCI.emit)
@@ -458,11 +527,17 @@ func (r AMFRegistration) emit(b *builder) {
 		b.explicit(7, "AMFRegistration.GPSI", r.GPSI, gpsi)
 	}
 	b.constructed(8, r.GUTI.emit)
+	if !isZero(r.Location) {
+		b.constructed(9, r.Location.emit)
+	}
 	if r.FiveGSTAIList != nil {
 		b.taiList(11, r.FiveGSTAIList)
 	}
 	if r.RATType != 0 {
 		b.integer(18, int64(r.RATType))
+	}
+	if r.FiveGMMCapability != nil {
+		b.octets(24, r.FiveGMMCapability)
 	}
 }
 
@@ -484,12 +559,24 @@ func (r AMFDeregistration) emit(b *builder) {
 	if !isZero(r.GUTI) {
 		b.constructed(7, r.GUTI.emit)
 	}
+	if !isZero(r.Location) {
+		b.constructed(9, r.Location.emit)
+	}
+	if r.SwitchOffIndicator != 0 {
+		b.integer(10, int64(r.SwitchOffIndicator))
+	}
+	if r.ReRegRequiredIndicator != 0 {
+		b.integer(11, int64(r.ReRegRequiredIndicator))
+	}
 }
 
 func (r AMFStartOfInterceptionWithRegisteredUE) emit(b *builder) {
 	b.integer(1, int64(r.RegistrationResult))
 	if r.RegistrationType != 0 {
 		b.integer(2, int64(r.RegistrationType))
+	}
+	if !isZero(r.Slice) {
+		b.constructed(3, r.Slice.emit)
 	}
 	b.explicit(4, "AMFStartOfInterceptionWithRegisteredUE.SUPI", r.SUPI, supi)
 	if !isZero(r.SUCI) {
@@ -502,6 +589,9 @@ func (r AMFStartOfInterceptionWithRegisteredUE) emit(b *builder) {
 		b.explicit(7, "AMFStartOfInterceptionWithRegisteredUE.GPSI", r.GPSI, gpsi)
 	}
 	b.constructed(8, r.GUTI.emit)
+	if !isZero(r.Location) {
+		b.constructed(9, r.Location.emit)
+	}
 	if r.FiveGSTAIList != nil {
 		b.taiList(12, r.FiveGSTAIList)
 	}
@@ -528,6 +618,9 @@ func (r SMFPDUSessionEstablishment) emit(b *builder) {
 	}
 	if len(r.UEEndpoint) > 0 {
 		b.sequenceOf(9, "SMFPDUSessionEstablishment.UEEndpoint", r.UEEndpoint, ueEndpointAddress)
+	}
+	if !isZero(r.Location) {
+		b.constructed(11, r.Location.emit)
 	}
 	b.text(12, string(r.DNN))
 	if r.AMFID != nil {
@@ -563,6 +656,9 @@ func (r SMFPDUSessionModification) emit(b *builder) {
 	}
 	if !isZero(r.SNSSAI) {
 		b.constructed(5, r.SNSSAI.emit)
+	}
+	if !isZero(r.Location) {
+		b.constructed(7, r.Location.emit)
 	}
 	b.integer(8, int64(r.RequestType))
 	if r.AccessType != 0 {
@@ -600,6 +696,9 @@ func (r SMFPDUSessionRelease) emit(b *builder) {
 	if r.DownlinkVolume != nil {
 		b.integer(8, *r.DownlinkVolume)
 	}
+	if !isZero(r.Location) {
+		b.constructed(9, r.Location.emit)
+	}
 }
 
 func (r AMFLocationUpdate) emit(b *builder) {
@@ -622,6 +721,9 @@ func (r AMFLocationUpdate) emit(b *builder) {
 func (r AMFUnsuccessfulProcedure) emit(b *builder) {
 	b.integer(1, int64(r.FailedProcedureType))
 	b.explicit(2, "AMFUnsuccessfulProcedure.FailureCause", r.FailureCause, amfFailureCause)
+	if r.RequestedSlice != nil {
+		b.nssai(3, r.RequestedSlice)
+	}
 	if present(r.SUPI) {
 		b.explicit(4, "AMFUnsuccessfulProcedure.SUPI", r.SUPI, supi)
 	}
@@ -672,6 +774,9 @@ func (r AMFIdentifierDeassociation) emit(b *builder) {
 		b.explicit(4, "AMFIdentifierDeassociation.GPSI", r.GPSI, gpsi)
 	}
 	b.constructed(5, r.GUTI.emit)
+	if !isZero(r.Location) {
+		b.constructed(6, r.Location.emit)
+	}
 }
 
 func (r SMFStartOfInterceptionWithEstablishedPDUSession) emit(b *builder) {
@@ -694,6 +799,9 @@ func (r SMFStartOfInterceptionWithEstablishedPDUSession) emit(b *builder) {
 		b.constructed(8, r.SNSSAI.emit)
 	}
 	b.sequenceOf(9, "SMFStartOfInterceptionWithEstablishedPDUSession.UEEndpoint", r.UEEndpoint, ueEndpointAddress)
+	if !isZero(r.Location) {
+		b.constructed(11, r.Location.emit)
+	}
 	b.text(12, string(r.DNN))
 	if r.AMFID != nil {
 		b.constructed(13, r.AMFID.emit)
@@ -717,6 +825,9 @@ func (r SMFUnsuccessfulProcedure) emit(b *builder) {
 	b.integer(1, int64(r.FailedProcedureType))
 	b.integer(2, int64(r.FailureCause))
 	b.integer(3, int64(r.Initiator))
+	if r.RequestedSlice != nil {
+		b.nssai(4, r.RequestedSlice)
+	}
 	if present(r.SUPI) {
 		b.explicit(5, "SMFUnsuccessfulProcedure.SUPI", r.SUPI, supi)
 	}
@@ -750,6 +861,9 @@ func (r SMFUnsuccessfulProcedure) emit(b *builder) {
 	if r.RATType != 0 {
 		b.integer(17, int64(r.RATType))
 	}
+	if !isZero(r.Location) {
+		b.constructed(19, r.Location.emit)
+	}
 }
 
 func (r AMFUEServiceAccept) emit(b *builder) {
@@ -760,6 +874,12 @@ func (r AMFUEServiceAccept) emit(b *builder) {
 	}
 	if r.FiveGTMSI != nil {
 		b.integer(4, int64(*r.FiveGTMSI))
+	}
+	if r.UplinkDataStatus != nil {
+		b.octets(5, r.UplinkDataStatus)
+	}
+	if r.PDUSessionStatus != nil {
+		b.octets(6, r.PDUSessionStatus)
 	}
 }
 

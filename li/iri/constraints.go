@@ -43,6 +43,9 @@ type utf8Size struct {
 	min, max int
 }
 
+// bitSize is the one length a fixed-size BIT STRING has, held as an integer of that many bits.
+type bitSize int
+
 // octetConstraints, intConstraints and utf8Constraints are the restrictions the type
 // definitions in iri.go record in their comments, in the one place that checks them.
 //
@@ -74,6 +77,13 @@ var (
 		// The tracking-area code of a TAI. homeNetworkPublicKeyID and schemeOutput are
 		// OCTET STRINGs the module leaves unconstrained, so they are deliberately absent.
 		reflect.TypeOf(TAC(nil)): {2, 3},
+
+		// NAS IEs copied from the UE's messages, each without its IEI and length octets. They
+		// arrive from the UE, so nothing has looked at their length before they reach a record.
+		reflect.TypeOf(FiveGMMCapability(nil)): {1, 13},
+		// Inline in AMFUEServiceAccept, `OCTET STRING (SIZE(2..32))` both.
+		reflect.TypeOf(UplinkDataStatus(nil)): {2, 32},
+		reflect.TypeOf(PDUSessionStatus(nil)): {2, 32},
 	}
 
 	intConstraints = map[reflect.Type]intRange{
@@ -85,6 +95,9 @@ var (
 
 		reflect.TypeOf(SliceServiceType(0)): {0, 255},
 		reflect.TypeOf(TEID(0)):             {0, 4294967295},
+
+		// The cause value of a rejected S-NSSAI.
+		reflect.TypeOf(RejectedSliceCauseValue(0)): {0, 255},
 
 		// The FiveGGUTI members. Each is a named type in the module with a range of its own,
 		// and each comes from this element's configuration and context — so nothing stands
@@ -126,6 +139,13 @@ var (
 		reflect.TypeOf(LCSCorrelationID("")):      true,
 		reflect.TypeOf(HomeNetworkIdentifier("")): true,
 		reflect.TypeOf(NID("")):                   true,
+	}
+
+	// bitStringConstraints are the fixed-size BIT STRING leaves, held as integers: a value must
+	// fit in the type's bits. The emitter writes exactly that many, so a wider value would lose
+	// its high bits on the wire and name another cell.
+	bitStringConstraints = map[reflect.Type]bitSize{
+		reflect.TypeOf(NRCellID(0)): nrCellIDBits,
 	}
 
 	// numericConstraints are the NumericString leaves, whose restriction is a length *and* an
@@ -347,6 +367,10 @@ var (
 		reflect.TypeOf(HandoverType(0)):           {1, 4},
 		// RATType, nR(1) .. nREREDCAP(33). iri.go names only the arms a 5G core reports.
 		reflect.TypeOf(RATType(0)): {1, 33},
+		// The two bits of a DEREGISTRATION REQUEST's de-registration type, optional in
+		// AMFDeregistration.
+		reflect.TypeOf(SwitchOffIndicator(0)):     {1, 2},
+		reflect.TypeOf(ReRegRequiredIndicator(0)): {1, 2},
 
 		// The five HandoverCause arms.
 		//
@@ -650,6 +674,13 @@ func constraintOf(v reflect.Value, path string, zeroForbidden, mandatory bool) e
 		if n < c.min || n > c.max {
 			return fmt.Errorf("iri: %s is %d, and %s is defined as INTEGER (%d..%d)",
 				path, n, t.Name(), c.min, c.max)
+		}
+	}
+
+	if bits, ok := bitStringConstraints[t]; ok {
+		if n := v.Int(); n < 0 || n >= 1<<bits {
+			return fmt.Errorf("iri: %s is %d, which does not fit in %d bits, and %s is defined as BIT STRING (%s)",
+				path, n, bits, t.Name(), sizeText(int(bits), int(bits)))
 		}
 	}
 

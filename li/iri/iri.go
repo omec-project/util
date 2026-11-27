@@ -196,17 +196,54 @@ type GTPTunnelInfo struct {
 }
 
 // Location ::= SEQUENCE — minimal model. All six members are OPTIONAL; only
-// locationInfo [1] is modelled (and within it only currentLocation), so a Location
-// may be empty. The deeper detail (userLocation → EUTRA/NR/N3GA/..., positioningInfo,
-// the 4G variants, iMSLocation) is not modelled; CONFORMANCE.md records it.
+// locationInfo [1] is modelled, so a Location may be empty. Within it, the user location
+// an AMF holds from NGAP User Location Information — the NR cell and tracking area — and
+// currentLocation are modelled. positioningInfo, the 4G variants and iMSLocation are not;
+// asn1_drift_test.go records each with its reason.
 type Location struct {
 	LocationInfo LocationInfo `asn1:"tag:1,optional"`
 }
 
-// LocationInfo ::= SEQUENCE — minimal: currentLocation only; the rest (userLocation,
-// geoInfo, rATType, timeZone, additionalCellIDs) is not modelled.
+// LocationInfo ::= SEQUENCE — userLocation [1] and currentLoc [2]; geoInfo, rATType,
+// timeZone and additionalCellIDs are not modelled.
+//
+// userLocation is how the AMF payload tables ask a location taken from NGAP to be encoded:
+// "Shall be encoded using the Location.locationInfo.userLocation parameter".
 type LocationInfo struct {
-	CurrentLocation bool `asn1:"tag:2,optional"`
+	UserLocation    UserLocation `asn1:"tag:1,optional"`
+	CurrentLocation bool         `asn1:"tag:2,optional"`
+}
+
+// UserLocation ::= SEQUENCE — one member per access. Only nRLocation [2] is modelled: the
+// location a 5G core takes from an NR cell. The E-UTRA, non-3GPP, UTRA and GERA forms are
+// not.
+type UserLocation struct {
+	NRLocation NRLocation `asn1:"tag:2,optional"`
+}
+
+// NRCellID ::= BIT STRING (SIZE(36)) — the NR cell identity, TS 38.413 clause 9.3.1.7 (the
+// module's citation).
+//
+// Held as the 36-bit value, the form a network function reads from NGAP's NR Cell Identity
+// (most significant bit first), and written as the module's BIT STRING: five octets, the value
+// left-aligned, with the four unused trailing bits zero as DER requires. constraints.go refuses
+// a value that does not fit in 36 bits.
+type NRCellID int64
+
+// NCGI ::= SEQUENCE — the NR cell global identity: the PLMN and the cell.
+type NCGI struct {
+	PLMNID   PLMNID   `asn1:"tag:1"`
+	NRCellID NRCellID `asn1:"tag:2"`
+	NID      NID      `asn1:"tag:3,optional"`
+}
+
+// NRLocation ::= SEQUENCE — the two mandatory members, the tracking area and the cell, which
+// is what NGAP's User Location Information for NR carries. The age of the location, its
+// timestamp and the positioning-derived members are not modelled; asn1_drift_test.go records
+// why.
+type NRLocation struct {
+	TAI  TAI  `asn1:"tag:1"`
+	NCGI NCGI `asn1:"tag:2"`
 }
 
 // AMFFailedProcedureType ::= ENUMERATED.
@@ -483,6 +520,67 @@ type TAI struct {
 // TAIList ::= SEQUENCE OF TAI.
 type TAIList []TAI
 
+// NSSAI ::= SEQUENCE OF SNSSAI — a list of S-NSSAIs, as TS 24.501 clause 9.11.3.37 carries
+// them. The module sets no SIZE, so a present empty list is schema-valid; like TAIList, an
+// OPTIONAL NSSAI is written exactly when it is non-nil.
+type NSSAI []SNSSAI
+
+// RejectedSliceCauseValue ::= INTEGER (0..255) — the cause value of a rejected S-NSSAI in
+// the rejected NSSAI IE, TS 24.501 clause 9.11.3.46.
+type RejectedSliceCauseValue int
+
+// RejectedSNSSAI ::= SEQUENCE — one rejected S-NSSAI and why.
+type RejectedSNSSAI struct {
+	CauseValue RejectedSliceCauseValue `asn1:"tag:1"`
+	SNSSAI     SNSSAI                  `asn1:"tag:2"`
+}
+
+// RejectedNSSAI ::= SEQUENCE OF RejectedSNSSAI.
+type RejectedNSSAI []RejectedSNSSAI
+
+// Slice ::= SEQUENCE — the slices associated with a registration: the allowed, configured and
+// rejected NSSAI sent to the UE in the REGISTRATION ACCEPT (table 6.2.2.2.2-1). All three are
+// OPTIONAL, each written exactly when it is non-nil.
+type Slice struct {
+	AllowedNSSAI    NSSAI         `asn1:"tag:1,optional"`
+	ConfiguredNSSAI NSSAI         `asn1:"tag:2,optional"`
+	RejectedNSSAI   RejectedNSSAI `asn1:"tag:3,optional"`
+}
+
+// FiveGMMCapability ::= OCTET STRING (SIZE(1..13)) — the 5GMM capability IE of the
+// REGISTRATION REQUEST, TS 24.501 clause 9.11.3.1, omitting its first two octets (the IEI and
+// the length). Copied, never parsed.
+type FiveGMMCapability []byte
+
+// SwitchOffIndicator ::= ENUMERATED — the de-registration type's switch-off bit, TS 24.501
+// clause 9.11.3.20. OPTIONAL wherever it appears, so zero is absence.
+type SwitchOffIndicator int
+
+// The SwitchOffIndicator values.
+const (
+	SwitchOffNormalDetach SwitchOffIndicator = 1
+	SwitchOffSwitchOff    SwitchOffIndicator = 2
+)
+
+// ReRegRequiredIndicator ::= ENUMERATED — the de-registration type's re-registration-required
+// bit, TS 24.501 clause 9.11.3.20. OPTIONAL wherever it appears, so zero is absence.
+type ReRegRequiredIndicator int
+
+// The ReRegRequiredIndicator values.
+const (
+	ReRegistrationRequired    ReRegRequiredIndicator = 1
+	ReRegistrationNotRequired ReRegRequiredIndicator = 2
+)
+
+// UplinkDataStatus and PDUSessionStatus are AMFUEServiceAccept's uplinkDataStatus and
+// pDUSessionStatus — `OCTET STRING (SIZE(2..32))`, inline in the module, so the names are this
+// package's. Each is the value part of the TS 24.501 IE (clauses 9.11.3.57 and 9.11.3.44): the
+// PSI bitmap, two octets and up to thirty spare ones. Copied, never parsed.
+type (
+	UplinkDataStatus []byte
+	PDUSessionStatus []byte
+)
+
 // SMFServingNetwork ::= SEQUENCE, the serving PLMN of a PDU session.
 type SMFServingNetwork struct {
 	PLMNID PLMNID `asn1:"tag:1"`
@@ -541,19 +639,23 @@ const (
 type SUPIUnauthenticatedIndication bool
 
 // AMFRegistration is a slice of TS 33.128 AMFRegistration: the four mandatory
-// members (registrationType, registrationResult, sUPI, gUTI) and the optionals sUCI,
-// pEI, gPSI, fiveGSTAIList and rATType. The CHOICE-typed members (sUPI/pEI/gPSI) are
-// EXPLICIT-tagged because a context tag on a CHOICE is automatically explicit.
+// members (registrationType, registrationResult, sUPI, gUTI) and the optionals slice, sUCI,
+// pEI, gPSI, location, fiveGSTAIList, rATType and fiveGMMCapability. The CHOICE-typed members
+// (sUPI/pEI/gPSI) are EXPLICIT-tagged because a context tag on a CHOICE is automatically
+// explicit.
 type AMFRegistration struct {
 	RegistrationType   AMFRegistrationType   `asn1:"tag:1"`
 	RegistrationResult AMFRegistrationResult `asn1:"tag:2"`
+	Slice              Slice                 `asn1:"tag:3,optional"`
 	SUPI               any                   `asn1:"tag:4,explicit,choice:supi"`
 	SUCI               SUCI                  `asn1:"tag:5,optional"`
 	PEI                any                   `asn1:"tag:6,explicit,choice:pei,optional"`
 	GPSI               any                   `asn1:"tag:7,explicit,choice:gpsi,optional"`
 	GUTI               FiveGGUTI             `asn1:"tag:8"`
+	Location           Location              `asn1:"tag:9,optional"`
 	FiveGSTAIList      TAIList               `asn1:"tag:11,optional"`
 	RATType            RATType               `asn1:"tag:18,optional"`
+	FiveGMMCapability  FiveGMMCapability     `asn1:"tag:24,optional"`
 }
 
 // AMFDeregistration is a slice of TS 33.128 AMFDeregistration: the mandatory
@@ -567,6 +669,11 @@ type AMFDeregistration struct {
 	PEI                     any          `asn1:"tag:5,explicit,choice:pei,optional"`
 	GPSI                    any          `asn1:"tag:6,explicit,choice:gpsi,optional"`
 	GUTI                    FiveGGUTI    `asn1:"tag:7,optional"` // value+optional: an all-zero GUTI reads as absent
+	Location                Location     `asn1:"tag:9,optional"`
+	// The two bits of the DEREGISTRATION REQUEST's de-registration type. Zero is absence:
+	// a network-initiated deregistration that ends on an implicit timer has no request.
+	SwitchOffIndicator     SwitchOffIndicator     `asn1:"tag:10,optional"`
+	ReRegRequiredIndicator ReRegRequiredIndicator `asn1:"tag:11,optional"`
 }
 
 // AMFStartOfInterceptionWithRegisteredUE is a slice of the same-named record,
@@ -575,11 +682,13 @@ type AMFDeregistration struct {
 type AMFStartOfInterceptionWithRegisteredUE struct {
 	RegistrationResult AMFRegistrationResult `asn1:"tag:1"`
 	RegistrationType   AMFRegistrationType   `asn1:"tag:2,optional"`
+	Slice              Slice                 `asn1:"tag:3,optional"`
 	SUPI               any                   `asn1:"tag:4,explicit,choice:supi"`
 	SUCI               SUCI                  `asn1:"tag:5,optional"`
 	PEI                any                   `asn1:"tag:6,explicit,choice:pei,optional"`
 	GPSI               any                   `asn1:"tag:7,explicit,choice:gpsi,optional"`
 	GUTI               FiveGGUTI             `asn1:"tag:8"`
+	Location           Location              `asn1:"tag:9,optional"`
 	FiveGSTAIList      TAIList               `asn1:"tag:12,optional"`
 }
 
@@ -590,7 +699,6 @@ type AMFStartOfInterceptionWithRegisteredUE struct {
 // uEEndpoint [9] is OPTIONAL here and carries the address assigned to the UE —
 // distinct from gTPTunnelID, which is the serving UPF's tunnel endpoint. Table 6.2.3-1
 // makes it conditional, "if available": an empty list is omitted.
-// Deferred optionals (deeper subtrees): location [11] and the long tail.
 type SMFPDUSessionEstablishment struct {
 	SUPI                any                            `asn1:"tag:1,explicit,choice:supi,optional"`
 	SUPIUnauthenticated *SUPIUnauthenticatedIndication `asn1:"tag:2,optional"`
@@ -601,6 +709,7 @@ type SMFPDUSessionEstablishment struct {
 	PDUSessionType      PDUSessionType                 `asn1:"tag:7"`
 	SNSSAI              SNSSAI                         `asn1:"tag:8,optional"`
 	UEEndpoint          []any                          `asn1:"tag:9,choice:ueEndpointAddress,optional"`
+	Location            Location                       `asn1:"tag:11,optional"`
 	DNN                 DNN                            `asn1:"tag:12"`
 	AMFID               *AMFID                         `asn1:"tag:13,optional"`
 	RequestType         FiveGSMRequestType             `asn1:"tag:15"`
@@ -619,6 +728,7 @@ type SMFPDUSessionModification struct {
 	PEI                 any                            `asn1:"tag:3,explicit,choice:pei,optional"`
 	GPSI                any                            `asn1:"tag:4,explicit,choice:gpsi,optional"`
 	SNSSAI              SNSSAI                         `asn1:"tag:5,optional"`
+	Location            Location                       `asn1:"tag:7,optional"`
 	RequestType         FiveGSMRequestType             `asn1:"tag:8"`
 	AccessType          AccessType                     `asn1:"tag:9,optional"`
 	RATType             RATType                        `asn1:"tag:10,optional"`
@@ -630,8 +740,8 @@ type SMFPDUSessionModification struct {
 }
 
 // SMFPDUSessionRelease is a slice of the same-named record. Mandatory: sUPI,
-// pDUSessionID. Deferred optionals: timeOfFirst/LastPacket [5][6] (GeneralizedTime),
-// location [9], and the cause tail.
+// pDUSessionID. Deferred optionals: timeOfFirst/LastPacket [5][6] (GeneralizedTime) and the
+// cause tail.
 type SMFPDUSessionRelease struct {
 	SUPI         any          `asn1:"tag:1,explicit,choice:supi"`
 	PEI          any          `asn1:"tag:2,explicit,choice:pei,optional"`
@@ -641,8 +751,9 @@ type SMFPDUSessionRelease struct {
 	// declares them as unconstrained INTEGERs, so a negative value is schema-valid and
 	// is encoded as given; a producer converting from an unsigned byte counter must not
 	// let it wrap.
-	UplinkVolume   *int64 `asn1:"tag:7,optional"`
-	DownlinkVolume *int64 `asn1:"tag:8,optional"`
+	UplinkVolume   *int64   `asn1:"tag:7,optional"`
+	DownlinkVolume *int64   `asn1:"tag:8,optional"`
+	Location       Location `asn1:"tag:9,optional"`
 }
 
 // AMFLocationUpdate is a slice of the same-named record. Mandatory: sUPI,
@@ -661,6 +772,7 @@ type AMFLocationUpdate struct {
 type AMFUnsuccessfulProcedure struct {
 	FailedProcedureType AMFFailedProcedureType `asn1:"tag:1"`
 	FailureCause        any                    `asn1:"tag:2,explicit,choice:amfFailureCause"`
+	RequestedSlice      NSSAI                  `asn1:"tag:3,optional"`
 	SUPI                any                    `asn1:"tag:4,explicit,choice:supi,optional"`
 	SUCI                SUCI                   `asn1:"tag:5,optional"`
 	PEI                 any                    `asn1:"tag:6,explicit,choice:pei,optional"`
@@ -689,16 +801,17 @@ type AMFIdentifierAssociation struct {
 
 // AMFIdentifierDeassociation is a slice of the same-named TS 33.128 record,
 // generated when the AMF releases a target's SUPI↔5G-GUTI binding. Mandatory:
-// sUPI [1] and gUTI [5]. location [6] is optional here — unlike in
-// AMFIdentifierAssociation — and is not modelled.
+// sUPI [1] and gUTI [5]. location [6] is optional here, unlike in
+// AMFIdentifierAssociation: table 6.2.2.2.7-2 sends it "only if it is the current location".
 //
 // The GUTI is [5]; [2] is sUCI, and a receiver reads a 5G-GUTI written there as a SUCI.
 type AMFIdentifierDeassociation struct {
-	SUPI any       `asn1:"tag:1,explicit,choice:supi"`
-	SUCI SUCI      `asn1:"tag:2,optional"`
-	PEI  any       `asn1:"tag:3,explicit,choice:pei,optional"`
-	GPSI any       `asn1:"tag:4,explicit,choice:gpsi,optional"`
-	GUTI FiveGGUTI `asn1:"tag:5"`
+	SUPI     any       `asn1:"tag:1,explicit,choice:supi"`
+	SUCI     SUCI      `asn1:"tag:2,optional"`
+	PEI      any       `asn1:"tag:3,explicit,choice:pei,optional"`
+	GPSI     any       `asn1:"tag:4,explicit,choice:gpsi,optional"`
+	GUTI     FiveGGUTI `asn1:"tag:5"`
+	Location Location  `asn1:"tag:6,optional"`
 }
 
 // UEEndpointAddress alternatives. TS 33.128:
@@ -763,7 +876,7 @@ func UEEndpointAddress(ip net.IP) any {
 // a UE that already has an active PDU session. Mandatory: pDUSessionID,
 // gTPTunnelID, pDUSessionType, dNN, requestType, and gTPTunnelInfo, which the module
 // marks OPTIONAL and table 6.2.3-4 mandatory, so EncodeXIRI refuses the record without
-// it. servingNetwork is modelled; location and the EPS tail are not, as for
+// it. servingNetwork and location are modelled; the EPS tail is not, as for
 // SMFPDUSessionEstablishment.
 //
 // uEEndpoint is not OPTIONAL in the module, but table 6.2.3-4 makes it conditional
@@ -781,6 +894,7 @@ type SMFStartOfInterceptionWithEstablishedPDUSession struct {
 	PDUSessionType      PDUSessionType                 `asn1:"tag:7"`
 	SNSSAI              SNSSAI                         `asn1:"tag:8,optional"`
 	UEEndpoint          []any                          `asn1:"tag:9,choice:ueEndpointAddress"`
+	Location            Location                       `asn1:"tag:11,optional"`
 	DNN                 DNN                            `asn1:"tag:12"`
 	AMFID               *AMFID                         `asn1:"tag:13,optional"`
 	RequestType         FiveGSMRequestType             `asn1:"tag:15"`
@@ -795,12 +909,13 @@ type SMFStartOfInterceptionWithEstablishedPDUSession struct {
 // Mandatory: failedProcedureType, failureCause, initiator — all three knowable at
 // every rejection site. The target-identifier optionals and pDUSessionID are
 // carried because a record an agency cannot attribute to a subscriber and a
-// session is of little use. Deferred optionals: the EPS tail, requestedSlice,
-// location, and the long list beyond.
+// session is of little use. requestedSlice and location are modelled; the EPS tail and the
+// long list beyond are not.
 type SMFUnsuccessfulProcedure struct {
 	FailedProcedureType SMFFailedProcedureType         `asn1:"tag:1"`
 	FailureCause        FiveGSMCause                   `asn1:"tag:2"`
 	Initiator           Initiator                      `asn1:"tag:3"`
+	RequestedSlice      NSSAI                          `asn1:"tag:4,optional"`
 	SUPI                any                            `asn1:"tag:5,explicit,choice:supi,optional"`
 	SUPIUnauthenticated *SUPIUnauthenticatedIndication `asn1:"tag:6,optional"`
 	PEI                 any                            `asn1:"tag:7,explicit,choice:pei,optional"`
@@ -812,16 +927,19 @@ type SMFUnsuccessfulProcedure struct {
 	RequestType         FiveGSMRequestType             `asn1:"tag:15,optional"`
 	AccessType          AccessType                     `asn1:"tag:16,optional"`
 	RATType             RATType                        `asn1:"tag:17,optional"`
+	Location            Location                       `asn1:"tag:19,optional"`
 }
 
 // AMFUEServiceAccept is a slice of the same-named record (XIRIEvent [147]),
 // generated when the AMF sends a SERVICE ACCEPT to the target. Mandatory:
 // userIdentifiers, serviceMessageIdentity.
 type AMFUEServiceAccept struct {
-	UserIdentifiers        UserIdentifiers `asn1:"tag:1"`
-	ServiceMessageIdentity any             `asn1:"tag:2,explicit,choice:serviceMessageIdentity"`
-	ServiceType            ServiceType     `asn1:"tag:3,optional"`
-	FiveGTMSI              *FiveGTMSI      `asn1:"tag:4,optional"` // a pointer: 0 is a valid 5G-TMSI
+	UserIdentifiers        UserIdentifiers  `asn1:"tag:1"`
+	ServiceMessageIdentity any              `asn1:"tag:2,explicit,choice:serviceMessageIdentity"`
+	ServiceType            ServiceType      `asn1:"tag:3,optional"`
+	FiveGTMSI              *FiveGTMSI       `asn1:"tag:4,optional"` // a pointer: 0 is a valid 5G-TMSI
+	UplinkDataStatus       UplinkDataStatus `asn1:"tag:5,optional"`
+	PDUSessionStatus       PDUSessionStatus `asn1:"tag:6,optional"`
 }
 
 // AMFUEPolicyTransfer is a slice of the same-named record (XIRIEvent [146]). Mandatory:

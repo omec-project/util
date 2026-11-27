@@ -33,9 +33,8 @@ named with enough detail that a reader can tell whether it matters to them.
 2. **No conditional field is known to be held and left unreported.** The conditional fields
    whose source has not been traced are counted in `iri/CONFORMANCE.md` as `UNTRACED`, which
    that disposition labels "an admission, not a conclusion".
-3. **Two smaller ones**, each in `iri/CONFORMANCE.md` under *Open*: the AMF's records do not
-   agree on whether they carry `location`; and `currentLoc` cannot be reported as `false`,
-   which is latent while no record reports a location that is not current.
+3. **A smaller one**, in `iri/CONFORMANCE.md` under *Open*: `currentLoc` cannot be reported as
+   `false`, which is latent while no record reports a location that is not current.
 
 ### X2/X3
 
