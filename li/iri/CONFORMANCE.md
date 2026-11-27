@@ -40,9 +40,10 @@ carry a wrong field to a mediation function.
 | Defined but not emitted | 1 — `AMFPositioningInfoTransfer` |
 
 `AMFPositioningInfoTransfer` is defined so the set is complete against the module, and emitted
-by no point of interception: every trigger event in clause 6.2.2.2.8 is an exchange with an
-LMF, and the AMF here has no LMF integration. It becomes usable the day an LMF is wired up;
-`li/README.md` carries the reasoning.
+by no point of interception. Of the four trigger events in clause 6.2.2.2.8 the AMF performs
+one — it relays to the UE a downlink LPP message an LMF sends in
+`Namf_Communication_N1N2MessageTransfer` — and does not report it; it refuses uplink LPP and
+forwards no NRPPa, so the other three do not occur. `li/README.md` carries the detail.
 
 ## Mandatory fields
 
@@ -82,12 +83,12 @@ could not encode.
 
 `asn1_drift_test.go` enumerates the fields the published module defines for each emitted
 record, and fails on any this package neither models nor records in `declaredAbsent`. Each of
-the **116** recorded fields carries the M/C/O marker read from its payload table:
+the **98** recorded fields carries the M/C/O marker read from its payload table:
 
 | Marker | Count | Meaning here |
 |---|---|---|
 | **M** | 0 | A field its payload table marks M is rejected from the disposition list outright: it is either populated or a known defect, never a disposition. |
-| C | 115 | Conditional. Two are explicitly deprecated by the specification. |
+| C | 97 | Conditional. Two are explicitly deprecated by the specification. |
 | O | 1 | `AMFUEServiceAccept/deprecatedUERequestType`, itself deprecated. |
 
 Three of the conditional fields are spelled differently in the tables than in the module —
@@ -101,17 +102,19 @@ whether this project meets its condition:
 
 | Verdict | Count | Meaning |
 |---|---|---|
-| NOT HELD | 69 | the network function does not hold the datum |
+| NOT HELD | 60 | the network function does not hold the datum |
 | **MET** | **0** | the network function holds it and does not report it |
 | N/A | 26 | the condition cannot arise; the feature is not implemented here |
-| DEFERRED | 9 | held, but the subtree is deliberately not modelled |
+| DEFERRED | 0 | held, but the subtree is deliberately not modelled |
 | UNTRACED | 9 | a similarly named context field exists and the mapping was not followed through |
 | BLOCKED | 0 | the encoder cannot express the value |
 | DEPRECATED | 3 | the specification no longer uses the field |
 
-`MET` and `BLOCKED` are kept at zero rather than removed: an empty verdict is a statement about
-this implementation, while a missing row would read as a category that does not exist. A field
-in either belongs in `asn1_drift_test.go`'s `knownConditionalDefects`, a separate list that
+`MET`, `DEFERRED` and `BLOCKED` are kept at zero rather than removed: an empty verdict is a
+statement about this implementation, while a missing row would read as a category that does not
+exist. The nine `DEFERRED` fields were each a record's `location`, deferred while `Location`
+modelled no user location; it now models the NR user location, and all nine are modelled. A field
+in `MET` or `BLOCKED` belongs in `asn1_drift_test.go`'s `knownConditionalDefects`, a separate list that
 `TestNoKnownConditionalDefects` requires to be empty, so adding one is a deliberate act rather
 than one more line among fields that are fine. The counts in both tables above are held to the
 disposition list by `TestTheDispositionCountsAreTheDocumentedOnes`.
@@ -125,8 +128,10 @@ The nine `UNTRACED` verdicts are an admission, not a conclusion, and are labelle
 cannot be mistaken for clearance: `pCCRules`, `pCCRuleIDs`, `oldPDUSessionID`,
 `handoverState`, `uEPolicy` and `rRCEstablishmentCause` each have a plausibly corresponding
 field in a network function's context that was not followed through to the point of
-interception. One more sits below the records, outside these counts:
-`FiveGSSubscriberID/sUCI`, a `UserIdentifiers` alternative `iri.Identifiers` does not build.
+interception. Two more sit below the records, outside these counts:
+`FiveGSSubscriberID/sUCI`, a `UserIdentifiers` alternative `iri.Identifiers` does not build, and
+`Location/locationPresenceReport`, the area-of-interest report of the AMF event exposure
+service, which was not followed to the point of interception.
 
 The 26 `N/A` verdicts rest on features this deployment does not implement: EPS/5GS
 interworking over N26 and the SGW/PGW role, non-3GPP access through an N3IWF, TNGF or TWIF,
@@ -184,6 +189,29 @@ wherever the module defines them and the network function holds the value:
 - **The IMEI is the fourteen-digit form**: TAC and serial number, without the check digit a
   TS 29.571 `imei-` PEI carries. This package refuses a fifteen-digit `IMEI`.
 
+**The location, the slices and the copied NAS octets.** Fields the AMF and SMF hold from the
+signalling they take part in:
+
+- **`location` is `locationInfo.userLocation.nRLocation`**, the form the AMF payload tables ask
+  for a location the AMF takes from NGAP ("Shall be encoded using the
+  Location.locationInfo.userLocation parameter"): the tracking area and the NR cell global
+  identity of NGAP's User Location Information. It is modelled in
+  every AMF and SMF record that defines it. The cell identity is held as its 36-bit value and
+  written as the module's `BIT STRING (SIZE(36))`; a value wider than 36 bits is refused. The
+  age of the location and its timestamp are not modelled: the AMF fills its age-of-location field
+  with NGAP's four-octet Time Stamp read as an integer, which is not an age, and the timestamp is
+  a `GeneralizedTime`, which this encoder does not write. `currentLoc` stays modelled beside it.
+- **`slice`** (`AMFRegistration`, `AMFStartOfInterceptionWithRegisteredUE`) carries the allowed,
+  configured and rejected NSSAI of the REGISTRATION ACCEPT, the rejected one with its cause
+  value. **`requestedSlice`** (`AMFUnsuccessfulProcedure`, `SMFUnsuccessfulProcedure`) is an
+  `NSSAI`. Each list is written exactly when it is non-nil, as `fiveGSTAIList` is.
+- **`fiveGMMCapability`**, **`uplinkDataStatus`** and **`pDUSessionStatus`** are the contents of
+  the TS 24.501 IE, omitting its IEI and length octets, copied rather than parsed, and held to
+  the module's sizes: `SIZE(1..13)` and `SIZE(2..32)` twice.
+- **`switchOffIndicator`** and **`reRegRequiredIndicator`** (`AMFDeregistration`) are the two
+  bits of a DEREGISTRATION REQUEST's de-registration type. Both are `OPTIONAL` and numbered from
+  one, so zero is absence: an implicit deregistration has no request to read them from.
+
 **Enumerations and zero.** Every TS 33.128 `ENUMERATED` this package carries is numbered from
 one, and a neighbouring protocol's enumeration often from zero — NGAP numbers `handoverType` and
 the cause groups from zero. A value cast across unmapped arrives as zero exactly when its first
@@ -212,7 +240,7 @@ holds the optional carriers to their absence.
 
 Not guarded, because the module's range includes zero: `PDUSessionID`, `RoutingIndicator`,
 `ProtectionSchemeID` (zero is the null scheme), `AMFPointer`, `AMFRegionID`, `AMFSetID`,
-`FiveGMMCause` and `FiveGSMCause`.
+`FiveGMMCause`, `FiveGSMCause`, `RejectedSliceCauseValue` and `NRCellID`.
 
 **`pDUSessionID` of zero** is TS 24.007 table 11.2.3.1c.1's "No PDU session identity assigned".
 Where the member is mandatory — the establishment, release and start-of-interception records,
@@ -241,8 +269,8 @@ empty, are bounded or refused empty anyway, on the authority of the payload tabl
 - A mandatory `location` is refused empty, in `AMFLocationUpdate` and
   `AMFIdentifierAssociation`. Every member of `Location` is `OPTIONAL`, so the empty SEQUENCE is
   schema-valid, but tables 6.2.2.2.4-1 and 6.2.2.2.7-1 make the field the location information
-  the network determined, and an empty one reports none. Where it is optional
-  (`AMFUnsuccessfulProcedure`) an empty one is omitted, as absent.
+  the network determined, and an empty one reports none. Where it is optional — every other
+  record that carries it — an empty one is omitted, as absent.
 
 **`PDUSessionType`** is the one guarded type an SMF builds by casting another protocol's value:
 TS 24.501 numbers the PDU session type identically, and the SMF asserts that correspondence
@@ -268,15 +296,6 @@ outside them is the receiver's matter, and an element that emits only defined va
 depend on it.
 
 ## Open
-
-### `location` is inconsistent across the AMF's records
-
-The AMF populates a minimal `Location` (`locationInfo.currentLocation` only) in three records
-and omits the field from `AMFRegistration` and `AMFDeregistration`, where the tables mark it
-conditional on availability. The underlying gap is the unmodelled `userLocation` subtree — the
-AMF has no reportable location detail to put there — so this is an inconsistency to resolve
-alongside that subtree rather than a separate defect. Whichever way it is resolved, the five
-records should agree.
 
 ### `UEPolicy`'s lower bound refuses the shortest `MANAGE UE POLICY COMMAND`s — declared against TS 33.128
 
@@ -335,9 +354,9 @@ current cannot be expressed: `false` and absent encode identically.
 
 It is latent rather than live: the AMF sets `CurrentLocation: true` in every record that carries
 a `Location`, and no record here reports a last-known location. It becomes live the day a
-location that is not current is reported — and then fails visibly rather than silently, since a
-`Location` whose only modelled member is `false` is empty, and an empty mandatory `location` is
-refused. The remedy is the one `sUPIUnauthenticated` uses —
+location that is not current is reported. A `Location` carrying a user location then goes out
+without saying it is not current; one carrying nothing else is empty, and an empty mandatory
+`location` is refused. The remedy is the one `sUPIUnauthenticated` uses —
 declare the field as a pointer, which the emitter writes exactly when it is non-nil. It is
 recorded here because a field the encoder cannot represent is a known defect, not a presence
 rule that happens to hold for the values seen so far.

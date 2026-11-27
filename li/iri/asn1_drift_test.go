@@ -63,9 +63,6 @@ var declaredAbsent = map[string]map[string]string{
 	"AMFDeregistration": {
 		"additionalUserIdentifiers":    "C, table 6.2.2.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"cause":                        "C, table 6.2.2.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                     "C, table 6.2.2.2.3-1: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
-		"reRegRequiredIndicator":       "C, table 6.2.2.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"switchOffIndicator":           "C, table 6.2.2.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"unavailabilityPeriodDuration": "C, table 6.2.2.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 	},
 	"AMFIdentifierAssociation": {
@@ -73,7 +70,6 @@ var declaredAbsent = map[string]map[string]string{
 	},
 	"AMFIdentifierDeassociation": {
 		"additionalUserIdentifiers": "C, table 6.2.2.2.7-2: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                  "C, table 6.2.2.2.7-2: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 	},
 	"AMFLocationUpdate": {
 		"additionalUserIdentifiers":     "C, table 6.2.2.2.4-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
@@ -95,10 +91,8 @@ var declaredAbsent = map[string]map[string]string{
 		"eMM5GRegStatus":                  "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"equivalentPLMNList":              "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"establishmentCauseNon3GPPAccess": "C, table 6.2.2.2.2-1: N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
-		"fiveGMMCapability":               "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"fiveGSUpdateType":                "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"initialRANUEContextSetup":        "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                        "C, table 6.2.2.2.2-1: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"mACRestIndicator":                "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"mUSIMUERequestType":              "C, table 6.2.2.2.2-1: N/A: multi-USIM is not implemented",
 		"nASTransportInitialInformation":  "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
@@ -110,7 +104,6 @@ var declaredAbsent = map[string]map[string]string{
 		"rRCEstablishmentCause":           "C, table 6.2.2.2.2-1: UNTRACED: the AMF holds RAN-supplied UE context; whether the establishment cause survives to the POI was not traced",
 		"sMSOverNasIndicator":             "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"sORTransparentContainer":         "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"slice":                           "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"uEAreaIndication":                "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"unavailabilityPeriodDuration":    "C, table 6.2.2.2.2-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 	},
@@ -118,12 +111,10 @@ var declaredAbsent = map[string]map[string]string{
 		"additionalUserIdentifiers":    "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"eMM5GRegStatus":               "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"fiveGSUpdateType":             "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                     "C, table 6.2.2.2.5-1: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"non3GPPAccessEndpoint":        "C, table 6.2.2.2.5-1: N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
 		"oldGUTI":                      "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"sMSOverNASIndicator":          "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"sORTransparentContainer":      "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"slice":                        "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"timeOfRegistration":           "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"uEAreaIndication":             "C, table 6.2.2.2.5-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"uEPolicy":                     "C, table 6.2.2.2.5-1: UNTRACED: the AMF holds policy association state; whether it carries the MANAGE UE POLICY COMMAND payload was not traced",
@@ -132,15 +123,12 @@ var declaredAbsent = map[string]map[string]string{
 	"AMFUEServiceAccept": {
 		"deprecatedUERequestType": "O, table 6.2.2.2.13-1: DEPRECATED: the specification records it as no longer used",
 		"forbiddenTAIList":        "C, table 6.2.2.2.13-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"pDUSessionStatus":        "C, table 6.2.2.2.13-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"pagingRestriction":       "C, table 6.2.2.2.13-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"uERequestType":           "C, table 6.2.2.2.13-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"uplinkDataStatus":        "C, table 6.2.2.2.13-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 	},
 	"AMFUnsuccessfulProcedure": {
 		"additionalUserIdentifiers": "C, table 6.2.2.2.6-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"alternativeNSSAI":          "C, table 6.2.2.2.6-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"requestedSlice":            "C, table 6.2.2.2.6-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 	},
 	"SMFPDUSessionEstablishment": {
 		"alternativeNSSAI":              "C, table 6.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
@@ -149,7 +137,6 @@ var declaredAbsent = map[string]map[string]string{
 		"gEOSatelliteID":                "C, table 6.2.3-1: N/A: satellite backhaul is not implemented",
 		"hSMFURI":                       "C, table 6.2.3-1: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"handoverState":                 "C, table 6.2.3-1: UNTRACED: a similarly named field exists in the SMF context; the mapping was not traced",
-		"location":                      "C, table 6.2.3-1: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"non3GPPAccessEndpoint":         "C, table 6.2.3-1: N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
 		"oldPDUSessionID":               "C, table 6.2.3-1: UNTRACED: a similarly named field exists in the SMF context; the mapping was not traced",
 		"pCCRules":                      "C, table 6.2.3-1: UNTRACED: the SMF holds SmPolicyData; whether it carries the PCC rule set in the reported form was not traced",
@@ -164,7 +151,6 @@ var declaredAbsent = map[string]map[string]string{
 		"ePSPDNConnectionModification": "C, table 6.2.3-2: N/A: reports an EPS/5GS interworking case; this project implements no N26 interworking or SGW/PGW role",
 		"gEOSatelliteID":               "C, table 6.2.3-2: N/A: satellite backhaul is not implemented",
 		"handoverState":                "C, table 6.2.3-2: UNTRACED: a similarly named field exists in the SMF context; the mapping was not traced",
-		"location":                     "C, table 6.2.3-2: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"non3GPPAccessEndpoint":        "C, table 6.2.3-2: N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
 		"pCCRules":                     "C, table 6.2.3-2: UNTRACED: the SMF holds SmPolicyData; whether it carries the PCC rule set in the reported form was not traced",
 		"pFDDataForApp":                "C, table 6.2.3-2: NOT HELD: the network function does not hold this datum, so the condition is not met",
@@ -177,7 +163,6 @@ var declaredAbsent = map[string]map[string]string{
 		"ePS5GSComboInfo":         "C, table 6.2.3-3: N/A: reports an EPS/5GS interworking case; this project implements no N26 interworking or SGW/PGW role",
 		"ePSPDNConnectionRelease": "C, table 6.2.3-3: N/A: reports an EPS/5GS interworking case; this project implements no N26 interworking or SGW/PGW role",
 		"fiveGMMCause":            "C, table 6.2.3-3: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                "C, table 6.2.3-3: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"nGAPCause":               "C, table 6.2.3-3: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"pCCRuleIDs":              "C, table 6.2.3-3: UNTRACED: as pCCRules",
 		"timeOfFirstPacket":       "C, table 6.2.3-3: NOT HELD: the network function does not hold this datum, so the condition is not met",
@@ -188,7 +173,6 @@ var declaredAbsent = map[string]map[string]string{
 		"ePSStartOfInterceptionWithEstablishedPDNConnection": "C, table 6.2.3-4: N/A: reports an EPS/5GS interworking case; this project implements no N26 interworking or SGW/PGW role",
 		"gEOSatelliteID":             "C, table 6.2.3-4: N/A: satellite backhaul is not implemented",
 		"hSMFURI":                    "C, table 6.2.3-4: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                   "C, table 6.2.3-4: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"non3GPPAccessEndpoint":      "C, table 6.2.3-4: N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
 		"pCCRules":                   "C, table 6.2.3-4: UNTRACED: the SMF holds SmPolicyData; whether it carries the PCC rule set in the reported form was not traced",
 		"pFDDataForApps":             "C, table 6.2.3-4: NOT HELD: the network function does not hold this datum, so the condition is not met",
@@ -201,9 +185,7 @@ var declaredAbsent = map[string]map[string]string{
 		"alternativeNSSAI":            "C, table 6.2.3-5: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"ePSPDNUnsuccessfulProcedure": "C, table 6.2.3-5: N/A: reports an EPS/5GS interworking case; this project implements no N26 interworking or SGW/PGW role",
 		"hSMFURI":                     "C, table 6.2.3-5: NOT HELD: the network function does not hold this datum, so the condition is not met",
-		"location":                    "C, table 6.2.3-5: DEFERRED: li/iri.Location models only locationInfo.currentLocation; the userLocation subtree the table asks for is a documented deferral, so the reportable content does not exist yet",
 		"non3GPPAccessEndpoint":       "C, table 6.2.3-5: N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
-		"requestedSlice":              "C, table 6.2.3-5: NOT HELD: the network function does not hold this datum, so the condition is not met",
 		"sMPDUDNRequest":              "C, table 6.2.3-5: NOT HELD: the network function does not hold this datum, so the condition is not met",
 	},
 }
@@ -438,16 +420,16 @@ func TestTheDispositionCountsAreTheDocumentedOnes(t *testing.T) {
 	}
 
 	// The numbers in CONFORMANCE.md, "Every unmodelled field, and its marker".
-	if total != 116 {
-		t.Errorf("%d recorded fields, CONFORMANCE.md says 116", total)
+	if total != 98 {
+		t.Errorf("%d recorded fields, CONFORMANCE.md says 98", total)
 	}
-	for marker, want := range map[string]int{"M": 0, "C": 115, "O": 1} {
+	for marker, want := range map[string]int{"M": 0, "C": 97, "O": 1} {
 		if markers[marker] != want {
 			t.Errorf("%d fields marked %s, CONFORMANCE.md says %d", markers[marker], marker, want)
 		}
 	}
 	for verdict, want := range map[string]int{
-		"NOT HELD": 69, "N/A": 26, "DEFERRED": 9, "UNTRACED": 9, "DEPRECATED": 3,
+		"NOT HELD": 60, "N/A": 26, "DEFERRED": 0, "UNTRACED": 9, "DEPRECATED": 3,
 		"MET": 0, "BLOCKED": 0,
 	} {
 		if verdicts[verdict] != want {
@@ -462,18 +444,34 @@ func TestTheDispositionCountsAreTheDocumentedOnes(t *testing.T) {
 // table for a nested type, so none cites one.
 var declaredAbsentNested = map[string]map[string]string{
 	"Location": {
-		"positioningInfo":        "DEFERRED: li/iri.Location models only locationInfo.currentLocation; the deeper detail is a documented deferral",
-		"locationPresenceReport": "DEFERRED: as positioningInfo",
+		"positioningInfo":        "NOT HELD: a positioning result, and the AMF here receives no positioning result",
+		"locationPresenceReport": "UNTRACED: reports an area-of-interest event from the AMF event exposure service; whether those location reports reach the point of interception was not traced",
 		"fourGPositioningInfo":   "N/A: an EPS location form; this project implements no EPS access",
 		"fourGLocationInfo":      "N/A: an EPS location form; this project implements no EPS access",
 		"iMSLocation":            "N/A: IMS location; this project implements no IMS element",
 	},
 	"LocationInfo": {
-		"userLocation":      "DEFERRED: li/iri.LocationInfo models only currentLocation; the userLocation subtree is a documented deferral",
-		"geoInfo":           "DEFERRED: as userLocation",
-		"rATType":           "DEFERRED: as userLocation; the records that report a RAT type carry it at their own rATType member",
-		"timeZone":          "DEFERRED: as userLocation",
-		"additionalCellIDs": "DEFERRED: as userLocation",
+		"geoInfo":           "NOT HELD: a geographic area is a positioning result, and the AMF here receives no positioning result",
+		"rATType":           "DEFERRED: the AMF and SMF hold the RAT type and it is not modelled here; the records that report one carry it at their own rATType member",
+		"timeZone":          "DEFERRED: the AMF (AmfUe.TimeZone) and SMF (SMContext.UeTimeZone) hold the UE's time zone, and it is not modelled here; this change models the user location the payload tables ask a location to be encoded with",
+		"additionalCellIDs": "DEFERRED: not modelled; it carries the secondary cells of dual connectivity, which the AMF does not record per UE",
+	},
+	"UserLocation": {
+		"eUTRALocation": "DEFERRED: the AMF stores an E-UTRA user location for a UE served by an ng-eNB; only the NR form is modelled",
+		"n3GALocation":  "N/A: requires non-3GPP access (N3IWF/TNGF/TWIF), which this deployment does not provide",
+		"uTRALocation":  "N/A: UTRAN is not a 5GS access",
+		"gERALocation":  "N/A: GERAN is not a 5GS access",
+	},
+	"NRLocation": {
+		"ageOfLocationInfo":       "NOT HELD: the AMF fills its age-of-location field with NGAP's four-octet Time Stamp read as an integer, which is not an age",
+		"uELocationTimestamp":     "DEFERRED: a GeneralizedTime leaf, which this encoder does not write; the AMF holds the time it received the location",
+		"geographicalInformation": "NOT HELD: a positioning result, and the AMF here receives no positioning result",
+		"geodeticInformation":     "NOT HELD: a positioning result, and the AMF here receives no positioning result",
+		"globalGNbID":             "DEFERRED: the AMF holds the serving gNB's identity from NG setup, not from User Location Information; not modelled",
+		"cellSiteInformation":     "NOT HELD: the AMF holds no cell-site description",
+		"ignoreNCGI":              "NOT HELD: NGAP User Location Information carries no such indication",
+		"nRNTNTAIInfo":            "N/A: non-terrestrial access is not implemented",
+		"iABMTUserLocation":       "N/A: integrated access and backhaul is not implemented",
 	},
 	"GTPTunnelInfo": {
 		"ePSGTPTunnels": "N/A: reports PDN connection events at an SGW/PGW, which this project does not implement",
@@ -543,7 +541,8 @@ func TestASN1NestedTypeDrift(t *testing.T) {
 	for _, want := range []string{
 		"SUCI", "FTEID", "Location", "LocationInfo", "GTPTunnelInfo", "FiveGSGTPTunnels", "PLMNID",
 		"TAI", "SNSSAI", "UserIdentifiers", "FiveGSSubscriberIDs", "FiveGGUTI", "SMFServingNetwork",
-		"AMFID", "PDUSessionResourceInformation",
+		"AMFID", "PDUSessionResourceInformation", "UserLocation", "NRLocation", "NCGI", "Slice",
+		"RejectedSNSSAI",
 	} {
 		found := false
 		for typ := range nested {

@@ -22,6 +22,8 @@ var inlineMembers = map[string]string{
 	"TEID":                   "tEID",
 	"LCSCorrelationID":       "lcsCorrelationId",
 	"RoutingIndicatorLength": "routingIndicatorLength",
+	"UplinkDataStatus":       "uplinkDataStatus",
+	"PDUSessionStatus":       "pDUSessionStatus",
 }
 
 // boundsOutsideTheModule are the constrained types whose bound the module does not state, each
@@ -187,6 +189,23 @@ func TestEveryConstraintBoundIsEnforced(t *testing.T) {
 			})
 		}
 	}
+	// A fixed-size BIT STRING held as an integer: it must fit in exactly that many bits, so the
+	// bounds are zero and the largest value the bits can hold.
+	for typ, bits := range bitStringConstraints {
+		t.Run(typ.Name(), func(t *testing.T) {
+			agrees(t, typ.Name(), int64(bits), int64(bits))
+			at := func(n int64) reflect.Value {
+				v := reflect.New(typ).Elem()
+				v.SetInt(n)
+				return v
+			}
+			check(t, at(-1), false, "a negative value")
+			check(t, at(0), true, "zero")
+			check(t, at(1<<bits-1), true, "the largest value the bits hold")
+			check(t, at(1<<bits), false, "a value one bit too wide")
+		})
+	}
+
 	strs(numericConstraints, "1")
 	strs(identityConstraints, "1")
 	// A multi-byte character, so the bound is checked in characters, as the module's SIZE on a

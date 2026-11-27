@@ -30,42 +30,47 @@ named with enough detail that a reader can tell whether it matters to them.
    than padded, and the network function reports a task-scoped `recordNotEncoded` naming the
    warrant and the record type. Declared against TS 33.128, whose bound would have to be 13 —
    `iri/CONFORMANCE.md`, *Open*.
-2. **No conditional field is known to be held and left unreported.** The conditional fields
+2. **Three triggers the network functions meet produce no record.** The SMF refuses a UE's PDU
+   SESSION MODIFICATION REQUEST with a PDU SESSION MODIFICATION REJECT, and handles a PDU
+   SESSION MODIFICATION COMMAND REJECT from the UE, without an `SMFUnsuccessfulProcedure`
+   (TS 33.128 clause 6.2.3.2.6 names both); the AMF relays a downlink LPP message an LMF sends
+   it to the UE without an `AMFPositioningInfoTransfer` (clause 6.2.2.2.8). `README.md`, *Which
+   xIRI records this produces*.
+3. **No conditional field is known to be held and left unreported.** The conditional fields
    whose source has not been traced are counted in `iri/CONFORMANCE.md` as `UNTRACED`, which
    that disposition labels "an admission, not a conclusion".
-3. **Two smaller ones**, each in `iri/CONFORMANCE.md` under *Open*: the AMF's records do not
-   agree on whether they carry `location`; and `currentLoc` cannot be reported as `false`,
-   which is latent while no record reports a location that is not current.
+4. **A smaller one**, in `iri/CONFORMANCE.md` under *Open*: `currentLoc` cannot be reported as
+   `false`, which is latent while no record reports a location that is not current.
 
 ### X2/X3
 
-4. **A fragmented IPv4 datagram whose first fragment has not been seen is discarded** by the
+5. **A fragmented IPv4 datagram whose first fragment has not been seen is discarded** by the
    UPF CC-POI, where a transport-port criterion applies. The loss leaves no gap in the X3
    sequence, so a mediation function cannot detect it; the element reports it to the ADMF as
    X3 content loss. `x2x3/CONFORMANCE.md`, *Known gaps*.
-5. **The emitted Version field is 5, where V1.10.1 defines 6.** Blocked externally: the
+6. **The emitted Version field is 5, where V1.10.1 defines 6.** Blocked externally: the
    mechanism the bump depends on is implemented, and the only interoperability peer available
    refuses 0.6.
-6. **The keepalive acknowledgement path has not been verified against an independent
+7. **The keepalive acknowledgement path has not been verified against an independent
    implementation.** The mechanism is implemented on both interfaces; the reference
    implementation declares the PDU types and uses them nowhere, so only these packages' own
    endpoints have exercised it. A limit of the evidence rather than of the implementation.
 
 ### X1
 
-7. **The content POI cannot observe, at element scope, a datapath that disagrees with its own
+8. **The content POI cannot observe, at element scope, a datapath that disagrees with its own
    record.** Where this element created the uncertainty it answers at task scope
    (`duplicationNotProgrammed`); the general case needs a read path into the datapath that the
    BESS module does not offer. Declared, open — `x1/CONFORMANCE.md`, *Interrogation*.
-8. **No strict third-party ADMF has exercised the implementation.** The interoperability
+9. **No strict third-party ADMF has exercised the implementation.** The interoperability
    evidence is the reference simulator and these packages' own endpoints, so a fault only a
    strict validator would reject has not been exercised. A limit of the evidence rather than
    of the implementation.
-9. **Four smaller ones**, each in `x1/CONFORMANCE.md` under *Known gaps*: a destination cannot
-   be corrected or removed over X1 while a task references one; an element in the X1 namespace
-   that the schema does not define is refused only where a choice or an extension is read, and a
-   few leniencies of the same kind, listed there; a provisioned `correlationID` of 0 is not
-   reported back; the fault channel is best-effort.
+10. **Four smaller ones**, each in `x1/CONFORMANCE.md` under *Known gaps*: a destination cannot
+    be corrected or removed over X1 while a task references one; an element in the X1 namespace
+    that the schema does not define is refused only where a choice or an extension is read, and
+    a few leniencies of the same kind, listed there; a provisioned `correlationID` of 0 is not
+    reported back; the fault channel is best-effort.
 
 ## Deliberate deviations
 

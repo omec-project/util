@@ -211,7 +211,7 @@ more expensive than one read here.
 | **Scope** | HI1/HI2/HI3 and delivery to the LEMF | The mediation function's role, not a POI's |
 | | 4G/LTE interception (MME, S-GW) | 5G only |
 | | IMS/voice and SMS content | |
-| | Location detail beyond the mandatory minimum | Records carry the minimal `Location` the schema requires; richer detail is deferred |
+| | Location detail beyond the mandatory minimum | `li/iri` models the NR user location (tracking area, NR cell global identity); this AMF and SMF do not yet fill it, and E-UTRA, non-3GPP, age, timestamp and additional-cell detail are not modelled |
 
 #### Where a task's product goes
 
@@ -760,7 +760,7 @@ where somebody adding one will be looking.
 ## Which xIRI records this produces
 
 Every record type TS 33.128 defines for an AMF or SMF IRI-POI is listed here — produced,
-or out of scope with the reason. The set is the `AMF*` and `SMF*` alternatives of
+not produced, or out of scope, with the reason. The set is the `AMF*` and `SMF*` alternatives of
 `XIRIEvent` in `TS33128Payloads.asn`: **14 for the AMF, 11 for the SMF**. Sixteen are
 produced.
 
@@ -772,9 +772,9 @@ mandates for procedures these functions perform.
 
 | Record | Status |
 |---|---|
-| `AMFRegistration` | Produced |
+| `AMFRegistration` | Produced — for every registration type, mobility registration updating included. Clause 6.2.2.2.4 puts the location a procedure that produces another xIRI obtains into that xIRI, so a mobility registration update is an `AMFRegistration` (registration type mobility), which carries the location once the AMF fills `location`, rather than an `AMFLocationUpdate` |
 | `AMFDeregistration` | Produced |
-| `AMFLocationUpdate` | Produced — on a mobility registration update. The `Location` subtree is the minimal `currentLocation` form; cell and TAI detail is deferred |
+| `AMFLocationUpdate` | Produced — on the three events clause 6.2.2.2.4 requires: the PATH SWITCH REQUEST of an Xn handover, the HANDOVER NOTIFY of an N2 handover, and a PDU SESSION RESOURCE MODIFY INDICATION. A task scoped to identifier association receives no `AMFRegistration` (clause 6.2.2.2.1), so it receives an `AMFLocationUpdate` for a mobility registration update instead. `li/iri` can carry `locationInfo.userLocation` (the tracking area and NR cell of NGAP's User Location Information); this AMF does not yet fill it, so the `Location` it sends is `currentLocation` only |
 | `AMFStartOfInterceptionWithRegisteredUE` | Produced |
 | `AMFUnsuccessfulProcedure` | Produced — on a registration reject |
 | `AMFIdentifierAssociation` | Produced |
@@ -785,7 +785,7 @@ mandates for procedures these functions perform.
 | `AMFRANHandoverRequest` | Produced — **not exercised end to end**, as above. Despite the name, clause 6.2.2.2.9.3 triggers it on the AMF *receiving* the HANDOVER REQUEST ACKNOWLEDGE |
 | `AMFRANTraceReport` | **Out of scope — the AMF is never a trace collection NE.** It does handle CELL TRAFFIC TRACE, one of the record's four trigger events, so this is not "trace is ignored". What cannot be populated is the mandatory `aMFTraceData`: the TS 32.423 XML an AMF sends to a trace collection entity when it *is* that entity. This AMF originates no trace session and delivers no trace data, so there is no value for the field, and a record with an empty one would encode cleanly and assert something false. In scope the day trace activation is wired up |
 | `AMFUEConfigurationUpdate` | **Out of scope — the specification contradicts itself.** `gUTI [2]` is typed `GUTI`, which in the module is the EPS shape (`mMEGroupID`, `mMECode`, `mTMSI`), while the field's own prose calls it the "Current 5G-GUTI". The two differ in member count and member type, so no record satisfies both readings. Checked upstream rather than assumed: unchanged in Forge `main` for r18, and still `gUTI [2] GUTI` in **r19 version7**, whose changelog runs to V19.7.0 with no entry touching `GUTI` or `FiveGGUTI` — while r19's own `AMFRegistration` continues to use `FiveGGUTI`. Populating the EPS shape would mean deriving an MME identity this AMF does not have; emitting a `FiveGGUTI` would fail conformance against the published module. Revisit if a later release changes the type |
-| `AMFPositioningInfoTransfer` | **Out of scope — this AMF has no LMF.** All four trigger events in clause 6.2.2.2.8 are exchanges with an LMF (`N1N2MessageTransfer` from it, `N2InfoNotify` and `N1MessageNotify` to it), under the overarching condition that a message is "exchanged between the LMF and NG-RAN via the AMF". This AMF decodes an uplink NRPPa PDU, stores the routing id and drops it — there is no LMF integration, so no exchange. The mandatory `lcsCorrelationId` confirms it independently: it is the TS 29.572 correlation id from those same LMF messages, not the NGAP routing id. In scope the day an LMF is deployed. `li/iri` defines the record already |
+| `AMFPositioningInfoTransfer` | **Not produced, and one of its triggers occurs.** Clause 6.2.2.2.8 names four events, each an exchange with an LMF. The AMF performs one: it accepts an `N1N2MessageTransfer` carrying an LPP message and relays it to the UE in a DL NAS TRANSPORT; that request can carry the `lcsCorrelationId` the record makes mandatory. It performs none of the other three: it refuses an uplink LPP message (a UL NAS TRANSPORT whose payload container type is LPP), takes no NRPPa in an `N1N2MessageTransfer`, and decodes an uplink NRPPa PDU, keeps its routing id and forwards it nowhere, so no `N2InfoNotify` or `N1MessageNotify` reaches an LMF. The downlink LPP relay is not reported. `li/iri` defines the record |
 
 ### SMF (5 of 11)
 
@@ -795,7 +795,7 @@ mandates for procedures these functions perform.
 | `SMFPDUSessionModification` | Produced |
 | `SMFPDUSessionRelease` | Produced |
 | `SMFStartOfInterceptionWithEstablishedPDUSession` | Produced |
-| `SMFUnsuccessfulProcedure` | Produced — on all nineteen paths that refuse a procedure: sixteen establishment rejects and three release rejects. Modification reject, modification-command reject and 5GSM STATUS are the specification's other triggers and do not occur in this SMF |
+| `SMFUnsuccessfulProcedure` | Produced, with failed procedure type: **establishment** — on every PDU SESSION ESTABLISHMENT REJECT, whether the SMF refuses the request or its PFCP session establishment fails, except that a session whose establishment was already reported when a later UPF failed it is reported released instead; **release** — on five refusals: a UE's PDU SESSION RELEASE REQUEST naming a session other than the context's, or a session never established, both answered with a PDU SESSION RELEASE REJECT, cause 43 (invalid PDU session identity); and an `Nsmf_PDUSession_ReleaseSMContext` whose PFCP session deletion the UPF refuses, or that ends in an unexpected PFCP outcome, both answered with a PDU SESSION RELEASE REJECT, cause 31 (request rejected, unspecified), or whose deletion times out, answered with HTTP 500 and reported with cause 31; **modification** — on a modification the SMF has already reported (`SMFPDUSessionModification`) whose PFCP session modification fails, refused by the UPF or unanswered, reported with cause 31. **Not produced** for two triggers clause 6.2.3.2.6 names that this SMF meets: the PDU SESSION MODIFICATION REJECT it sends to refuse a UE-requested modification, and a PDU SESSION MODIFICATION COMMAND REJECT it receives from the UE. 5GSM STATUS, the remaining trigger, is neither sent nor handled |
 | `SMFMAPDUSessionEstablishment` | **Out of scope — no multi-access sessions.** The SMF implements no ATSSS, so the procedure cannot occur |
 | `SMFMAPDUSessionModification` | Out of scope, as above |
 | `SMFMAPDUSessionRelease` | Out of scope, as above |
@@ -826,7 +826,7 @@ field omitted whenever it equals its type's zero could encode `true` and never `
 `false` is the ordinary value here.
 
 `AMFPositioningInfoTransfer` models `sUCI` and populates it from nowhere, because no point of
-interception emits that record at all. See the out-of-scope note above.
+interception emits that record at all. See its row above.
 
 ### What has not been observed on a live network
 
@@ -1029,7 +1029,7 @@ are written by hand.
 | AMF/SMF (`configuration.li`) | UPF (`li`) | Meaning | Required |
 |---|---|---|---|
 | `x1Listen` | — | X1 listener bind address (ADMF → NF) | AMF/SMF: yes |
-| `mdf2` | — | xIRI (X2) delivery **default**, `host:port`. Used only for a task that names no destination at all — see *[Where a task's product goes](#where-a-tasks-product-goes)* | AMF/SMF: yes |
+| `mdf2` | — | xIRI (X2) delivery **default**, `host:port`. Used only for a task that names no destination at all — see *[Where a task's product goes](#where-a-tasks-product-goes)* | AMF/SMF: no. A task naming its own X2 destination needs none; one naming no destination is refused when none is configured (3000 on activation, 3001 on modification) — on the SMF, one that orders xIRI |
 | `destinations` | — | Pre-shared DID→endpoint mappings, a list of `{did, deliveryType, address}`. `did` must be a UUID, `deliveryType` one of `X2Only`/`X3Only`/`X2andX3`, `address` a `host:port`. An entry that is not all three is dropped rather than half-applied | AMF/SMF: optional |
 | `mdf3` | — | xCC (X3) delivery **default**, `host:port`. The CC triggering function provisions a task's own X3 destinations at each UPF it triggers and names them on the trigger; this serves only a task that names no destination at all — see *[Where a task's product goes](#where-a-tasks-product-goes)* | SMF: with `upfTriggers` |
 | `upfTriggers` | — | Per-UPF triggering endpoints (`nodeId`, `x1Url`, `neId`) | SMF: for CC |
