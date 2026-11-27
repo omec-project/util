@@ -40,9 +40,10 @@ carry a wrong field to a mediation function.
 | Defined but not emitted | 1 — `AMFPositioningInfoTransfer` |
 
 `AMFPositioningInfoTransfer` is defined so the set is complete against the module, and emitted
-by no point of interception: every trigger event in clause 6.2.2.2.8 is an exchange with an
-LMF, and the AMF here has no LMF integration. It becomes usable the day an LMF is wired up;
-`li/README.md` carries the reasoning.
+by no point of interception. Of the four trigger events in clause 6.2.2.2.8 the AMF performs
+one — it relays to the UE a downlink LPP message an LMF sends in
+`Namf_Communication_N1N2MessageTransfer` — and does not report it; it refuses uplink LPP and
+forwards no NRPPa, so the other three do not occur. `li/README.md` carries the detail.
 
 ## Mandatory fields
 

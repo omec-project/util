@@ -975,9 +975,9 @@ type AMFUEPolicyTransfer struct {
 type AMFPositioningInfoTransfer struct {
 	SUPI any `asn1:"tag:1,explicit,choice:supi"`
 	// Modelled so the record is complete against the module, and populated by nobody:
-	// no POI emits this record. All four of clause 6.2.2.2.8's trigger events are
-	// exchanges with an LMF and this AMF has none, so the condition cannot arise. In
-	// scope the day an LMF is deployed — see li/README.md.
+	// no POI emits this record. Of clause 6.2.2.2.8's four trigger events the AMF performs
+	// one, relaying a downlink LPP message an LMF sends it, and does not report it — see
+	// li/README.md.
 	SUCI             SUCI             `asn1:"tag:2,optional"`
 	PEI              any              `asn1:"tag:3,explicit,choice:pei,optional"`
 	GPSI             any              `asn1:"tag:4,explicit,choice:gpsi,optional"`
